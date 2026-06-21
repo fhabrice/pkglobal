@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carrières | PK GLOBAL PARTNERS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap');
+        
+        :root {
+            --pk-green-dark: #064e3b;
+            --pk-green-main: #059669;
+            --pk-gold: #fbbf24;
+            --pk-soft-bg: #f0fdf4;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #ffffff;
+            color: #1a2e1a;
+            scroll-behavior: smooth;
+        }
+
+        nav {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .nav-link {
+            position: relative;
+            transition: color 0.3s ease;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -4px;
+            left: 0;
+            background-color: var(--pk-gold);
+            transition: width 0.3s ease;
+        }
+
+        .nav-link:hover::after {
+            width: 100%;
+        }
+
+        .nav-scrolled {
+            background: rgba(6, 78, 59, 0.98);
+            backdrop-filter: blur(12px);
+            padding-top: 0.75rem !important;
+            padding-bottom: 0.75rem !important;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+
+        .hero-gradient {
+            background: linear-gradient(to right, rgba(6, 78, 59, 0.9), rgba(6, 78, 59, 0.6)), 
+                        url('https://images.unsplash.com/photo-1552664730-d307ca884978?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80'); 
+            background-size: cover;
+            background-position: center;
+        }
+
+        .job-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid var(--pk-gold);
+        }
+
+        .job-card:hover {
+            transform: translateX(8px);
+            box-shadow: 0 10px 30px rgba(5, 150, 105, 0.1);
+        }
+
+        .btn-gold {
+            background-color: var(--pk-gold);
+            color: #064e3b;
+            transition: all 0.3s ease;
+        }
+
+        .btn-gold:hover {
+            background-color: #f59e0b;
+            transform: scale(1.05);
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: var(--pk-green-dark); border-radius: 10px; }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- NAVIGATION -->
+    <nav id="navbar" class="fixed w-full z-50 py-6 px-6 md:px-12 text-white">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <a href="index.html" class="flex items-center space-x-3 group">
+                <div class="bg-white p-1 rounded-lg shadow-lg group-hover:scale-105 transition-transform flex items-center justify-center overflow-hidden">
+                    <img src="logo.svg" alt="PK Global Partners Logo" class="h-10 w-auto object-contain">
+                </div>
+                <div class="flex flex-col">
+                    <span class="font-bold text-lg uppercase tracking-widest leading-none">Global Partners</span>
+                    <span class="text-[9px] uppercase tracking-[0.3em] text-emerald-300 font-semibold">Holding Panafricaine</span>
+                </div>
+            </a>
+            
+            <div class="hidden lg:flex items-center space-x-10 text-[11px] font-bold uppercase tracking-[0.15em]">
+                <a href="index.html#accueil" class="nav-link hover:text-yellow-400">Accueil</a>
+                <a href="about.html" class="nav-link hover:text-yellow-400">À Propos</a>
+                <a href="index.html#poles" class="nav-link hover:text-yellow-400">Expertise</a>
+                <a href="index.html#filiales" class="nav-link hover:text-yellow-400">Filiales</a>
+                <a href="index.html#investisseurs" class="nav-link hover:text-yellow-400">Investisseurs</a>
+                <a href="tel:+243814119635" class="bg-yellow-400 text-green-900 px-6 py-3 rounded-xl hover:bg-white transition-colors duration-300 shadow-lg flex items-center gap-2">
+                    <i class="fas fa-phone-alt text-[10px]"></i> Contact
+                </a>
+            </div>
+
+            <button class="lg:hidden text-2xl p-2 hover:bg-white/10 rounded-lg transition"><i class="fas fa-bars"></i></button>
+        </div>
+    </nav>
+
+    <!-- HERO SECTION -->
+    <section class="hero-gradient min-h-[60vh] flex items-center justify-center pt-24 pb-12 px-6">
+        <div class="max-w-7xl mx-auto w-full text-center">
+            <h1 class="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white leading-[1.1] mb-8">
+                Rejoignez une plateforme d'ambition et d'impact
+            </h1>
+            <p class="text-lg md:text-xl text-emerald-50 max-w-3xl mx-auto font-light leading-relaxed opacity-90">
+                Développez votre potentiel avec des talents passionnés et orientés résultats
+            </p>
+        </div>
+    </section>
+
+    <!-- INTRODUCTION -->
+    <section class="py-24 px-6 md:px-12 bg-white">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-extrabold text-emerald-950 mb-8">Rejoignez l'équipe PK GLOBAL PARTNERS</h2>
+                <p class="text-lg text-gray-600 max-w-3xl mx-auto">
+                    Chez PK GLOBAL PARTNERS, nous croyons que le capital humain est au cœur de la transformation économique durable. Nous recherchons des talents engagés, innovants et orientés résultats, prêts à contribuer à des projets structurants à fort impact en RDC et en Afrique.
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8 mb-16">
+                <div class="bg-emerald-50 p-10 rounded-3xl border border-emerald-200">
+                    <div class="text-4xl mb-4 text-emerald-600"><i class="fas fa-rocket"></i></div>
+                    <h3 class="text-xl font-bold text-emerald-950 mb-3">Croissance Rapide</h3>
+                    <p class="text-sm text-gray-600">Participez à la croissance d'une holding en expansion avec des projets à fort potentiel.</p>
+                </div>
+                <div class="bg-yellow-50 p-10 rounded-3xl border border-yellow-200">
+                    <div class="text-4xl mb-4 text-yellow-600"><i class="fas fa-users"></i></div>
+                    <h3 class="text-xl font-bold text-emerald-950 mb-3">Équipe Dynamique</h3>
+                    <p class="text-sm text-gray-600">Travailler avec des professionnels talentueux dans un environnement collaboratif.</p>
+                </div>
+                <div class="bg-emerald-100 p-10 rounded-3xl border border-emerald-300">
+                    <div class="text-4xl mb-4 text-emerald-700"><i class="fas fa-leaf"></i></div>
+                    <h3 class="text-xl font-bold text-emerald-950 mb-3">Impact Durable</h3>
+                    <p class="text-sm text-gray-600">Créer une valeur durable et contribuer à la transformation économique.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- OFFRES D'EMPLOI -->
+    <section class="py-24 px-6 md:px-12 bg-emerald-50">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-4xl font-extrabold text-emerald-950 mb-16 text-center">Offres d'emploi en cours</h2>
+
+            <div class="space-y-6">
+                <div class="job-card bg-white p-8 rounded-2xl">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-4">
+                        <div>
+                            <h3 class="text-2xl font-bold text-emerald-950">Responsable Investissement & Structuration</h3>
+                            <div class="flex flex-wrap gap-3 mt-3">
+                                <span class="bg-emerald-100 text-emerald-700 text-xs px-4 py-2 rounded-full font-semibold">Finance</span>
+                                <span class="bg-blue-100 text-blue-700 text-xs px-4 py-2 rounded-full font-semibold">Goma</span>
+                                <span class="bg-yellow-100 text-yellow-700 text-xs px-4 py-2 rounded-full font-semibold">Senior</span>
+                            </div>
+                        </div>
+                        <a href="#contact" class="btn-gold px-8 py-3 rounded-xl font-bold text-sm whitespace-nowrap">Postuler</a>
+                    </div>
+                    <p class="text-gray-600 mb-4">Pilotage de projets d'investissement, ingénierie financière et structuration de SPV. Expérience 5+ ans en finance structurée.</p>
+                </div>
+
+                <div class="job-card bg-white p-8 rounded-2xl">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-4">
+                        <div>
+                            <h3 class="text-2xl font-bold text-emerald-950">Directeur Opérations - RAKA Logistique</h3>
+                            <div class="flex flex-wrap gap-3 mt-3">
+                                <span class="bg-red-100 text-red-700 text-xs px-4 py-2 rounded-full font-semibold">Logistique</span>
+                                <span class="bg-blue-100 text-blue-700 text-xs px-4 py-2 rounded-full font-semibold">Kinshasa</span>
+                                <span class="bg-yellow-100 text-yellow-700 text-xs px-4 py-2 rounded-full font-semibold">Senior</span>
+                            </div>
+                        </div>
+                        <a href="#contact" class="btn-gold px-8 py-3 rounded-xl font-bold text-sm whitespace-nowrap">Postuler</a>
+                    </div>
+                    <p class="text-gray-600 mb-4">Management opérationnel de la plateforme RAKA, gestion des livreurs, optimisation des routes. Expérience en logistique urbaine.</p>
+                </div>
+
+                <div class="job-card bg-white p-8 rounded-2xl">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-4">
+                        <div>
+                            <h3 class="text-2xl font-bold text-emerald-950">Responsable Commercial - ELVO Mobilité</h3>
+                            <div class="flex flex-wrap gap-3 mt-3">
+                                <span class="bg-blue-100 text-blue-700 text-xs px-4 py-2 rounded-full font-semibold">Ventes</span>
+                                <span class="bg-blue-100 text-blue-700 text-xs px-4 py-2 rounded-full font-semibold">Goma</span>
+                                <span class="bg-green-100 text-green-700 text-xs px-4 py-2 rounded-full font-semibold">Confirmé</span>
+                            </div>
+                        </div>
+                        <a href="#contact" class="btn-gold px-8 py-3 rounded-xl font-bold text-sm whitespace-nowrap">Postuler</a>
+                    </div>
+                    <p class="text-gray-600 mb-4">Développement réseau distribution, gestion clients flotte, targets commerciales. Expérience mobilité/secteur automobile.</p>
+                </div>
+
+                <div class="job-card bg-white p-8 rounded-2xl">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-4">
+                        <div>
+                            <h3 class="text-2xl font-bold text-emerald-950">Ingénieur Logiciel Fullstack</h3>
+                            <div class="flex flex-wrap gap-3 mt-3">
+                                <span class="bg-purple-100 text-purple-700 text-xs px-4 py-2 rounded-full font-semibold">Technologie</span>
+                                <span class="bg-blue-100 text-blue-700 text-xs px-4 py-2 rounded-full font-semibold">Goma / Remote</span>
+                                <span class="bg-green-100 text-green-700 text-xs px-4 py-2 rounded-full font-semibold">Confirmé</span>
+                            </div>
+                        </div>
+                        <a href="#contact" class="btn-gold px-8 py-3 rounded-xl font-bold text-sm whitespace-nowrap">Postuler</a>
+                    </div>
+                    <p class="text-gray-600 mb-4">Développement plateformes digitales (frontend React/Vue, backend Node/Python), API REST, bases de données. Stack tech moderne.</p>
+                </div>
+
+                <div class="job-card bg-white p-8 rounded-2xl">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-4">
+                        <div>
+                            <h3 class="text-2xl font-bold text-emerald-950">Assistant Ressources Humaines</h3>
+                            <div class="flex flex-wrap gap-3 mt-3">
+                                <span class="bg-pink-100 text-pink-700 text-xs px-4 py-2 rounded-full font-semibold">RH</span>
+                                <span class="bg-blue-100 text-blue-700 text-xs px-4 py-2 rounded-full font-semibold">Goma</span>
+                                <span class="bg-green-100 text-green-700 text-xs px-4 py-2 rounded-full font-semibold">Débutant</span>
+                            </div>
+                        </div>
+                        <a href="#contact" class="btn-gold px-8 py-3 rounded-xl font-bold text-sm whitespace-nowrap">Postuler</a>
+                    </div>
+                    <p class="text-gray-600 mb-4">Support RH, traitement candidatures, gestion paie/absences, événements internes. Excellent relationnel et organisation.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CANDIDATURE SPONTANÉE -->
+    <section id="contact" class="py-24 px-6 md:px-12 bg-white">
+        <div class="max-w-4xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-extrabold text-emerald-950 mb-4">Envoyez votre CV</h2>
+                <p class="text-lg text-gray-600">Vous intéressez une position spécifique ou souhaitez faire une candidature spontanée ?</p>
+            </div>
+
+            <form class="bg-emerald-50 p-12 rounded-3xl border border-emerald-200" onsubmit="handleSubmit(event)">
+                <div class="grid md:grid-cols-2 gap-8 mb-8">
+                    <div>
+                        <label class="block text-sm font-bold text-emerald-950 mb-3">Nom complet *</label>
+                        <input type="text" required class="w-full px-6 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20" placeholder="Votre nom">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-emerald-950 mb-3">Email *</label>
+                        <input type="email" required class="w-full px-6 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20" placeholder="votre.email@exemple.com">
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-8 mb-8">
+                    <div>
+                        <label class="block text-sm font-bold text-emerald-950 mb-3">Téléphone *</label>
+                        <input type="tel" required class="w-full px-6 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20" placeholder="+243 xxx xxx xxx">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-emerald-950 mb-3">Domaine d'expertise *</label>
+                        <select required class="w-full px-6 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20">
+                            <option value="">Sélectionner un domaine</option>
+                            <option value="finance">Finance & Investissement</option>
+                            <option value="logistique">Logistique & Supply Chain</option>
+                            <option value="mobilité">Mobilité & Transport</option>
+                            <option value="technologie">Technologie & Digital</option>
+                            <option value="opérations">Opérations & RH</option>
+                            <option value="autre">Autre</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-8 mb-8">
+                    <div>
+                        <label class="block text-sm font-bold text-emerald-950 mb-3">Disponibilité *</label>
+                        <select required class="w-full px-6 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20">
+                            <option value="">Quand pouvez-vous commencer ?</option>
+                            <option value="immédiat">Immédiat</option>
+                            <option value="1-mois">Dans 1 mois</option>
+                            <option value="2-mois">Dans 2 mois</option>
+                            <option value="3-mois">Dans 3 mois</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-emerald-950 mb-3">Poste convoité (optionnel)</label>
+                        <input type="text" class="w-full px-6 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20" placeholder="Ex: Responsable Commercial">
+                    </div>
+                </div>
+
+                <div class="mb-8">
+                    <label class="block text-sm font-bold text-emerald-950 mb-3">Lettre de motivation *</label>
+                    <textarea required class="w-full px-6 py-4 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20" rows="6" placeholder="Parlez-nous de votre motivation et de vos ambitions..."></textarea>
+                </div>
+
+                <div class="mb-8">
+                    <label class="block text-sm font-bold text-emerald-950 mb-3">Télécharger CV (PDF, Word) *</label>
+                    <div class="border-2 border-dashed border-emerald-300 rounded-xl p-8 text-center hover:bg-emerald-100/50 transition cursor-pointer">
+                        <i class="fas fa-cloud-upload-alt text-3xl text-emerald-600 mb-3 block"></i>
+                        <p class="text-sm text-gray-600">Glissez-déposez votre fichier ou cliquez pour sélectionner</p>
+                        <input type="file" accept=".pdf,.doc,.docx" required class="hidden" id="cv-upload">
+                        <input type="file" accept=".pdf,.doc,.docx" required class="w-full mt-4" id="cv-input">
+                    </div>
+                </div>
+
+                <div class="flex items-center mb-8">
+                    <input type="checkbox" required class="w-4 h-4 accent-emerald-600">
+                    <label class="ml-3 text-sm text-gray-600">J'accepte que mes données soient traitées aux fins de cette candidature *</label>
+                </div>
+
+                <button type="submit" class="btn-gold w-full py-4 rounded-2xl font-bold uppercase tracking-[0.2em] text-lg">
+                    Envoyer ma candidature
+                </button>
+            </form>
+        </div>
+    </section>
+
+    <!-- CULTURE -->
+    <section class="py-24 px-6 md:px-12 bg-emerald-950 text-white">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-4xl font-extrabold mb-16 text-center">Notre Culture d'Entreprise</h2>
+
+            <div class="grid md:grid-cols-2 gap-12">
+                <div>
+                    <h3 class="text-2xl font-bold mb-6">Nos Principes</h3>
+                    <ul class="space-y-4">
+                        <li class="flex items-start gap-4">
+                            <i class="fas fa-check-circle text-yellow-400 text-xl mt-1 flex-shrink-0"></i>
+                            <div>
+                                <p class="font-bold">Excellence & Rigueur</p>
+                                <p class="text-emerald-100/70 text-sm">Recherche constante de performance</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start gap-4">
+                            <i class="fas fa-check-circle text-yellow-400 text-xl mt-1 flex-shrink-0"></i>
+                            <div>
+                                <p class="font-bold">Innovation & Vision</p>
+                                <p class="text-emerald-100/70 text-sm">Anticipation et adaptation constante</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start gap-4">
+                            <i class="fas fa-check-circle text-yellow-400 text-xl mt-1 flex-shrink-0"></i>
+                            <div>
+                                <p class="font-bold">Responsabilité & Intégrité</p>
+                                <p class="text-emerald-100/70 text-sm">Éthique et gouvernance exemplaire</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start gap-4">
+                            <i class="fas fa-check-circle text-yellow-400 text-xl mt-1 flex-shrink-0"></i>
+                            <div>
+                                <p class="font-bold">Collaboration & Esprit d'équipe</p>
+                                <p class="text-emerald-100/70 text-sm">Travail collectif et synergies</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="text-2xl font-bold mb-6">Nos Engagements RH</h3>
+                    <ul class="space-y-4">
+                        <li class="flex items-start gap-4">
+                            <i class="fas fa-star text-yellow-400 text-xl mt-1 flex-shrink-0"></i>
+                            <div>
+                                <p class="font-bold">Égalité des Chances</p>
+                                <p class="text-emerald-100/70 text-sm">Promotion de la diversité et inclusion</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start gap-4">
+                            <i class="fas fa-star text-yellow-400 text-xl mt-1 flex-shrink-0"></i>
+                            <div>
+                                <p class="font-bold">Développement des Compétences</p>
+                                <p class="text-emerald-100/70 text-sm">Formation et coaching continu</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start gap-4">
+                            <i class="fas fa-star text-yellow-400 text-xl mt-1 flex-shrink-0"></i>
+                            <div>
+                                <p class="font-bold">Reconnaissance du Mérite</p>
+                                <p class="text-emerald-100/70 text-sm">Valorisation de la performance</p>
+                            </div>
+                        </li>
+                        <li class="flex items-start gap-4">
+                            <i class="fas fa-star text-yellow-400 text-xl mt-1 flex-shrink-0"></i>
+                            <div>
+                                <p class="font-bold">Environnement Professionnel</p>
+                                <p class="text-emerald-100/70 text-sm">Structuré, éthique et motivant</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CONTACT RH -->
+    <section class="py-16 px-6 md:px-12 bg-white">
+        <div class="max-w-4xl mx-auto text-center">
+            <h2 class="text-3xl font-bold text-emerald-950 mb-6">Des questions sur les opportunités ?</h2>
+            <p class="text-lg text-gray-600 mb-8">Contactez directement notre pôle Ressources Humaines</p>
+            <a href="mailto:careers@pkglobalpartners.com" class="inline-block btn-gold px-8 py-4 rounded-2xl font-bold uppercase tracking-[0.2em] text-lg">
+                <i class="fas fa-envelope mr-3"></i> careers@pkglobalpartners.com
+            </a>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="bg-emerald-950 text-white pt-24 pb-12 px-6 md:px-12">
+        <div class="max-w-7xl mx-auto text-center">
+            <div class="flex flex-col items-center mb-16">
+                <div class="bg-white p-2 rounded-xl mb-6 shadow-xl">
+                    <img src="logo.svg" alt="PK Global Partners Logo" class="h-16 w-auto object-contain">
+                </div>
+                <h2 class="text-3xl font-bold uppercase tracking-[0.2em] mb-4">Global Partners</h2>
+                <div class="flex flex-col gap-2 mb-4">
+                    <p class="text-emerald-100/70 max-w-lg text-sm mx-auto">Siège Social : Boulevard Kanyamuhanga, n°4, Ville de Goma, République Démocratique du Congo.</p>
+                    <a href="tel:+243814119635" class="text-yellow-400 font-bold text-lg hover:underline transition">
+                        <i class="fas fa-phone-alt mr-2 text-sm"></i> +243 814 119 635
+                    </a>
+                    <a href="mailto:careers@pkglobalpartners.com" class="text-yellow-400 font-bold text-lg hover:underline transition">
+                        <i class="fas fa-envelope mr-2 text-sm"></i> careers@pkglobalpartners.com
+                    </a>
+                </div>
+            </div>
+            <div class="h-px bg-white/10 w-full mb-12"></div>
+            <p class="text-[10px] text-emerald-100/30 uppercase tracking-widest font-bold">
+                &copy; 2024 PK Global Partners Holding. Tous droits réservés.
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        window.addEventListener('scroll', () => {
+            const nav = document.getElementById('navbar');
+            if (window.scrollY > 50) { nav.classList.add('nav-scrolled'); } 
+            else { nav.classList.remove('nav-scrolled'); }
+        });
+
+        function handleSubmit(event) {
+            event.preventDefault();
+            alert('Merci pour votre candidature ! Nous vous recontacterons bientôt.\n\nEmail de contact: careers@pkglobalpartners.com');
+            event.target.reset();
+        }
+    </script>
+</body>
+</html>

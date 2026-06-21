@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Investisseurs | PK GLOBAL PARTNERS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap');
+        
+        :root {
+            --pk-green-dark: #064e3b;
+            --pk-green-main: #059669;
+            --pk-gold: #fbbf24;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #ffffff;
+            color: #1a2e1a;
+            scroll-behavior: smooth;
+        }
+
+        nav {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .nav-link {
+            position: relative;
+            transition: color 0.3s ease;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -4px;
+            left: 0;
+            background-color: var(--pk-gold);
+            transition: width 0.3s ease;
+        }
+
+        .nav-link:hover::after {
+            width: 100%;
+        }
+
+        .nav-scrolled {
+            background: rgba(6, 78, 59, 0.98);
+            backdrop-filter: blur(12px);
+            padding-top: 0.75rem !important;
+            padding-bottom: 0.75rem !important;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+
+        .hero-gradient {
+            background: linear-gradient(to right, rgba(6, 78, 59, 0.9), rgba(6, 78, 59, 0.6)), 
+                        url('https://images.unsplash.com/photo-1552664730-d307ca884978?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80'); 
+            background-size: cover;
+            background-position: center;
+        }
+
+        .btn-gold {
+            background-color: var(--pk-gold);
+            color: #064e3b;
+            transition: all 0.3s ease;
+        }
+
+        .btn-gold:hover {
+            background-color: #f59e0b;
+            transform: scale(1.05);
+        }
+
+        .opp-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid var(--pk-gold);
+        }
+
+        .opp-card:hover {
+            transform: translateX(8px);
+            box-shadow: 0 10px 30px rgba(5, 150, 105, 0.1);
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: var(--pk-green-dark); border-radius: 10px; }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- NAVIGATION -->
+    <nav id="navbar" class="fixed w-full z-50 py-6 px-6 md:px-12 text-white">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <a href="index.html" class="flex items-center space-x-3 group">
+                <div class="bg-white p-1 rounded-lg shadow-lg group-hover:scale-105 transition-transform flex items-center justify-center overflow-hidden">
+                    <img src="logo.svg" alt="PK Global Partners Logo" class="h-10 w-auto object-contain">
+                </div>
+                <div class="flex flex-col">
+                    <span class="font-bold text-lg uppercase tracking-widest leading-none">Global Partners</span>
+                    <span class="text-[9px] uppercase tracking-[0.3em] text-emerald-300 font-semibold">Holding Panafricaine</span>
+                </div>
+            </a>
+            
+            <div class="hidden lg:flex items-center space-x-10 text-[11px] font-bold uppercase tracking-[0.15em]">
+                <a href="index.html#accueil" class="nav-link hover:text-yellow-400">Accueil</a>
+                <a href="about.html" class="nav-link hover:text-yellow-400">À Propos</a>
+                <a href="index.html#poles" class="nav-link hover:text-yellow-400">Expertise</a>
+                <a href="filiales.html" class="nav-link hover:text-yellow-400">Filiales</a>
+                <a href="investors.html" class="nav-link hover:text-yellow-400">Investisseurs</a>
+                <a href="tel:+243814119635" class="bg-yellow-400 text-green-900 px-6 py-3 rounded-xl hover:bg-white transition-colors duration-300 shadow-lg flex items-center gap-2">
+                    <i class="fas fa-phone-alt text-[10px]"></i> Contact
+                </a>
+            </div>
+
+            <button class="lg:hidden text-2xl p-2 hover:bg-white/10 rounded-lg transition"><i class="fas fa-bars"></i></button>
+        </div>
+    </nav>
+
+    <!-- HERO SECTION -->
+    <section class="hero-gradient min-h-[60vh] flex items-center justify-center pt-24 pb-12 px-6">
+        <div class="max-w-7xl mx-auto w-full text-center">
+            <h1 class="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white leading-[1.1] mb-8">
+                Capital Stratégique.<br>Croissance Durable.
+            </h1>
+            <p class="text-lg md:text-xl text-emerald-50 max-w-3xl mx-auto font-light leading-relaxed opacity-90">
+                Un pont entre le capital global et les opportunités africaines
+            </p>
+        </div>
+    </section>
+
+    <!-- INTRODUCTION -->
+    <section class="py-24 px-6 md:px-12 bg-white">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-extrabold text-emerald-950 mb-8">Relations Investisseurs</h2>
+                <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+                    La page Relations Investisseurs est destinée aux fonds d'investissement, institutions financières, business angels, family offices, partenaires stratégiques et bailleurs souhaitant collaborer avec PK GLOBAL PARTNERS.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- THÈSE D'INVESTISSEMENT -->
+    <section class="py-24 px-6 md:px-12 bg-emerald-50">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-4xl font-extrabold text-emerald-950 mb-12 text-center">Thèse d'Investissement</h2>
+
+            <div class="bg-white p-12 rounded-3xl border-2 border-emerald-200 mb-12">
+                <p class="text-xl text-emerald-950 leading-relaxed mb-8">
+                    PK GLOBAL PARTNERS investit et développe des projets structurants dans des secteurs stratégiques à fort potentiel en Afrique, en combinant :
+                </p>
+                
+                <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+                    <div class="text-center">
+                        <div class="text-4xl mb-4">🏗️</div>
+                        <h4 class="font-bold text-emerald-950 mb-2">Structuration Rigoureuse</h4>
+                        <p class="text-sm text-gray-600">Ingénierie financière avancée</p>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-4xl mb-4">⚙️</div>
+                        <h4 class="font-bold text-emerald-950 mb-2">Expertise Opérationnelle</h4>
+                        <p class="text-sm text-gray-600">Multisectorielle et éprouvée</p>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-4xl mb-4">🔗</div>
+                        <h4 class="font-bold text-emerald-950 mb-2">Approche Intégrée</h4>
+                        <p class="text-sm text-gray-600">Développement + Exploitation</p>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-4xl mb-4">🌱</div>
+                        <h4 class="font-bold text-emerald-950 mb-2">Vision à Long Terme</h4>
+                        <p class="text-sm text-gray-600">Impact durable et mesurable</p>
+                    </div>
+                </div>
+
+                <p class="text-lg text-gray-600 mt-12 leading-relaxed">
+                    Notre thèse repose sur la création de valeur durable à travers des modèles économiques viables, scalables et adaptés aux réalités africaines.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- OPPORTUNITÉS SECTORIELLES -->
+    <section class="py-24 px-6 md:px-12 bg-white">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-4xl font-extrabold text-emerald-950 mb-4 text-center">Opportunités Sectorielles</h2>
+            <p class="text-lg text-gray-600 text-center mb-12 max-w-2xl mx-auto">
+                Le groupe recherche des partenaires financiers dans les secteurs suivants :
+            </p>
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div class="opp-card bg-emerald-50 p-8 rounded-2xl">
+                    <i class="fas fa-sun text-4xl text-yellow-500 mb-4"></i>
+                    <h3 class="text-xl font-bold text-emerald-950 mb-3">Énergies Renouvelables</h3>
+                    <p class="text-gray-600 text-sm">Solaire, biomasse et mobilité électrique</p>
+                </div>
+
+                <div class="opp-card bg-emerald-50 p-8 rounded-2xl">
+                    <i class="fas fa-cube text-4xl text-blue-500 mb-4"></i>
+                    <h3 class="text-xl font-bold text-emerald-950 mb-3">Logistique Digitale</h3>
+                    <p class="text-gray-600 text-sm">Plateformes technologiques innovantes</p>
+                </div>
+
+                <div class="opp-card bg-emerald-50 p-8 rounded-2xl">
+                    <i class="fas fa-leaf text-4xl text-green-600 mb-4"></i>
+                    <h3 class="text-xl font-bold text-emerald-950 mb-3">Agro-Industrie</h3>
+                    <p class="text-gray-600 text-sm">Transformation et chaîne de valeur</p>
+                </div>
+
+                <div class="opp-card bg-emerald-50 p-8 rounded-2xl">
+                    <i class="fas fa-building text-4xl text-amber-600 mb-4"></i>
+                    <h3 class="text-xl font-bold text-emerald-950 mb-3">Infrastructures</h3>
+                    <p class="text-gray-600 text-sm">Immobilier et développement urbain</p>
+                </div>
+
+                <div class="opp-card bg-emerald-50 p-8 rounded-2xl">
+                    <i class="fas fa-utensils text-4xl text-red-500 mb-4"></i>
+                    <h3 class="text-xl font-bold text-emerald-950 mb-3">Food & Beverage</h3>
+                    <p class="text-gray-600 text-sm">Marques structurées et scalables</p>
+                </div>
+
+                <div class="opp-card bg-emerald-50 p-8 rounded-2xl">
+                    <i class="fas fa-mobile-alt text-4xl text-purple-600 mb-4"></i>
+                    <h3 class="text-xl font-bold text-emerald-950 mb-3">Fintech & Digital</h3>
+                    <p class="text-gray-600 text-sm">Services transactionnels inclusifs</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- MODÈLES DE PARTENARIAT -->
+    <section class="py-24 px-6 md:px-12 bg-emerald-50">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-4xl font-extrabold text-emerald-950 mb-12 text-center">Modalités de Partenariat</h2>
+
+            <div class="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                <div class="bg-white p-8 rounded-2xl border-l-4 border-yellow-400">
+                    <i class="fas fa-handshake text-3xl text-yellow-500 mb-4"></i>
+                    <h3 class="text-xl font-bold text-emerald-950 mb-3">Prise de Participation</h3>
+                    <p class="text-gray-600 text-sm">Equity stakes dans le groupe ou ses filiales</p>
+                </div>
+
+                <div class="bg-white p-8 rounded-2xl border-l-4 border-emerald-600">
+                    <i class="fas fa-rocket text-3xl text-emerald-600 mb-4"></i>
+                    <h3 class="text-xl font-bold text-emerald-950 mb-3">SPV Dédiées</h3>
+                    <p class="text-gray-600 text-sm">Structures spéciales de projets</p>
+                </div>
+
+                <div class="bg-white p-8 rounded-2xl border-l-4 border-blue-500">
+                    <i class="fas fa-network-wired text-3xl text-blue-500 mb-4"></i>
+                    <h3 class="text-xl font-bold text-emerald-950 mb-3">Joint-Ventures</h3>
+                    <p class="text-gray-600 text-sm">Partenariats stratégiques structurés</p>
+                </div>
+
+                <div class="bg-white p-8 rounded-2xl border-l-4 border-green-600">
+                    <i class="fas fa-coins text-3xl text-green-600 mb-4"></i>
+                    <h3 class="text-xl font-bold text-emerald-950 mb-3">Financement Projets</h3>
+                    <p class="text-gray-600 text-sm">Structures de financement adaptées</p>
+                </div>
+
+                <div class="bg-white p-8 rounded-2xl border-l-4 border-orange-500">
+                    <i class="fas fa-building text-3xl text-orange-500 mb-4"></i>
+                    <h3 class="text-xl font-bold text-emerald-950 mb-3">Partenariats Institutionnels</h3>
+                    <p class="text-gray-600 text-sm">Avec secteur public et organisations</p>
+                </div>
+
+                <div class="bg-white p-8 rounded-2xl border-l-4 border-pink-500">
+                    <i class="fas fa-cogs text-3xl text-pink-500 mb-4"></i>
+                    <h3 class="text-xl font-bold text-emerald-950 mb-3">Co-Développement</h3>
+                    <p class="text-gray-600 text-sm">Avec soutien opérationnel</p>
+                </div>
+            </div>
+
+            <p class="text-center text-gray-600 mt-12 max-w-3xl mx-auto">
+                Chaque partenariat est structuré selon des standards de gouvernance, de transparence et de performance.
+            </p>
+        </div>
+    </section>
+
+    <!-- DOCUMENTS À TÉLÉCHARGER -->
+    <section class="py-24 px-6 md:px-12 bg-white">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-4xl font-extrabold text-emerald-950 mb-12 text-center">Centre de Ressources</h2>
+
+            <div class="grid md:grid-cols-2 gap-8 mb-12">
+                <a href="#" class="bg-gradient-to-br from-emerald-50 to-emerald-100 p-10 rounded-2xl border-2 border-emerald-300 hover:shadow-lg transition group">
+                    <i class="fas fa-file-pdf text-5xl text-red-500 mb-4"></i>
+                    <h3 class="text-xl font-bold text-emerald-950 mb-2 group-hover:text-emerald-600">Pitch Deck Groupe</h3>
+                    <p class="text-sm text-gray-600 mb-4">Présentation stratégique et potentiel de croissance</p>
+                    <span class="text-xs font-bold text-emerald-600">📥 Télécharger PDF</span>
+                </a>
+
+                <a href="#" class="bg-gradient-to-br from-blue-50 to-blue-100 p-10 rounded-2xl border-2 border-blue-300 hover:shadow-lg transition group">
+                    <i class="fas fa-file-pdf text-5xl text-red-500 mb-4"></i>
+                    <h3 class="text-xl font-bold text-emerald-950 mb-2 group-hover:text-blue-600">Fiches Filiales</h3>
+                    <p class="text-sm text-gray-600 mb-4">Détails opérationnels et modèles économiques</p>
+                    <span class="text-xs font-bold text-blue-600">📥 Télécharger PDF</span>
+                </a>
+
+                <a href="#" class="bg-gradient-to-br from-yellow-50 to-yellow-100 p-10 rounded-2xl border-2 border-yellow-300 hover:shadow-lg transition group">
+                    <i class="fas fa-file-pdf text-5xl text-red-500 mb-4"></i>
+                    <h3 class="text-xl font-bold text-emerald-950 mb-2 group-hover:text-yellow-600">Pipeline Projets</h3>
+                    <p class="text-sm text-gray-600 mb-4">Opportunités structurées et calendrier</p>
+                    <span class="text-xs font-bold text-yellow-600">📥 Télécharger PDF</span>
+                </a>
+
+                <a href="#" class="bg-gradient-to-br from-green-50 to-green-100 p-10 rounded-2xl border-2 border-green-300 hover:shadow-lg transition group">
+                    <i class="fas fa-file-pdf text-5xl text-red-500 mb-4"></i>
+                    <h3 class="text-xl font-bold text-emerald-950 mb-2 group-hover:text-green-600">Rapport ESG</h3>
+                    <p class="text-sm text-gray-600 mb-4">Engagement en durabilité et gouvernance</p>
+                    <span class="text-xs font-bold text-green-600">📥 Télécharger PDF</span>
+                </a>
+            </div>
+
+            <div class="text-center">
+                <p class="text-gray-600 mb-6">Besoin de documents spécifiques ?</p>
+                <a href="#contact" class="btn-gold px-8 py-3 rounded-xl font-bold uppercase text-sm">Contactez le pôle Investissement</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- FORMULAIRE INVESTISSEURS -->
+    <section id="contact" class="py-24 px-6 md:px-12 bg-emerald-50">
+        <div class="max-w-4xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-extrabold text-emerald-950 mb-4">Relations Investisseurs</h2>
+                <p class="text-lg text-gray-600">Intéressé par une opportunité ? Contactez directement notre équipe</p>
+            </div>
+
+            <form class="bg-white p-12 rounded-3xl border-2 border-emerald-200" onsubmit="handleSubmit(event)">
+                <div class="grid md:grid-cols-2 gap-8 mb-8">
+                    <div>
+                        <label class="block text-sm font-bold text-emerald-950 mb-3">Nom complet *</label>
+                        <input type="text" required class="w-full px-6 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-emerald-950 mb-3">Organisation *</label>
+                        <input type="text" required class="w-full px-6 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20">
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-8 mb-8">
+                    <div>
+                        <label class="block text-sm font-bold text-emerald-950 mb-3">Email * </label>
+                        <input type="email" required class="w-full px-6 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-emerald-950 mb-3">Téléphone *</label>
+                        <input type="tel" required class="w-full px-6 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20">
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-8 mb-8">
+                    <div>
+                        <label class="block text-sm font-bold text-emerald-950 mb-3">Type d'institution *</label>
+                        <select required class="w-full px-6 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20">
+                            <option value="">Sélectionner</option>
+                            <option value="fonds">Fonds d'investissement</option>
+                            <option value="banque">Institution financière</option>
+                            <option value="angel">Business Angel / Family Office</option>
+                            <option value="bailleurs">Bailleurs / Organisations internationales</option>
+                            <option value="autre">Autre</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-emerald-950 mb-3">Secteur d'intérêt *</label>
+                        <select required class="w-full px-6 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20">
+                            <option value="">Sélectionner</option>
+                            <option value="energie">Énergies renouvelables</option>
+                            <option value="logistique">Logistique digitale</option>
+                            <option value="mobilité">Mobilité électrique</option>
+                            <option value="agro">Agro-industrie</option>
+                            <option value="food">Food & Beverage</option>
+                            <option value="fintech">Fintech</option>
+                            <option value="tous">Tous les secteurs</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-8">
+                    <label class="block text-sm font-bold text-emerald-950 mb-3">Nature de partenariat recherché *</label>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <label class="flex items-center gap-3 p-3 border border-emerald-200 rounded-xl cursor-pointer hover:bg-emerald-50">
+                            <input type="checkbox" value="equity" name="partenariat">
+                            <span class="text-sm text-gray-600">Prise de participation</span>
+                        </label>
+                        <label class="flex items-center gap-3 p-3 border border-emerald-200 rounded-xl cursor-pointer hover:bg-emerald-50">
+                            <input type="checkbox" value="jv" name="partenariat">
+                            <span class="text-sm text-gray-600">Joint-Venture</span>
+                        </label>
+                        <label class="flex items-center gap-3 p-3 border border-emerald-200 rounded-xl cursor-pointer hover:bg-emerald-50">
+                            <input type="checkbox" value="financement" name="partenariat">
+                            <span class="text-sm text-gray-600">Financement projet</span>
+                        </label>
+                        <label class="flex items-center gap-3 p-3 border border-emerald-200 rounded-xl cursor-pointer hover:bg-emerald-50">
+                            <input type="checkbox" value="autre" name="partenariat">
+                            <span class="text-sm text-gray-600">Autre</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="mb-8">
+                    <label class="block text-sm font-bold text-emerald-950 mb-3">Montant indicatif d'investissement (USD) *</label>
+                    <input type="text" required placeholder="Ex: 500,000" class="w-full px-6 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20">
+                </div>
+
+                <div class="mb-8">
+                    <label class="block text-sm font-bold text-emerald-950 mb-3">Message détaillé *</label>
+                    <textarea required class="w-full px-6 py-4 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20" rows="6" placeholder="Détaillez votre intérêt et vos attentes..."></textarea>
+                </div>
+
+                <div class="flex items-center mb-8">
+                    <input type="checkbox" required class="w-4 h-4 accent-emerald-600">
+                    <label class="ml-3 text-sm text-gray-600">J'accepte que mes données soient traitées aux fins de cette demande *</label>
+                </div>
+
+                <button type="submit" class="btn-gold w-full py-4 rounded-2xl font-bold uppercase tracking-[0.2em] text-lg">
+                    Envoyer ma demande
+                </button>
+            </form>
+
+            <div class="mt-12 text-center">
+                <p class="text-gray-600 mb-4">Préférez le contact direct ?</p>
+                <a href="mailto:investors@pkglobalpartners.com" class="text-emerald-600 font-bold text-lg hover:underline">
+                    📧 investors@pkglobalpartners.com
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="bg-emerald-950 text-white pt-24 pb-12 px-6 md:px-12">
+        <div class="max-w-7xl mx-auto text-center">
+            <div class="flex flex-col items-center mb-16">
+                <div class="bg-white p-2 rounded-xl mb-6 shadow-xl">
+                    <img src="logo.svg" alt="PK Global Partners Logo" class="h-16 w-auto object-contain">
+                </div>
+                <h2 class="text-3xl font-bold uppercase tracking-[0.2em] mb-4">Global Partners</h2>
+                <div class="flex flex-col gap-2 mb-4">
+                    <p class="text-emerald-100/70 max-w-lg text-sm mx-auto">Siège Social : Boulevard Kanyamuhanga, n°4, Ville de Goma, République Démocratique du Congo.</p>
+                    <a href="tel:+243814119635" class="text-yellow-400 font-bold text-lg hover:underline transition">
+                        <i class="fas fa-phone-alt mr-2 text-sm"></i> +243 814 119 635
+                    </a>
+                    <a href="mailto:investors@pkglobalpartners.com" class="text-yellow-400 font-bold text-lg hover:underline transition">
+                        <i class="fas fa-envelope mr-2 text-sm"></i> investors@pkglobalpartners.com
+                    </a>
+                </div>
+            </div>
+            <div class="h-px bg-white/10 w-full mb-12"></div>
+            <p class="text-[10px] text-emerald-100/30 uppercase tracking-widest font-bold">
+                &copy; 2024 PK Global Partners Holding. Tous droits réservés.
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        window.addEventListener('scroll', () => {
+            const nav = document.getElementById('navbar');
+            if (window.scrollY > 50) { nav.classList.add('nav-scrolled'); } 
+            else { nav.classList.remove('nav-scrolled'); }
+        });
+
+        function handleSubmit(event) {
+            event.preventDefault();
+            alert('Merci pour votre demande ! Notre équipe Relations Investisseurs vous contactera sous peu.\n\nEmail de contact: investors@pkglobalpartners.com');
+            event.target.reset();
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+<svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">
+  <!-- Orange background for PK -->
+  <rect x="50" y="80" width="200" height="140" fill="#f97316" rx="10"/>
+  
+  <!-- PK Letter -->
+  <g fill="white" font-family="Arial, sans-serif" font-size="100" font-weight="bold" letter-spacing="-5">
+    <text x="80" y="190">PK</text>
+  </g>
+  
+  <!-- Global Partners Text -->
+  <text x="280" y="170" font-family="Arial, sans-serif" font-size="60" font-weight="bold" fill="#000000">Global Partners</text>
+</svg>

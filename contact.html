@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact | PK GLOBAL PARTNERS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap');
+        
+        :root {
+            --pk-green-dark: #064e3b;
+            --pk-green-main: #059669;
+            --pk-gold: #fbbf24;
+            --pk-soft-bg: #f0fdf4;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #ffffff;
+            color: #1a2e1a;
+            scroll-behavior: smooth;
+        }
+
+        nav {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .nav-link {
+            position: relative;
+            transition: color 0.3s ease;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -4px;
+            left: 0;
+            background-color: var(--pk-gold);
+            transition: width 0.3s ease;
+        }
+
+        .nav-link:hover::after {
+            width: 100%;
+        }
+
+        .nav-scrolled {
+            background: rgba(6, 78, 59, 0.98);
+            backdrop-filter: blur(12px);
+            padding-top: 0.75rem !important;
+            padding-bottom: 0.75rem !important;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .hero-gradient {
+            background: linear-gradient(to right, rgba(6, 78, 59, 0.9), rgba(6, 78, 59, 0.6)), 
+                        url('https://images.unsplash.com/photo-1552664730-d307ca884978?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80'); 
+            background-size: cover;
+            background-position: center;
+        }
+
+        .btn-gold {
+            background-color: var(--pk-gold);
+            color: #064e3b;
+            transition: all 0.3s ease;
+        }
+
+        .btn-gold:hover {
+            background-color: #f59e0b;
+            transform: scale(1.05);
+        }
+
+        .contact-card {
+            transition: all 0.3s ease;
+        }
+
+        .contact-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(5, 150, 105, 0.1);
+        }
+
+        .form-input {
+            background: #f3f4f6;
+            border: 2px solid #e5e7eb;
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus {
+            background: #ffffff;
+            border-color: var(--pk-green-main);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+        }
+
+        .whatsapp-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            background: #25d366;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4);
+            animation: pulse 2s infinite;
+            z-index: 40;
+            text-decoration: none;
+            color: white;
+            font-size: 28px;
+            transition: all 0.3s ease;
+        }
+
+        .whatsapp-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 24px rgba(37, 211, 102, 0.6);
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4); }
+            50% { box-shadow: 0 4px 24px rgba(37, 211, 102, 0.8); }
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: var(--pk-green-dark); border-radius: 10px; }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- NAVIGATION -->
+    <nav id="navbar" class="fixed w-full z-50 py-6 px-6 md:px-12 text-white">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <a href="index.html" class="flex items-center space-x-3 group">
+                <div class="bg-white p-1 rounded-lg shadow-lg group-hover:scale-105 transition-transform flex items-center justify-center overflow-hidden">
+                    <img src="logo.svg" alt="PK Global Partners Logo" class="h-10 w-auto object-contain">
+                </div>
+                <div class="flex flex-col">
+                    <span class="font-bold text-lg uppercase tracking-widest leading-none">Global Partners</span>
+                    <span class="text-[9px] uppercase tracking-[0.3em] text-emerald-300 font-semibold">Holding Panafricaine</span>
+                </div>
+            </a>
+            
+            <div class="hidden lg:flex items-center space-x-10 text-[11px] font-bold uppercase tracking-[0.15em]">
+                <a href="index.html#accueil" class="nav-link hover:text-yellow-400">Accueil</a>
+                <a href="about.html" class="nav-link hover:text-yellow-400">À Propos</a>
+                <a href="index.html#poles" class="nav-link hover:text-yellow-400">Expertise</a>
+                <a href="filiales.html" class="nav-link hover:text-yellow-400">Filiales</a>
+                <a href="investors.html" class="nav-link hover:text-yellow-400">Investisseurs</a>
+                <a href="careers.html" class="nav-link hover:text-yellow-400">Carrières</a>
+                <a href="contact.html" class="bg-yellow-400 text-green-900 px-6 py-3 rounded-xl hover:bg-white transition-colors duration-300 shadow-lg flex items-center gap-2">
+                    <i class="fas fa-phone-alt text-[10px]"></i> Contact
+                </a>
+            </div>
+
+            <button class="lg:hidden text-2xl p-2 hover:bg-white/10 rounded-lg transition"><i class="fas fa-bars"></i></button>
+        </div>
+    </nav>
+
+    <!-- HERO SECTION -->
+    <section class="hero-gradient min-h-[60vh] flex items-center justify-center pt-24 pb-12 px-6">
+        <div class="max-w-7xl mx-auto w-full text-center">
+            <h1 class="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white leading-[1.1] mb-8">
+                Nous Contacter
+            </h1>
+            <p class="text-lg md:text-xl text-emerald-50 max-w-3xl mx-auto font-light leading-relaxed opacity-90">
+                Bienvenue. Parlons de vos projets, partenariats et opportunités stratégiques.
+            </p>
+        </div>
+    </section>
+
+    <!-- CONTACT SECTION -->
+    <section class="py-24 px-6 md:px-12 bg-white">
+        <div class="max-w-7xl mx-auto">
+            <div class="grid lg:grid-cols-3 gap-12 mb-20">
+                
+                <!-- CONTACT INFO CARDS -->
+                <div class="contact-card bg-white p-8 rounded-3xl shadow-lg border border-emerald-100">
+                    <div class="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-700 text-2xl mb-6">
+                        <i class="fas fa-map-marker-alt"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-emerald-950 mb-4">Adresse</h3>
+                    <p class="text-gray-600 leading-relaxed">
+                        PK GLOBAL PARTNERS<br>
+                        Boulevard Kanyamuhanga, n°4<br>
+                        Ville de GOMA<br>
+                        République Démocratique du Congo
+                    </p>
+                    <a href="https://maps.google.com/?q=Goma+RDC" target="_blank" class="text-emerald-600 font-bold mt-4 inline-flex items-center gap-2 hover:text-emerald-800">
+                        <i class="fas fa-external-link-alt text-xs"></i> Voir sur Google Maps
+                    </a>
+                </div>
+
+                <div class="contact-card bg-white p-8 rounded-3xl shadow-lg border border-emerald-100">
+                    <div class="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-700 text-2xl mb-6">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-emerald-950 mb-4">Email</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <p class="text-sm text-gray-500 mb-1">Général</p>
+                            <a href="mailto:info@pkglobalpartners.com" class="font-bold text-emerald-700 hover:text-emerald-900 break-all">
+                                info@pkglobalpartners.com
+                            </a>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 mb-1">Investisseurs</p>
+                            <a href="mailto:investors@pkglobalpartners.com" class="font-bold text-emerald-700 hover:text-emerald-900 break-all">
+                                investors@pkglobalpartners.com
+                            </a>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 mb-1">Carrières</p>
+                            <a href="mailto:careers@pkglobalpartners.com" class="font-bold text-emerald-700 hover:text-emerald-900 break-all">
+                                careers@pkglobalpartners.com
+                            </a>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 mb-1">Partenariats</p>
+                            <a href="mailto:partnerships@pkglobalpartners.com" class="font-bold text-emerald-700 hover:text-emerald-900 break-all">
+                                partnerships@pkglobalpartners.com
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="contact-card bg-white p-8 rounded-3xl shadow-lg border border-emerald-100">
+                    <div class="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center text-emerald-700 text-2xl mb-6">
+                        <i class="fas fa-phone"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-emerald-950 mb-4">Téléphone</h3>
+                    <p class="text-gray-600 mb-6 leading-relaxed">
+                        Nos équipes sont disponibles du lundi au vendredi de 8h à 17h (heure CET).
+                    </p>
+                    <div class="space-y-3">
+                        <a href="tel:+243814119635" class="flex items-center gap-3 font-bold text-emerald-700 hover:text-emerald-900">
+                            <i class="fas fa-phone-alt text-sm"></i> +243 814 119 635
+                        </a>
+                        <a href="https://wa.me/243814119635" target="_blank" class="flex items-center gap-3 font-bold text-green-600 hover:text-green-800">
+                            <i class="fab fa-whatsapp"></i> WhatsApp Direct
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GOOGLE MAPS -->
+            <div class="mb-20 overflow-hidden rounded-3xl shadow-2xl h-96">
+                <iframe 
+                    width="100%" 
+                    height="100%" 
+                    style="border:0;" 
+                    loading="lazy" 
+                    referrerpolicy="no-referrer-when-downgrade" 
+                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3988.8203703503866!2d29.21959!3d-1.68323!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x19f6e5f5f5f5f5f5%3A0x0!2sGoma%2C%20Democratic%20Republic%20of%20the%20Congo!5e0!3m2!1sfr!2scd!4v1644667200000">
+                </iframe>
+            </div>
+        </div>
+    </section>
+
+    <!-- FORMULAIRE DE CONTACT -->
+    <section class="py-24 px-6 md:px-12 bg-emerald-50">
+        <div class="max-w-4xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-extrabold text-emerald-950 mb-4">Envoyez-nous un message</h2>
+                <p class="text-lg text-gray-600">Remplissez le formulaire ci-dessous et nous vous répondrons dans les 24 heures.</p>
+            </div>
+
+            <form id="contact-form" class="bg-white p-12 rounded-3xl shadow-2xl" onsubmit="handleSubmit(event)">
+                <div class="grid md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label class="block text-sm font-bold text-emerald-950 mb-3">Nom Complet *</label>
+                        <input type="text" name="nom" required class="form-input w-full px-6 py-4 rounded-xl" placeholder="Votre nom complet">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-emerald-950 mb-3">Email Professionnel *</label>
+                        <input type="email" name="email" required class="form-input w-full px-6 py-4 rounded-xl" placeholder="votre@email.com">
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label class="block text-sm font-bold text-emerald-950 mb-3">Organisation</label>
+                        <input type="text" name="organisation" class="form-input w-full px-6 py-4 rounded-xl" placeholder="Nom de votre organisation">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-emerald-950 mb-3">Fonction</label>
+                        <input type="text" name="fonction" class="form-input w-full px-6 py-4 rounded-xl" placeholder="Votre fonction">
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-sm font-bold text-emerald-950 mb-3">Téléphone</label>
+                    <input type="tel" name="telephone" class="form-input w-full px-6 py-4 rounded-xl" placeholder="+243 ...">
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-sm font-bold text-emerald-950 mb-3">Objet de la demande *</label>
+                    <select name="objet" required class="form-input w-full px-6 py-4 rounded-xl">
+                        <option value="">-- Sélectionner --</option>
+                        <option value="partenariat">Partenariat & Collaboration</option>
+                        <option value="investissement">Investissement & Financement</option>
+                        <option value="media">Requête Média & Communication</option>
+                        <option value="recrutement">Opportunité de Recrutement</option>
+                        <option value="general">Demande Générale</option>
+                        <option value="autre">Autre</option>
+                    </select>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-sm font-bold text-emerald-950 mb-3">Message *</label>
+                    <textarea name="message" required rows="6" class="form-input w-full px-6 py-4 rounded-xl" placeholder="Décrivez votre demande en détail..."></textarea>
+                </div>
+
+                <!-- reCAPTCHA -->
+                <div class="g-recaptcha mb-6" data-sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"></div>
+
+                <button type="submit" class="btn-gold w-full py-4 rounded-2xl font-bold text-lg uppercase tracking-widest shadow-xl hover:shadow-2xl transition-all">
+                    <i class="fas fa-paper-plane mr-2"></i> Envoyer le Message
+                </button>
+
+                <p class="text-xs text-gray-500 text-center mt-6">
+                    Les informations que vous soumettez seront traitées conformément à nos politiques de confidentialité.
+                </p>
+            </form>
+
+            <!-- Success Message -->
+            <div id="success-message" class="hidden mt-8 p-8 bg-green-50 border-l-4 border-green-600 rounded-xl">
+                <div class="flex items-center gap-4">
+                    <i class="fas fa-check-circle text-green-600 text-3xl"></i>
+                    <div>
+                        <h4 class="font-bold text-green-900 text-lg">Message envoyé avec succès!</h4>
+                        <p class="text-green-700">Merci de nous avoir contactés. Nous vous répondrons dans les 24 heures.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- RÉSEAUX SOCIAUX -->
+    <section class="py-20 px-6 md:px-12 bg-emerald-950 text-white">
+        <div class="max-w-7xl mx-auto text-center">
+            <h2 class="text-4xl font-extrabold mb-12">Suivez-Nous</h2>
+            <div class="flex flex-wrap justify-center gap-6 md:gap-12">
+                <a href="https://linkedin.com" target="_blank" class="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center text-2xl hover:bg-blue-600 transition-all transform hover:scale-110">
+                    <i class="fab fa-linkedin-in"></i>
+                </a>
+                <a href="https://facebook.com" target="_blank" class="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center text-2xl hover:bg-blue-700 transition-all transform hover:scale-110">
+                    <i class="fab fa-facebook-f"></i>
+                </a>
+                <a href="https://instagram.com" target="_blank" class="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center text-2xl hover:bg-pink-600 transition-all transform hover:scale-110">
+                    <i class="fab fa-instagram"></i>
+                </a>
+                <a href="https://youtube.com" target="_blank" class="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center text-2xl hover:bg-red-600 transition-all transform hover:scale-110">
+                    <i class="fab fa-youtube"></i>
+                </a>
+                <a href="https://twitter.com" target="_blank" class="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center text-2xl hover:bg-blue-400 transition-all transform hover:scale-110">
+                    <i class="fab fa-twitter"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="bg-emerald-950 text-white px-6 md:px-12 py-12">
+        <div class="max-w-7xl mx-auto">
+            <div class="grid md:grid-cols-4 gap-12 mb-12">
+                <div>
+                    <h4 class="font-bold text-lg mb-4">À Propos</h4>
+                    <ul class="space-y-2 text-sm text-emerald-200">
+                        <li><a href="about.html" class="hover:text-white">Qui sommes-nous</a></li>
+                        <li><a href="about.html#values" class="hover:text-white">Nos Valeurs</a></li>
+                        <li><a href="about.html#leadership" class="hover:text-white">Leadership</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-bold text-lg mb-4">Services</h4>
+                    <ul class="space-y-2 text-sm text-emerald-200">
+                        <li><a href="investors.html" class="hover:text-white">Investisseurs</a></li>
+                        <li><a href="careers.html" class="hover:text-white">Carrières</a></li>
+                        <li><a href="filiales.html" class="hover:text-white">Filiales</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-bold text-lg mb-4">Légal</h4>
+                    <ul class="space-y-2 text-sm text-emerald-200">
+                        <li><a href="#" class="hover:text-white">Politique de Confidentialité</a></li>
+                        <li><a href="#" class="hover:text-white">Conditions d'Utilisation</a></li>
+                        <li><a href="#" class="hover:text-white">Mentions Légales</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-bold text-lg mb-4">Contact</h4>
+                    <p class="text-sm text-emerald-200 mb-3">
+                        Boulevard Kanyamuhanga, n°4<br>
+                        GOMA, RDC
+                    </p>
+                    <a href="mailto:info@pkglobalpartners.com" class="text-yellow-400 font-bold text-sm hover:text-white">info@pkglobalpartners.com</a>
+                </div>
+            </div>
+            <div class="border-t border-emerald-800 pt-8 text-center text-sm text-emerald-300">
+                <p>&copy; 2026 PK GLOBAL PARTNERS. Tous droits réservés. Powered by Digital Excellence.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- WhatsApp Button -->
+    <a href="https://wa.me/243814119635" target="_blank" class="whatsapp-btn" title="Chat WhatsApp">
+        <i class="fab fa-whatsapp"></i>
+    </a>
+
+    <script>
+        // Navigation scroll effect
+        window.addEventListener('scroll', function() {
+            const navbar = document.getElementById('navbar');
+            if (window.scrollY > 50) {
+                navbar.classList.add('nav-scrolled');
+            } else {
+                navbar.classList.remove('nav-scrolled');
+            }
+        });
+
+        // Form submission
+        function handleSubmit(event) {
+            event.preventDefault();
+            const form = document.getElementById('contact-form');
+            const successMsg = document.getElementById('success-message');
+            
+            // Simulate form submission (replace with actual backend)
+            console.log('Form submitted:', {
+                nom: form.nom.value,
+                email: form.email.value,
+                organisation: form.organisation.value,
+                fonction: form.fonction.value,
+                telephone: form.telephone.value,
+                objet: form.objet.value,
+                message: form.message.value
+            });
+
+            // Show success message
+            form.reset();
+            successMsg.classList.remove('hidden');
+            setTimeout(() => {
+                successMsg.classList.add('hidden');
+            }, 5000);
+
+            // Scroll to success message
+            successMsg.scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>

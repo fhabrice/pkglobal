@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toutes les Filiales | PK GLOBAL PARTNERS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap');
+        
+        :root {
+            --pk-green-dark: #064e3b;
+            --pk-green-main: #059669;
+            --pk-gold: #fbbf24;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #ffffff;
+            color: #1a2e1a;
+            scroll-behavior: smooth;
+        }
+
+        nav {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .nav-link {
+            position: relative;
+            transition: color 0.3s ease;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -4px;
+            left: 0;
+            background-color: var(--pk-gold);
+            transition: width 0.3s ease;
+        }
+
+        .nav-link:hover::after {
+            width: 100%;
+        }
+
+        .nav-scrolled {
+            background: rgba(6, 78, 59, 0.98);
+            backdrop-filter: blur(12px);
+            padding-top: 0.75rem !important;
+            padding-bottom: 0.75rem !important;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+
+        .hero-gradient {
+            background: linear-gradient(to right, rgba(6, 78, 59, 0.9), rgba(6, 78, 59, 0.6)), 
+                        url('https://images.unsplash.com/photo-1552664730-d307ca884978?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80'); 
+            background-size: cover;
+            background-position: center;
+        }
+
+        .btn-gold {
+            background-color: var(--pk-gold);
+            color: #064e3b;
+            transition: all 0.3s ease;
+        }
+
+        .btn-gold:hover {
+            background-color: #f59e0b;
+            transform: scale(1.05);
+        }
+
+        .filiale-section {
+            transition: all 0.3s ease;
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: var(--pk-green-dark); border-radius: 10px; }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- NAVIGATION -->
+    <nav id="navbar" class="fixed w-full z-50 py-6 px-6 md:px-12 text-white">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <a href="index.html" class="flex items-center space-x-3 group">
+                <div class="bg-white p-1 rounded-lg shadow-lg group-hover:scale-105 transition-transform flex items-center justify-center overflow-hidden">
+                    <img src="logo.svg" alt="PK Global Partners Logo" class="h-10 w-auto object-contain">
+                </div>
+                <div class="flex flex-col">
+                    <span class="font-bold text-lg uppercase tracking-widest leading-none">Global Partners</span>
+                    <span class="text-[9px] uppercase tracking-[0.3em] text-emerald-300 font-semibold">Holding Panafricaine</span>
+                </div>
+            </a>
+            
+            <div class="hidden lg:flex items-center space-x-10 text-[11px] font-bold uppercase tracking-[0.15em]">
+                <a href="index.html#accueil" class="nav-link hover:text-yellow-400">Accueil</a>
+                <a href="about.html" class="nav-link hover:text-yellow-400">À Propos</a>
+                <a href="index.html#poles" class="nav-link hover:text-yellow-400">Expertise</a>
+                <a href="index.html#filiales" class="nav-link hover:text-yellow-400">Filiales</a>
+                <a href="index.html#investisseurs" class="nav-link hover:text-yellow-400">Investisseurs</a>
+                <a href="tel:+243814119635" class="bg-yellow-400 text-green-900 px-6 py-3 rounded-xl hover:bg-white transition-colors duration-300 shadow-lg flex items-center gap-2">
+                    <i class="fas fa-phone-alt text-[10px]"></i> Contact
+                </a>
+            </div>
+
+            <button class="lg:hidden text-2xl p-2 hover:bg-white/10 rounded-lg transition"><i class="fas fa-bars"></i></button>
+        </div>
+    </nav>
+
+    <!-- HERO SECTION -->
+    <section class="hero-gradient min-h-[60vh] flex items-center justify-center pt-24 pb-12 px-6">
+        <div class="max-w-7xl mx-auto w-full text-center">
+            <h1 class="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white leading-[1.1] mb-8">
+                Toutes Nos Filiales
+            </h1>
+            <p class="text-lg md:text-xl text-emerald-50 max-w-3xl mx-auto font-light leading-relaxed opacity-90">
+                Découvrez l'écosystème complet de PK GLOBAL PARTNERS
+            </p>
+        </div>
+    </section>
+
+    <!-- FRIVIA -->
+    <section class="py-24 px-6 md:px-12 bg-white">
+        <div class="max-w-7xl mx-auto">
+            <div class="grid lg:grid-cols-2 gap-16 items-center mb-16">
+                <div>
+                    <div class="inline-block bg-orange-100 text-orange-700 px-6 py-2 rounded-full mb-6 font-bold text-sm">FRIVIA</div>
+                    <h2 class="text-5xl font-extrabold text-emerald-950 mb-4">"Tout simplement délicieux"</h2>
+                    <p class="text-xl text-gray-600 mb-8 leading-relaxed">
+                        FRIVIA est une chaîne moderne de restauration rapide spécialisée dans les menus Frites & Viande, combinant rapidité, goût, hygiène et accessibilité.
+                    </p>
+                    <p class="text-lg text-gray-600 mb-8 leading-relaxed">
+                        Présente à Kinshasa et Goma, la marque propose une expérience de fast-food structurée et professionnelle, inspirée des standards internationaux tout en étant adaptée aux réalités locales.
+                    </p>
+                    
+                    <h3 class="text-2xl font-bold text-emerald-950 mb-6">Produits Signature</h3>
+                    <div class="grid grid-cols-2 gap-4 mb-8">
+                        <div class="bg-orange-50 p-4 rounded-xl border border-orange-200">
+                            <p class="font-bold text-orange-700">FRIVIA BOX</p>
+                            <p class="text-xs text-gray-600">Formules complètes</p>
+                        </div>
+                        <div class="bg-orange-50 p-4 rounded-xl border border-orange-200">
+                            <p class="font-bold text-orange-700">FRIVIA GRILL</p>
+                            <p class="text-xs text-gray-600">Grillades premium</p>
+                        </div>
+                        <div class="bg-orange-50 p-4 rounded-xl border border-orange-200">
+                            <p class="font-bold text-orange-700">FRIVIA BURGER</p>
+                            <p class="text-xs text-gray-600">Burgers savoureux</p>
+                        </div>
+                        <div class="bg-orange-50 p-4 rounded-xl border border-orange-200">
+                            <p class="font-bold text-orange-700">FRIVIA FAMILY</p>
+                            <p class="text-xs text-gray-600">Packs familiaux</p>
+                        </div>
+                    </div>
+
+                    <a href="tel:+243814119635" class="btn-gold px-8 py-3 rounded-xl font-bold uppercase text-sm">Contacter FRIVIA</a>
+                </div>
+                <img src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80" alt="FRIVIA Food" class="rounded-3xl shadow-2xl">
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-12">
+                <div class="bg-orange-50 p-10 rounded-2xl border border-orange-200">
+                    <h4 class="text-xl font-bold text-emerald-950 mb-6 flex items-center gap-3">
+                        <i class="fas fa-map-marker-alt text-orange-600"></i> Localisations
+                    </h4>
+                    <div class="space-y-4">
+                        <div>
+                            <p class="font-bold text-orange-700">📍 FRIVIA KINSHASA</p>
+                            <p class="text-sm text-gray-600">Marque urbaine populaire – volume & rapidité</p>
+                        </div>
+                        <div>
+                            <p class="font-bold text-orange-700">📍 FRIVIA GOMA</p>
+                            <p class="text-sm text-gray-600">Qualité, constance & confiance</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-orange-50 p-10 rounded-2xl border border-orange-200">
+                    <h4 class="text-xl font-bold text-emerald-950 mb-6 flex items-center gap-3">
+                        <i class="fas fa-star text-orange-600"></i> Engagement Qualité
+                    </h4>
+                    <ul class="space-y-3">
+                        <li class="flex items-start gap-3">
+                            <i class="fas fa-check text-orange-600 mt-1"></i>
+                            <span class="text-sm text-gray-600">Garantir hygiène et sécurité alimentaire</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <i class="fas fa-check text-orange-600 mt-1"></i>
+                            <span class="text-sm text-gray-600">Maintenir qualité constante</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <i class="fas fa-check text-orange-600 mt-1"></i>
+                            <span class="text-sm text-gray-600">Servir rapidement avec excellence</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ELIKYA COFFEE -->
+    <section class="py-24 px-6 md:px-12 bg-amber-50">
+        <div class="max-w-7xl mx-auto">
+            <div class="grid lg:grid-cols-2 gap-16 items-center mb-16">
+                <img src="https://images.unsplash.com/photo-1559056199-641a0ac8b3f4?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80" alt="ELIKYA Coffee" class="rounded-3xl shadow-2xl order-2 lg:order-1">
+                <div class="order-1 lg:order-2">
+                    <div class="inline-block bg-amber-800 text-amber-50 px-6 py-2 rounded-full mb-6 font-bold text-sm">ELIKYA COFFEE</div>
+                    <h2 class="text-5xl font-extrabold text-emerald-950 mb-4">"L'espoir infusé dans chaque arôme"</h2>
+                    <p class="text-xl text-gray-600 mb-8 leading-relaxed">
+                        ELIKYA COFFEE est la marque premium de café de PK GLOBAL PARTNERS, née du terroir exceptionnel du Kivu, à l'Est de la République Démocratique du Congo.
+                    </p>
+                    <p class="text-lg text-gray-600 mb-8 leading-relaxed">
+                        Spécialisée dans la production, la transformation et la commercialisation de café Arabica et Robusta, ELIKYA valorise l'excellence aromatique du café congolais tout en portant un engagement social fort auprès des producteurs.
+                    </p>
+
+                    <h3 class="text-2xl font-bold text-emerald-950 mb-6">Gamme Produits</h3>
+                    <div class="space-y-4 mb-8">
+                        <div class="border-l-4 border-amber-800 pl-6 py-3">
+                            <p class="font-bold text-amber-900">☕ Café Instantané (Soluble)</p>
+                            <p class="text-sm text-gray-600">25g | 50g | 100g | 200g | 500g | 1kg – Segments Standard, Premium, Gold</p>
+                        </div>
+                        <div class="border-l-4 border-amber-800 pl-6 py-3">
+                            <p class="font-bold text-amber-900">☕ Café Moulu</p>
+                            <p class="text-sm text-gray-600">100g | 250g | 500g | 1kg – Arabica, Robusta, Blend – Moutures variées</p>
+                        </div>
+                    </div>
+
+                    <a href="tel:+243814119635" class="btn-gold px-8 py-3 rounded-xl font-bold uppercase text-sm">Contacter ELIKYA</a>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-12">
+                <div class="bg-white p-10 rounded-2xl border border-amber-200">
+                    <h4 class="text-xl font-bold text-emerald-950 mb-6 flex items-center gap-3">
+                        <i class="fas fa-leaf text-amber-800"></i> Impact Social
+                    </h4>
+                    <ul class="space-y-3">
+                        <li class="flex items-start gap-3">
+                            <i class="fas fa-circle-check text-amber-700"></i>
+                            <span class="text-sm text-gray-600">Amélioration des revenus producteurs locaux</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <i class="fas fa-circle-check text-amber-700"></i>
+                            <span class="text-sm text-gray-600">Collaboration avec coopératives agricoles</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <i class="fas fa-circle-check text-amber-700"></i>
+                            <span class="text-sm text-gray-600">Inclusion des femmes et jeunes agriculteurs</span>
+                        </li>
+                        <li class="flex items-start gap-3">
+                            <i class="fas fa-circle-check text-amber-700"></i>
+                            <span class="text-sm text-gray-600">Chaîne de valeur équitable et durable</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="bg-white p-10 rounded-2xl border border-amber-200">
+                    <h4 class="text-xl font-bold text-emerald-950 mb-6 flex items-center gap-3">
+                        <i class="fas fa-store text-amber-800"></i> Points de Vente
+                    </h4>
+                    <ul class="space-y-3">
+                        <li class="text-sm text-gray-600">✓ Distribution nationale (grande consommation)</li>
+                        <li class="text-sm text-gray-600">✓ Hôtels, restaurants et cafés premium</li>
+                        <li class="text-sm text-gray-600">✓ Coffee shop ELIKYA (Goma, Kinshasa)</li>
+                        <li class="text-sm text-gray-600">✓ Partenaires régionaux et export</li>
+                        <li class="text-sm text-gray-600">✓ Cible diaspora & marchés internationaux</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- YOUPI -->
+    <section class="py-24 px-6 md:px-12 bg-white">
+        <div class="max-w-7xl mx-auto">
+            <div class="grid lg:grid-cols-2 gap-16 items-center mb-16">
+                <div>
+                    <div class="inline-block bg-pink-100 text-pink-700 px-6 py-2 rounded-full mb-6 font-bold text-sm">YOUPI</div>
+                    <h2 class="text-5xl font-extrabold text-emerald-950 mb-4">"Savourez la vie en douceur"</h2>
+                    <p class="text-xl text-gray-600 mb-8 leading-relaxed">
+                        YOUPI PÂTISSERIE est une marque moderne de boulangerie–pâtisserie développée par PK GLOBAL PARTNERS, combinant qualité artisanale, constance professionnelle et identité chaleureuse.
+                    </p>
+                    <p class="text-lg text-gray-600 mb-8 leading-relaxed">
+                        Positionnée comme une enseigne premium accessible, YOUPI propose des produits gourmands et fiables, inspirés des standards internationaux et adaptés aux attentes du consommateur urbain congolais.
+                    </p>
+
+                    <h3 class="text-2xl font-bold text-emerald-950 mb-6">Produits Phares</h3>
+                    <div class="space-y-4 mb-8">
+                        <div class="bg-pink-50 p-4 rounded-xl border border-pink-200">
+                            <p class="font-bold text-pink-700">🥖 YOUPI BAGUETTE</p>
+                            <p class="text-xs text-gray-600">Baguette croustillante & régulière – référence nationale</p>
+                        </div>
+                        <div class="bg-pink-50 p-4 rounded-xl border border-pink-200">
+                            <p class="font-bold text-pink-700">🍪 YOUPI COOKIES</p>
+                            <p class="text-xs text-gray-600">Cookies signature mémorables – Chocolat, Cacahuète, Coco</p>
+                        </div>
+                        <div class="bg-pink-50 p-4 rounded-xl border border-pink-200">
+                            <p class="font-bold text-pink-700">🍰 Viennoiseries & Pâtisseries</p>
+                            <p class="text-xs text-gray-600">Croissants, Pains chocolat, Brownies, Cheesecakes</p>
+                        </div>
+                    </div>
+
+                    <a href="tel:+243814119635" class="btn-gold px-8 py-3 rounded-xl font-bold uppercase text-sm">Contacter YOUPI</a>
+                </div>
+                <img src="https://images.unsplash.com/photo-1578985545062-69928b1d9587?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80" alt="YOUPI Bakery" class="rounded-3xl shadow-2xl">
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-12">
+                <div class="bg-pink-50 p-10 rounded-2xl border border-pink-200">
+                    <h4 class="text-xl font-bold text-emerald-950 mb-6 flex items-center gap-3">
+                        <i class="fas fa-location-dot text-pink-600"></i> Distribution & Services
+                    </h4>
+                    <ul class="space-y-3">
+                        <li class="text-sm text-gray-600">✓ Points de vente physiques urbains</li>
+                        <li class="text-sm text-gray-600">✓ Vente directe en boutique</li>
+                        <li class="text-sm text-gray-600">✓ Commandes Take Away & Livraison</li>
+                        <li class="text-sm text-gray-600">✓ Partenariats plateformes (ex: RAKA)</li>
+                        <li class="text-sm text-gray-600">✓ Offres corporate & événements</li>
+                    </ul>
+                </div>
+                <div class="bg-pink-50 p-10 rounded-2xl border border-pink-200">
+                    <h4 class="text-xl font-bold text-emerald-950 mb-6 flex items-center gap-3">
+                        <i class="fas fa-target text-pink-600"></i> Vision
+                    </h4>
+                    <p class="text-sm text-gray-600 mb-6">
+                        YOUPI ambitionne de devenir la référence nationale en boulangerie structurée, avec un modèle duplicable dans les grandes villes de RDC.
+                    </p>
+                    <p class="text-sm text-gray-600">
+                        L'expérience YOUPI incarne plaisir quotidien, qualité constante et accessibilité premium.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="py-16 px-6 md:px-12 bg-emerald-950 text-white">
+        <div class="max-w-7xl mx-auto text-center">
+            <h2 class="text-3xl font-bold mb-8">Vous souhaitez en savoir plus sur une filiale ?</h2>
+            <a href="index.html#filiales" class="btn-gold px-8 py-3 rounded-xl font-bold uppercase text-sm">Retour à l'accueil</a>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="bg-emerald-950 text-white pt-24 pb-12 px-6 md:px-12">
+        <div class="max-w-7xl mx-auto text-center">
+            <div class="flex flex-col items-center mb-16">
+                <div class="bg-white p-2 rounded-xl mb-6 shadow-xl">
+                    <img src="logo.svg" alt="PK Global Partners Logo" class="h-16 w-auto object-contain">
+                </div>
+                <h2 class="text-3xl font-bold uppercase tracking-[0.2em] mb-4">Global Partners</h2>
+                <div class="flex flex-col gap-2 mb-4">
+                    <p class="text-emerald-100/70 max-w-lg text-sm mx-auto">Siège Social : Boulevard Kanyamuhanga, n°4, Ville de Goma, République Démocratique du Congo.</p>
+                    <a href="tel:+243814119635" class="text-yellow-400 font-bold text-lg hover:underline transition">
+                        <i class="fas fa-phone-alt mr-2 text-sm"></i> +243 814 119 635
+                    </a>
+                    <a href="mailto:info@pkglobalpartners.com" class="text-yellow-400 font-bold text-lg hover:underline transition">
+                        <i class="fas fa-envelope mr-2 text-sm"></i> info@pkglobalpartners.com
+                    </a>
+                </div>
+            </div>
+            <div class="h-px bg-white/10 w-full mb-12"></div>
+            <p class="text-[10px] text-emerald-100/30 uppercase tracking-widest font-bold">
+                &copy; 2024 PK Global Partners Holding. Tous droits réservés.
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        window.addEventListener('scroll', () => {
+            const nav = document.getElementById('navbar');
+            if (window.scrollY > 50) { nav.classList.add('nav-scrolled'); } 
+            else { nav.classList.remove('nav-scrolled'); }
+        });
+    </script>
+</body>
+</html>
