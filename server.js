@@ -29,9 +29,13 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Static files
-app.use(express.static(__dirname)); // Serves root html (index.html, about.html, filiales.html, etc.)
+// Admin portal direct route
+app.get(['/admin', '/admin/'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin', 'index.html'));
+});
 app.use('/admin', express.static(path.join(__dirname, 'public', 'admin')));
+app.use('/public', express.static(path.join(__dirname, 'public')));
+app.use(express.static(__dirname)); // Serves root html (index.html, about.html, filiales.html, etc.)
 app.use('/uploads', express.static(uploadDir));
 
 // Multer storage for documents & uploads
