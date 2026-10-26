@@ -1,0 +1,105 @@
+/* Custom Admin Dashboard Styles for PK GLOBAL PARTNERS */
+
+.hidden {
+  display: none !important;
+}
+
+:root {
+  --pk-green-dark: #064e3b;
+  --pk-green-emerald: #047857;
+  --pk-gold: #fbbf24;
+  --pk-gold-hover: #f59e0b;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Nav Item active state */
+.nav-item {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.nav-item.active {
+  background-color: rgba(251, 191, 36, 0.12);
+  color: #fbbf24;
+  border-left: 4px solid #fbbf24;
+}
+.nav-item.active i {
+  color: #fbbf24;
+}
+
+/* Card hover animation */
+.kpi-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.08);
+}
+
+/* Status Badges */
+.badge-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.725rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge-recu { background-color: #e0f2fe; color: #0369a1; }
+.badge-en_evaluation { background-color: #fef3c7; color: #b45309; }
+.badge-retenu { background-color: #dcfce7; color: #15803d; }
+.badge-rejete { background-color: #fee2e2; color: #b91c1c; }
+
+.badge-nouveau { background-color: #dbeafe; color: #1d4ed8; }
+.badge-en_cours { background-color: #fef3c7; color: #b45309; }
+.badge-en_attente { background-color: #ffedd5; color: #c2410c; }
+.badge-resolu { background-color: #dcfce7; color: #15803d; }
+
+.badge-valide { background-color: #dcfce7; color: #15803d; }
+.badge-desactive { background-color: #f1f5f9; color: #64748b; }
+
+/* Modals */
+.modal-overlay {
+  animation: fadeIn 0.2s ease-out;
+}
+.modal-box {
+  animation: scaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleUp {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Print styles for PDF/Reports */
+@media print {
+  .no-print { display: none !important; }
+}
