@@ -6,7 +6,7 @@ let supabaseClient = null;
 
 function getSupabaseConfig() {
   const url = process.env.SUPABASE_URL || 'https://vumerporrumovowyonfj.supabase.co';
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || '';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || 'sb_publishable_1clRgc8vKrinbm0VM7OR2g_BUnDZVV4';
   return { url, key, isConfigured: Boolean(url && key) };
 }
 

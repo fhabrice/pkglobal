@@ -2084,6 +2084,7 @@ app.get('/api/supabase/status', (req, res) => {
   res.json({
     configured: config.isConfigured,
     url: config.url || null,
+    key_preview: config.key ? config.key.substring(0, 16) + '...' : null,
     backend: config.isConfigured ? 'supabase' : 'sqlite_ready_for_supabase',
     schema_ready: true
   });
