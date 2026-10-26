@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PK GLOBAL PARTNERS | Investissement & Impact Panafricain</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap');
+        
+        :root {
+            --pk-green-dark: #064e3b;
+            --pk-green-main: #059669;
+            --pk-gold: #fbbf24;
+            --pk-soft-bg: #f0fdf4;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #ffffff;
+            color: #1a2e1a;
+            scroll-behavior: smooth;
+        }
+
+        /* --- BARRE DE NAVIGATION --- */
+        nav {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .nav-link {
+            position: relative;
+            transition: color 0.3s ease;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -4px;
+            left: 0;
+            background-color: var(--pk-gold);
+            transition: width 0.3s ease;
+        }
+
+        .nav-link:hover::after {
+            width: 100%;
+        }
+
+        .nav-scrolled {
+            background: rgba(6, 78, 59, 0.98);
+            backdrop-filter: blur(12px);
+            padding-top: 0.75rem !important;
+            padding-bottom: 0.75rem !important;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* --- SECTION HERO --- */
+        .hero-gradient {
+            background: linear-gradient(to right, rgba(6, 78, 59, 0.9), rgba(6, 78, 59, 0.6)), 
+                        url('https://images.unsplash.com/photo-1531482615713-2afd69097998?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80'); 
+            background-size: cover;
+            background-position: center;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.4s ease;
+        }
+
+        .stat-card:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-8px);
+            border-color: var(--pk-gold);
+        }
+
+        /* --- FILIALES & GALERIE --- */
+        .filiale-card {
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border-bottom: 4px solid transparent;
+        }
+
+        .filiale-card:hover {
+            transform: translateY(-10px);
+            border-bottom: 4px solid var(--pk-gold);
+            background: white;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.05);
+        }
+
+        .gallery-item {
+            position: relative;
+            overflow: hidden;
+            border-radius: 1.5rem;
+            cursor: pointer;
+        }
+
+        .gallery-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(6, 78, 59, 0.9), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 1.5rem;
+        }
+
+        .gallery-item:hover .gallery-overlay {
+            opacity: 1;
+        }
+
+        .gallery-item img {
+            transition: transform 0.5s ease;
+        }
+
+        .gallery-item:hover img {
+            transform: scale(1.1);
+        }
+
+        .btn-gold {
+            background-color: var(--pk-gold);
+            color: #064e3b;
+            transition: all 0.3s ease;
+        }
+
+        .btn-gold:hover {
+            background-color: #f59e0b;
+            transform: scale(1.05);
+        }
+
+        /* LOGO GRID STYLES */
+        .brand-logo-card {
+            transition: all 0.3s ease;
+            filter: grayscale(100%);
+            opacity: 0.6;
+        }
+        .brand-logo-card:hover {
+            filter: grayscale(0%);
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: var(--pk-green-dark); border-radius: 10px; }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- NAVIGATION -->
+    <nav id="navbar" class="fixed w-full z-50 py-6 px-6 md:px-12 text-white">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <!-- Logo Group -->
+            <a href="#accueil" class="flex items-center space-x-3 group">
+                <div class="bg-white p-1 rounded-lg shadow-lg group-hover:scale-105 transition-transform flex items-center justify-center overflow-hidden">
+                    <img src="logo.svg" alt="PK Global Partners Logo" class="h-10 w-auto object-contain">
+                </div>
+                <div class="flex flex-col">
+                    <span class="font-bold text-lg uppercase tracking-widest leading-none">Global Partners</span>
+                    <span class="text-[9px] uppercase tracking-[0.3em] text-emerald-300 font-semibold">Holding Panafricaine</span>
+                </div>
+            </a>
+            
+            <!-- Menu Links -->
+            <div class="hidden lg:flex items-center space-x-7 text-[11px] font-bold uppercase tracking-[0.15em]">
+                <a href="#accueil" class="nav-link hover:text-yellow-400">Accueil</a>
+                <a href="about.html" class="nav-link hover:text-yellow-400">À Propos</a>
+                <a href="#poles" class="nav-link hover:text-yellow-400">Expertise</a>
+                <a href="filiales.html" class="nav-link hover:text-yellow-400">Filiales</a>
+                <a href="investors.html" class="nav-link hover:text-yellow-400">Investisseurs</a>
+                <a href="careers.html" class="nav-link hover:text-yellow-400">Carrières</a>
+                <a href="contact.html" class="nav-link hover:text-yellow-400">Contact</a>
+                <a href="/admin" class="bg-yellow-400 text-emerald-950 px-4 py-2 rounded-xl hover:bg-white transition-colors duration-300 shadow-lg flex items-center gap-1.5 font-bold">
+                    <i class="fas fa-shield-alt text-[11px]"></i> Admin
+                </a>
+            </div>
+
+            <!-- Mobile Toggle -->
+            <button class="lg:hidden text-2xl p-2 hover:bg-white/10 rounded-lg transition"><i class="fas fa-bars"></i></button>
+        </div>
+    </nav>
+
+    <!-- HERO SECTION -->
+    <section id="accueil" class="hero-gradient min-h-screen flex items-center justify-center pt-24 pb-12 px-6">
+        <div class="max-w-7xl mx-auto w-full">
+            <div class="flex flex-col items-center text-center">
+                <div class="inline-block bg-emerald-500/20 backdrop-blur-md border border-emerald-400/30 px-6 py-2 rounded-full mb-8 animate-pulse">
+                    <span class="text-xs font-bold uppercase tracking-[0.4em] text-emerald-200">Vision 2030 : L'Afrique de demain</span>
+                </div>
+                
+                <h1 class="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white leading-[1.1] mb-8 max-w-5xl">
+                    Transformer l’Afrique par <br>
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-500">l’Investissement d’Impact</span>
+                </h1>
+                
+                <p class="text-lg md:text-xl text-emerald-50 mb-12 max-w-3xl mx-auto font-light leading-relaxed opacity-90">
+                    PK GLOBAL PARTNERS est une holding stratégique dédiée à l'éclosion de champions nationaux et au développement de projets multisectoriels en République Démocratique du Congo.
+                </p>
+                
+                <div class="flex flex-col sm:flex-row justify-center items-center gap-4 mb-20 w-full">
+                    <a href="investors.html" class="btn-gold w-full sm:w-64 py-5 rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-2xl">
+                        Investir avec nous
+                    </a>
+                    <a href="filiales.html" class="bg-white/10 backdrop-blur-md border border-white/20 w-full sm:w-64 py-5 rounded-2xl font-bold text-xs uppercase tracking-[0.2em] text-white hover:bg-white/20 transition">
+                        Nos Réalisations
+                    </a>
+                </div>
+                
+                <!-- COMPTEURS STATISTIQUES -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-6xl">
+                    <div class="stat-card p-8 rounded-3xl group">
+                        <div class="text-yellow-400 mb-2 opacity-50 group-hover:opacity-100 transition-opacity"><i class="fas fa-building text-xl"></i></div>
+                        <span class="text-3xl md:text-4xl font-extrabold text-white block mb-1">
+                            <span class="counter" data-target="12">0</span>+
+                        </span>
+                        <div class="text-[10px] uppercase tracking-[0.2em] text-emerald-200/70 font-bold">Filiales Actives</div>
+                    </div>
+                    
+                    <div class="stat-card p-8 rounded-3xl group">
+                        <div class="text-yellow-400 mb-2 opacity-50 group-hover:opacity-100 transition-opacity"><i class="fas fa-users text-xl"></i></div>
+                        <span class="text-3xl md:text-4xl font-extrabold text-white block mb-1">
+                            <span class="counter" data-target="500">0</span>+
+                        </span>
+                        <div class="text-[10px] uppercase tracking-[0.2em] text-emerald-200/70 font-bold">Collaborateurs</div>
+                    </div>
+                    
+                    <div class="stat-card p-8 rounded-3xl group">
+                        <div class="text-yellow-400 mb-2 opacity-50 group-hover:opacity-100 transition-opacity"><i class="fas fa-chart-line text-xl"></i></div>
+                        <span class="text-3xl md:text-4xl font-extrabold text-white block mb-1">
+                            <span class="counter" data-target="100">0</span>%
+                        </span>
+                        <div class="text-[10px] uppercase tracking-[0.2em] text-emerald-200/70 font-bold">Capital Congolais</div>
+                    </div>
+                    
+                    <div class="stat-card p-8 rounded-3xl group">
+                        <div class="text-yellow-400 mb-2 opacity-50 group-hover:opacity-100 transition-opacity"><i class="fas fa-globe-africa text-xl"></i></div>
+                        <span class="text-3xl md:text-4xl font-extrabold text-white block mb-1">
+                            <span class="counter" data-target="7">0</span>+
+                        </span>
+                        <div class="text-[10px] uppercase tracking-[0.2em] text-emerald-200/70 font-bold">Secteurs d'Impact</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- PRÉSENTATION -->
+    <section id="groupe" class="py-24 px-6 md:px-12 bg-white overflow-hidden">
+        <div class="max-w-7xl mx-auto">
+            <div class="grid lg:grid-cols-2 gap-20 items-center">
+                <div class="relative">
+                    <div class="absolute -top-10 -left-10 w-64 h-64 bg-emerald-50 rounded-full -z-10"></div>
+                    <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80" alt="Entrepreneur Africain" class="rounded-3xl shadow-2xl object-cover h-[500px] w-full">
+                    <div class="absolute -bottom-6 -right-6 bg-yellow-400 p-8 rounded-2xl shadow-xl">
+                        <i class="fas fa-quote-left text-emerald-900 text-3xl opacity-50 mb-4"></i>
+                        <p class="text-emerald-900 font-bold italic text-sm">"L'Afrique ne se construit pas, elle se transforme par l'action structurée."</p>
+                    </div>
+                </div>
+                <div>
+                    <span class="text-emerald-600 font-bold uppercase tracking-widest text-sm">Vision & Leadership</span>
+                    <h2 class="text-4xl font-extrabold mt-4 mb-8 text-emerald-950 leading-tight">Une holding structurée pour la performance durable</h2>
+                    <p class="text-gray-600 leading-relaxed mb-8 text-lg">
+                        PK GLOBAL PARTNERS opère comme un moteur de croissance en RDC. Nous combinons expertise financière et rigueur opérationnelle pour développer des solutions dans l'énergie, la mobilité et le digital.
+                    </p>
+                    <div class="space-y-6">
+                        <div class="flex items-start space-x-4">
+                            <div class="bg-emerald-100 p-3 rounded-lg text-emerald-700">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-emerald-900">Excellence & Rigueur</h4>
+                                <p class="text-sm text-gray-500">Gouvernance transparente et standards de performance internationaux.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start space-x-4">
+                            <div class="bg-emerald-100 p-3 rounded-lg text-emerald-700">
+                                <i class="fas fa-leaf"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-emerald-900">Impact & Durabilité</h4>
+                                <p class="text-sm text-gray-500">Investissements responsables alignés sur les principes ESG.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- PÔLES STRATÉGIQUES -->
+    <section id="poles" class="py-24 bg-emerald-950 text-white px-6 md:px-12">
+        <div class="max-w-7xl mx-auto">
+            <div class="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
+                <div class="max-w-2xl">
+                    <h2 class="text-4xl font-bold mb-4">Nos Pôles d'Expertise</h2>
+                    <p class="text-emerald-200 font-light">Nous intervenons sur toute la chaîne de valeur, de la structuration financière à l'exploitation opérationnelle.</p>
+                </div>
+                <div class="h-1 w-32 bg-yellow-400 rounded-full"></div>
+            </div>
+            
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div class="bg-white/5 border border-white/10 p-10 rounded-3xl hover:bg-emerald-900 transition duration-500 group">
+                    <div class="w-16 h-16 bg-emerald-800 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-yellow-400 group-hover:text-emerald-900 transition-colors">
+                        <i class="fas fa-university text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-4">Investissement & Structuration</h3>
+                    <p class="text-emerald-100/60 text-sm leading-relaxed">Ingénierie financière avancée et mobilisation de capitaux pour projets structurants.</p>
+                </div>
+                <div class="bg-white/5 border border-white/10 p-10 rounded-3xl hover:bg-emerald-900 transition duration-500 group">
+                    <div class="w-16 h-16 bg-emerald-800 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-yellow-400 group-hover:text-emerald-900 transition-colors">
+                        <i class="fas fa-charging-station text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-4">Énergies & Mobilité</h3>
+                    <p class="text-emerald-100/60 text-sm leading-relaxed">Transition énergétique par le solaire et déploiement de flottes électriques urbaines.</p>
+                </div>
+                <div class="bg-white/5 border border-white/10 p-10 rounded-3xl hover:bg-emerald-900 transition duration-500 group">
+                    <div class="w-16 h-16 bg-emerald-800 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-yellow-400 group-hover:text-emerald-900 transition-colors">
+                        <i class="fas fa-laptop-code text-2xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-4">Fintech & Services</h3>
+                    <p class="text-emerald-100/60 text-sm leading-relaxed">Solutions transactionnelles digitales pour l'inclusion financière des populations.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FILIALES -->
+    <section id="filiales" class="py-24 px-6 md:px-12 bg-emerald-50">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-20">
+                <span class="text-emerald-600 font-black uppercase tracking-[0.3em] text-xs">Notre Écosystème</span>
+                <h2 class="text-4xl font-extrabold text-emerald-950 mt-4">Nos Filiales Leaders</h2>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div class="filiale-card bg-white p-8 rounded-3xl cursor-pointer" onclick="openModal('raka')">
+                    <div class="flex justify-between items-start mb-10">
+                        <div class="w-16 h-16 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center font-black text-xl tracking-tighter">RAKA</div>
+                        <i class="fas fa-external-link-alt text-gray-300"></i>
+                    </div>
+                    <h3 class="text-xl font-extrabold text-emerald-950 mb-3">Logistique Digitale</h3>
+                    <p class="text-gray-500 text-sm mb-6">Plateforme urbaine de livraison à la demande connectant les commerces aux clients.</p>
+                    <span class="text-emerald-600 text-xs font-bold uppercase tracking-widest">Détails →</span>
+                </div>
+                <div class="filiale-card bg-white p-8 rounded-3xl cursor-pointer" onclick="openModal('elvo')">
+                    <div class="flex justify-between items-start mb-10">
+                        <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center font-black text-xl tracking-tighter">ELVO</div>
+                        <i class="fas fa-external-link-alt text-gray-300"></i>
+                    </div>
+                    <h3 class="text-xl font-extrabold text-emerald-950 mb-3">Mobilité Durable</h3>
+                    <p class="text-gray-500 text-sm mb-6">Assemblage et déploiement de motos et véhicules électriques haute performance.</p>
+                    <span class="text-emerald-600 text-xs font-bold uppercase tracking-widest">Détails →</span>
+                </div>
+                <div class="filiale-card bg-white p-8 rounded-3xl cursor-pointer" onclick="openModal('savi')">
+                    <div class="flex justify-between items-start mb-10">
+                        <div class="w-16 h-16 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center font-black text-xl tracking-tighter">SAVI</div>
+                        <i class="fas fa-external-link-alt text-gray-300"></i>
+                    </div>
+                    <h3 class="text-xl font-extrabold text-emerald-950 mb-3">Énergie Propre</h3>
+                    <p class="text-gray-500 text-sm mb-6">Solutions de cuisson durable par la biomasse pour réduire la déforestation.</p>
+                    <span class="text-emerald-600 text-xs font-bold uppercase tracking-widest">Détails →</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- GALERIE D'IMAGES -->
+    <section id="galerie" class="py-24 px-6 md:px-12 bg-white">
+        <div class="max-w-7xl mx-auto">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-16 gap-6">
+                <div>
+                    <span class="text-yellow-600 font-bold uppercase tracking-widest text-xs">Impact Visuel</span>
+                    <h2 class="text-4xl font-extrabold text-emerald-950 mt-2">Réalisations sur le Terrain</h2>
+                </div>
+                <p class="text-gray-500 max-w-md text-sm md:text-right">Aperçu de nos infrastructures et de nos flottes déployées à travers la République Démocratique du Congo.</p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="gallery-item h-80 group lg:col-span-2" onclick="openModal('raka')">
+                    <img src="images/young-businessmen-standing-together-holding-laptop-discussing-business.jpg" alt="RAKA Logistique" class="w-full h-full object-cover">
+                    <div class="gallery-overlay">
+                        <span class="text-yellow-400 text-xs font-bold uppercase tracking-widest mb-1">RAKA</span>
+                        <h4 class="text-white font-bold text-lg">Hub Logistique Urbain</h4>
+                    </div>
+                </div>
+                <div class="gallery-item h-80 group" onclick="openModal('elvo')">
+                    <img src="images/PHOTO-2026-02-14-12-54-22 (6).jpg" alt="ELVO Moto Electrique" class="w-full h-full object-cover">
+                    <div class="gallery-overlay">
+                        <span class="text-yellow-400 text-xs font-bold uppercase tracking-widest mb-1">ELVO</span>
+                        <h4 class="text-white font-bold text-lg">Flotte Électrique</h4>
+                    </div>
+                </div>
+                <div class="gallery-item h-80 group" onclick="openModal('savi')">
+                    <img src="images/PHOTO-2026-02-14-12-54-22 (5).jpg" alt="SAVI Energie" class="w-full h-full object-cover">
+                    <div class="gallery-overlay">
+                        <span class="text-yellow-400 text-xs font-bold uppercase tracking-widest mb-1">SAVI</span>
+                        <h4 class="text-white font-bold text-lg">Énergie Biomasse</h4>
+                    </div>
+                </div>
+                <div class="gallery-item h-80 group lg:col-span-2">
+                    <img src="images/PHOTO-2026-02-14-12-54-22 (4).jpg" alt="Impact Social" class="w-full h-full object-cover">
+                    <div class="gallery-overlay">
+                        <span class="text-yellow-400 text-xs font-bold uppercase tracking-widest mb-1">Impact</span>
+                        <h4 class="text-white font-bold text-lg">Formation & Inclusion</h4>
+                    </div>
+                </div>
+                <div class="gallery-item h-80 group lg:col-span-2">
+                    <img src="images/businessman-smiling-camera-office.jpg" alt="Bureau PK" class="w-full h-full object-cover">
+                    <div class="gallery-overlay">
+                        <span class="text-yellow-400 text-xs font-bold uppercase tracking-widest mb-1">Holding</span>
+                        <h4 class="text-white font-bold text-lg">Excellence Opérationnelle</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ÉCOSYSTÈME DES LOGOS -->
+    <section id="marques" class="py-20 px-6 md:px-12 bg-emerald-50/50 border-y border-emerald-100">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-12">
+                <span class="text-emerald-600 font-bold uppercase tracking-widest text-[10px]">Synergies Groupe</span>
+                <h3 class="text-2xl font-extrabold text-emerald-950 mt-2">Notre Écosystème de Marques</h3>
+            </div>
+            
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8 items-center justify-items-center">
+                <a href="#filiales" class="brand-logo-card flex flex-col items-center gap-2">
+                    <div class="h-16 w-16 bg-white rounded-xl shadow-sm flex items-center justify-center p-2">
+                        <span class="font-black text-red-600 text-xl tracking-tighter">RAKA</span>
+                    </div>
+                    <span class="text-[9px] font-bold uppercase tracking-tighter text-gray-400">Logistique</span>
+                </a>
+                <a href="#filiales" class="brand-logo-card flex flex-col items-center gap-2">
+                    <div class="h-16 w-16 bg-white rounded-xl shadow-sm flex items-center justify-center p-2">
+                        <span class="font-black text-blue-600 text-xl tracking-tighter">ELVO</span>
+                    </div>
+                    <span class="text-[9px] font-bold uppercase tracking-tighter text-gray-400">Mobilité</span>
+                </a>
+                <a href="#filiales" class="brand-logo-card flex flex-col items-center gap-2">
+                    <div class="h-16 w-16 bg-white rounded-xl shadow-sm flex items-center justify-center p-2">
+                        <span class="font-black text-green-600 text-xl tracking-tighter">SAVI</span>
+                    </div>
+                    <span class="text-[9px] font-bold uppercase tracking-tighter text-gray-400">Énergie</span>
+                </a>
+                <div class="brand-logo-card flex flex-col items-center gap-2">
+                    <div class="h-16 w-16 bg-white rounded-xl shadow-sm flex items-center justify-center p-2">
+                        <span class="font-black text-orange-600 text-xl tracking-tighter">FRIVIA</span>
+                    </div>
+                    <span class="text-[9px] font-bold uppercase tracking-tighter text-gray-400">Retail</span>
+                </div>
+                <div class="brand-logo-card flex flex-col items-center gap-2 text-center">
+                    <div class="h-16 w-16 bg-white rounded-xl shadow-sm flex flex-col items-center justify-center p-1">
+                        <span class="font-black text-amber-900 text-xs leading-none">ELIKYA</span>
+                        <span class="font-light text-amber-700 text-[8px] uppercase tracking-widest">COFFEE</span>
+                    </div>
+                    <span class="text-[9px] font-bold uppercase tracking-tighter text-gray-400">Agrobusiness</span>
+                </div>
+                <div class="brand-logo-card flex flex-col items-center gap-2">
+                    <div class="h-16 w-16 bg-white rounded-xl shadow-sm flex items-center justify-center p-2">
+                        <span class="font-black text-pink-600 text-xl tracking-tighter uppercase">YOUPI</span>
+                    </div>
+                    <span class="text-[9px] font-bold uppercase tracking-tighter text-gray-400">Divertissement</span>
+                </div>
+                <div class="brand-logo-card flex flex-col items-center gap-2 text-center">
+                    <div class="h-16 w-16 bg-white rounded-xl shadow-sm flex flex-col items-center justify-center p-1">
+                        <span class="font-bold text-emerald-900 text-[9px] leading-tight">TALENTS</span>
+                        <span class="font-light text-emerald-700 text-[8px] uppercase tracking-tighter">D’AFFAIRES</span>
+                    </div>
+                    <span class="text-[9px] font-bold uppercase tracking-tighter text-gray-400">Média</span>
+                </div>
+                <div class="brand-logo-card flex flex-col items-center gap-2 text-center">
+                    <div class="h-16 w-16 bg-white rounded-xl shadow-sm flex flex-col items-center justify-center p-1">
+                        <span class="font-black text-emerald-800 text-[10px]">PAMOJA</span>
+                        <span class="font-light text-emerald-600 text-[7px] uppercase italic">FORUM</span>
+                    </div>
+                    <span class="text-[9px] font-bold uppercase tracking-tighter text-gray-400">Événementiel</span>
+                </div>
+                <div class="brand-logo-card flex flex-col items-center gap-2 text-center">
+                    <div class="h-16 w-16 bg-white rounded-xl shadow-sm flex flex-col items-center justify-center p-1">
+                        <span class="font-black text-emerald-800 text-[10px]">PAMOJA</span>
+                        <span class="font-light text-emerald-600 text-[7px] uppercase italic">TALK</span>
+                    </div>
+                    <span class="text-[9px] font-bold uppercase tracking-tighter text-gray-400">Network</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- INVESTISSEURS -->
+    <section id="investisseurs" class="py-24 px-6 md:px-12 bg-white">
+        <div class="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-20">
+            <div class="lg:w-1/2">
+                <img src="https://images.unsplash.com/photo-1573163281534-ddb2807c6c58?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80" alt="Réunion d'affaires" class="rounded-[3rem] shadow-2xl">
+            </div>
+            <div class="lg:w-1/2">
+                <span class="text-yellow-600 font-bold uppercase tracking-[0.2em] text-xs">Relations Investisseurs</span>
+                <h2 class="text-4xl font-extrabold text-emerald-950 mt-4 mb-8">Un pont entre le capital global et les opportunités locales</h2>
+                <p class="text-gray-600 mb-10 text-lg">Nous proposons des véhicules d'investissement sécurisés pour financer la transformation durable de l'Afrique Centrale.</p>
+                <a href="investors.html" class="inline-block text-center bg-emerald-900 text-white w-full py-5 rounded-2xl font-bold uppercase text-xs tracking-widest shadow-xl hover:bg-emerald-800 transition">Contacter le pôle Investissement</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer id="contact" class="bg-emerald-950 text-white pt-24 pb-12 px-6 md:px-12">
+        <div class="max-w-7xl mx-auto text-center">
+            <div class="flex flex-col items-center mb-16">
+                <div class="bg-white p-2 rounded-xl mb-6 shadow-xl">
+                    <img src="logo.svg" alt="PK Global Partners Logo" class="h-16 w-auto object-contain">
+                </div>
+                <h2 class="text-3xl font-bold uppercase tracking-[0.2em] mb-4">Global Partners</h2>
+                <div class="flex flex-col gap-2 mb-4">
+                    <p class="text-emerald-100/70 max-w-lg text-sm mx-auto">Siège Social : Boulevard Kanyamuhanga, n°4, Ville de Goma, République Démocratique du Congo.</p>
+                    <a href="tel:+243814119635" class="text-yellow-400 font-bold text-lg hover:underline transition">
+                        <i class="fas fa-phone-alt mr-2 text-sm"></i> +243 814 119 635
+                    </a>
+                    <a href="mailto:info@pkglobalpartners.com" class="text-yellow-400 font-bold text-lg hover:underline transition">
+                        <i class="fas fa-envelope mr-2 text-sm"></i> info@pkglobalpartners.com
+                    </a>
+                </div>
+            </div>
+            <div class="h-px bg-white/10 w-full mb-8"></div>
+            <div class="flex flex-wrap justify-center gap-6 mb-8 text-xs font-semibold uppercase tracking-wider text-emerald-200/80">
+                <a href="index.html" class="hover:text-yellow-400 transition">Accueil</a>
+                <a href="about.html" class="hover:text-yellow-400 transition">À Propos</a>
+                <a href="filiales.html" class="hover:text-yellow-400 transition">Filiales</a>
+                <a href="investors.html" class="hover:text-yellow-400 transition">Investisseurs</a>
+                <a href="careers.html" class="hover:text-yellow-400 transition">Carrières</a>
+                <a href="contact.html" class="hover:text-yellow-400 transition">Contact</a>
+                <a href="/admin" class="text-yellow-400 hover:text-white transition flex items-center gap-1 font-bold">
+                    <i class="fas fa-lock text-[10px]"></i> Espace Administrateur
+                </a>
+            </div>
+            <p class="text-[10px] text-emerald-100/40 uppercase tracking-widest font-bold">
+                &copy; 2026 PK Global Partners Holding. Tous droits réservés.
+            </p>
+        </div>
+    </footer>
+
+    <!-- MODAL -->
+    <div id="filialeModal" class="fixed inset-0 bg-emerald-950/95 z-[100] hidden items-center justify-center p-6 backdrop-blur-xl">
+        <div class="bg-white max-w-5xl w-full rounded-[3rem] overflow-hidden relative shadow-2xl">
+            <button onclick="closeModal()" class="absolute top-8 right-8 text-gray-400 hover:text-emerald-950 text-3xl z-10 transition"><i class="fas fa-times"></i></button>
+            <div id="modalContent" class="grid md:grid-cols-2"></div>
+        </div>
+    </div>
+
+    <script>
+        // Navbar Scroll
+        window.addEventListener('scroll', () => {
+            const nav = document.getElementById('navbar');
+            if (window.scrollY > 50) { nav.classList.add('nav-scrolled'); } 
+            else { nav.classList.remove('nav-scrolled'); }
+        });
+
+        // Compteurs
+        const counters = document.querySelectorAll('.counter');
+        const speed = 200;
+
+        const startCounters = () => {
+            counters.forEach(counter => {
+                const updateCount = () => {
+                    const target = +counter.getAttribute('data-target');
+                    const count = +counter.innerText;
+                    const inc = target / speed;
+                    if (count < target) {
+                        counter.innerText = Math.ceil(count + inc);
+                        setTimeout(updateCount, 15);
+                    } else { counter.innerText = target; }
+                };
+                updateCount();
+            });
+        };
+
+        window.onload = startCounters;
+
+        const filialesData = {
+            raka: {
+                name: "RAKA",
+                tagline: "Moderniser la logistique urbaine",
+                desc: "Plateforme digitale de livraison à la demande connectant commerces et pharmacies aux clients à travers une technologie de pointe.",
+                impact: "Digitalisation des PME et création de centaines d'emplois.",
+                color: "text-red-600",
+                img: "https://images.unsplash.com/photo-1594833152634-927364233766?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80"
+            },
+            elvo: {
+                name: "ELVO",
+                tagline: "L'avenir est électrique",
+                desc: "Filiale spécialisée dans la distribution et l'assemblage de solutions de transport électrique adaptées aux réalités africaines.",
+                impact: "Réduction des émissions et baisse du coût du transport.",
+                color: "text-blue-600",
+                img: "https://images.unsplash.com/photo-1558981403-c5f91cbba527?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80"
+            },
+            savi: {
+                name: "SAVI",
+                tagline: "Énergie propre pour tous",
+                desc: "Solutions de cuisson durable (briquettes et gaz) pour remplacer le charbon traditionnel.",
+                impact: "Lutte contre la déforestation et amélioration de la santé publique.",
+                color: "text-green-600",
+                img: "https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80"
+            }
+        };
+
+        function openModal(id) {
+            const d = filialesData[id];
+            const content = `
+                <div class="h-80 md:h-auto bg-cover bg-center" style="background-image: url('${d.img}')"></div>
+                <div class="p-10 md:p-16 flex flex-col justify-center">
+                    <span class="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-400 mb-4">Filiale Stratégique</span>
+                    <h2 class="text-4xl font-extrabold ${d.color} mb-2">${d.name}</h2>
+                    <p class="text-emerald-950 font-bold mb-8 italic">"${d.tagline}"</p>
+                    <div class="space-y-6">
+                        <p class="text-gray-600 text-sm leading-relaxed">${d.desc}</p>
+                        <div class="bg-emerald-50 p-6 rounded-2xl border border-emerald-100">
+                            <h4 class="text-xs font-bold uppercase text-emerald-600 mb-2 tracking-widest">Impact</h4>
+                            <p class="text-emerald-900 text-sm font-medium">${d.impact}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('modalContent').innerHTML = content;
+            document.getElementById('filialeModal').classList.replace('hidden', 'flex');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            document.getElementById('filialeModal').classList.replace('flex', 'hidden');
+            document.body.style.overflow = 'auto';
+        }
+    </script>
+    <script src="/public/js/site-connect.js"></script>
+</body>
+</html>

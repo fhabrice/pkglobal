@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administration | PK GLOBAL PARTNERS</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Local Chart.js -->
+    <script src="/public/js/chart.min.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body class="h-full overflow-hidden text-slate-800 antialiased flex flex-col font-['Plus_Jakarta_Sans']">
+
+    <!-- LOGIN SCREEN (Shown if not logged in) -->
+    <div id="login-screen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-900">
+        <div class="max-w-md w-full bg-white rounded-3xl shadow-2xl p-8 border border-emerald-800/20">
+            <div class="text-center mb-8">
+                <div class="inline-flex items-center justify-center p-3 bg-emerald-50 rounded-2xl mb-4 border border-emerald-100 shadow-sm">
+                    <img src="/logo.svg" alt="PK Global Partners" class="h-12 w-auto">
+                </div>
+                <h1 class="text-2xl font-extrabold text-emerald-950 tracking-tight">Espace Administrateur</h1>
+                <p class="text-xs text-slate-500 mt-1 uppercase tracking-wider font-semibold">Plateforme de Gestion Sécurisée</p>
+            </div>
+
+            <!-- Error alert -->
+            <div id="login-error" class="hidden mb-4 p-3.5 bg-red-50 text-red-700 text-xs rounded-xl border border-red-200 flex items-center gap-2">
+                <i class="fas fa-exclamation-circle text-red-500"></i>
+                <span id="login-error-text">Identifiants incorrects</span>
+            </div>
+
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Identifiant / Email</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-sm">
+                            <i class="fas fa-envelope"></i>
+                        </span>
+                        <input type="email" id="login-email" required
+                            class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 outline-none text-sm font-medium transition"
+                            placeholder="nom@pkglobalpartners.com">
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">Mot de passe</label>
+                    </div>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 text-sm">
+                            <i class="fas fa-lock"></i>
+                        </span>
+                        <input type="password" id="login-password" required
+                            class="w-full pl-10 pr-10 py-3 rounded-xl border border-slate-200 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 outline-none text-sm font-medium transition"
+                            placeholder="••••••••••••">
+                        <button type="button" onclick="togglePasswordVisibility('login-password')" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600">
+                            <i class="fas fa-eye text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="submit" id="login-submit-btn"
+                    class="w-full py-3.5 bg-emerald-900 hover:bg-emerald-800 text-yellow-400 font-bold rounded-xl transition duration-200 shadow-lg shadow-emerald-950/20 flex items-center justify-center gap-2 text-sm uppercase tracking-wider">
+                    <span>Connexion Sécurisée</span>
+                    <i class="fas fa-arrow-right text-xs"></i>
+                </button>
+            </form>
+
+            <!-- Test Accounts Quick Fill (Pour tester facilement les 3 profils) -->
+            <div class="mt-8 pt-6 border-t border-slate-100">
+                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2.5 flex items-center justify-between">
+                    <span>Accès Rapides (Comptes de Test) :</span>
+                    <i class="fas fa-key text-xs text-yellow-500"></i>
+                </p>
+                <div class="grid grid-cols-1 gap-1.5">
+                    <button type="button" onclick="quickFill('superadmin@pkglobalpartners.com', 'AdminPKGlobal2026!')"
+                        class="text-left px-3 py-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-950 text-xs font-semibold border border-emerald-200/60 transition flex items-center justify-between">
+                        <div>
+                            <span class="font-bold text-emerald-800">1. Super Administrateur</span>
+                            <span class="text-[10px] text-slate-500 block">Accès complet à toute la plateforme</span>
+                        </div>
+                        <i class="fas fa-chevron-right text-[10px] text-emerald-600"></i>
+                    </button>
+                    <button type="button" onclick="quickFill('admin@pkglobalpartners.com', 'AdminPKGlobal2026!')"
+                        class="text-left px-3 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-800 text-xs font-semibold border border-slate-200 transition flex items-center justify-between">
+                        <div>
+                            <span class="font-bold text-slate-700">2. Administrateur Général</span>
+                            <span class="text-[10px] text-slate-500 block">Gestion contenus, projets, investisseurs</span>
+                        </div>
+                        <i class="fas fa-chevron-right text-[10px] text-slate-400"></i>
+                    </button>
+                    <button type="button" onclick="quickFill('frivia.manager@pkglobalpartners.com', 'ManagerPKGlobal2026!')"
+                        class="text-left px-3 py-2 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-950 text-xs font-semibold border border-orange-200 transition flex items-center justify-between">
+                        <div>
+                            <span class="font-bold text-orange-800">3. Resp. Filiale (FRIVIA Fast-Food)</span>
+                            <span class="text-[10px] text-slate-500 block">Accès cloisonné à la filiale uniquement</span>
+                        </div>
+                        <i class="fas fa-chevron-right text-[10px] text-orange-600"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="mt-6 text-center">
+                <a href="/" class="text-xs font-semibold text-emerald-700 hover:text-emerald-950 transition inline-flex items-center gap-1.5">
+                    <i class="fas fa-arrow-left text-[10px]"></i>
+                    Retour au site public
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP WRAPPER (Shown when authenticated) -->
+    <div id="app-wrapper" class="hidden flex h-screen overflow-hidden bg-slate-50">
+        
+        <!-- SIDEBAR -->
+        <aside id="sidebar" class="w-72 bg-emerald-950 text-white flex flex-col flex-shrink-0 transition-all duration-300 z-30 shadow-xl border-r border-emerald-900/50">
+            <!-- Sidebar Header / Logo -->
+            <div class="p-5 border-b border-emerald-900/60 flex items-center justify-between">
+                <a href="#/dashboard" class="flex items-center space-x-3 group">
+                    <div class="bg-white p-1 rounded-xl shadow-md group-hover:scale-105 transition-transform flex items-center justify-center">
+                        <img src="/logo.svg" alt="PK Global" class="h-8 w-auto">
+                    </div>
+                    <div>
+                        <div class="text-sm font-black tracking-wider text-white">PK GLOBAL</div>
+                        <div class="text-[9px] uppercase tracking-widest text-yellow-400 font-bold">Admin Portal</div>
+                    </div>
+                </a>
+                <button onclick="toggleMobileSidebar()" class="lg:hidden text-emerald-300 hover:text-white p-1 text-lg">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- Current User Profile Pill -->
+            <div class="p-4 mx-3 my-3 rounded-2xl bg-emerald-900/50 border border-emerald-800/60">
+                <div class="flex items-center space-x-3">
+                    <div id="user-avatar" class="w-10 h-10 rounded-xl bg-gradient-to-tr from-yellow-500 to-amber-300 text-emerald-950 font-black flex items-center justify-center text-sm shadow">
+                        PK
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div id="user-display-name" class="text-xs font-bold text-white truncate">Chargement...</div>
+                        <div id="user-role-badge" class="mt-0.5 inline-block px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-md bg-emerald-800 text-emerald-200">
+                            Rôle
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="flex-1 px-3 space-y-1 overflow-y-auto py-2 text-xs font-medium">
+                <div class="px-3 py-1.5 text-[10px] uppercase font-bold tracking-widest text-emerald-400/60">Général</div>
+                
+                <a href="#/dashboard" class="nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-emerald-100 hover:bg-emerald-900/40 hover:text-white" data-route="dashboard">
+                    <i class="fas fa-chart-pie text-sm w-4 text-emerald-400"></i>
+                    <span>Tableau de bord</span>
+                </a>
+
+                <div class="px-3 pt-3 py-1.5 text-[10px] uppercase font-bold tracking-widest text-emerald-400/60" data-role-min="admin">Gestion & Contenus</div>
+                
+                <a href="#/contents" class="nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-emerald-100 hover:bg-emerald-900/40 hover:text-white" data-route="contents" data-role-min="admin">
+                    <i class="fas fa-file-alt text-sm w-4 text-emerald-400"></i>
+                    <span>Contenus du site</span>
+                </a>
+
+                <a href="#/calls" class="nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-emerald-100 hover:bg-emerald-900/40 hover:text-white" data-route="calls" data-role-min="admin">
+                    <i class="fas fa-bullhorn text-sm w-4 text-emerald-400"></i>
+                    <span>Appels à projets</span>
+                </a>
+
+                <a href="#/candidatures" class="nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-emerald-100 hover:bg-emerald-900/40 hover:text-white" data-route="candidatures" data-role-min="admin">
+                    <i class="fas fa-folder-open text-sm w-4 text-emerald-400"></i>
+                    <span class="flex-1">Candidatures & Projets</span>
+                    <span id="badge-candidatures-count" class="hidden px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-yellow-400 text-emerald-950">0</span>
+                </a>
+
+                <a href="#/investors" class="nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-emerald-100 hover:bg-emerald-900/40 hover:text-white" data-route="investors" data-role-min="admin">
+                    <i class="fas fa-hand-holding-dollar text-sm w-4 text-emerald-400"></i>
+                    <span>Investisseurs</span>
+                </a>
+
+                <a href="#/inquiries" class="nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-emerald-100 hover:bg-emerald-900/40 hover:text-white" data-route="inquiries">
+                    <i class="fas fa-envelope-open-text text-sm w-4 text-emerald-400"></i>
+                    <span class="flex-1">Demandes commerciales</span>
+                    <span id="badge-inquiries-count" class="hidden px-1.5 py-0.5 text-[9px] font-bold rounded-full bg-emerald-400 text-emerald-950">0</span>
+                </a>
+
+                <a href="#/filiales" class="nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-emerald-100 hover:bg-emerald-900/40 hover:text-white" data-route="filiales">
+                    <i class="fas fa-building text-sm w-4 text-emerald-400"></i>
+                    <span id="nav-filiales-label">Gestion des Filiales</span>
+                </a>
+
+                <div class="px-3 pt-3 py-1.5 text-[10px] uppercase font-bold tracking-widest text-emerald-400/60" data-role-min="superadmin">Administration Système</div>
+
+                <a href="#/users" class="nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-emerald-100 hover:bg-emerald-900/40 hover:text-white" data-route="users" data-role-min="admin">
+                    <i class="fas fa-users-gear text-sm w-4 text-emerald-400"></i>
+                    <span>Utilisateurs & Droits</span>
+                </a>
+
+                <a href="#/stats" class="nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-emerald-100 hover:bg-emerald-900/40 hover:text-white" data-route="stats" data-role-min="admin">
+                    <i class="fas fa-chart-line text-sm w-4 text-emerald-400"></i>
+                    <span>Statistiques & Rapports</span>
+                </a>
+
+                <a href="#/backups" class="nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-emerald-100 hover:bg-emerald-900/40 hover:text-white" data-route="backups" data-role-min="superadmin">
+                    <i class="fas fa-database text-sm w-4 text-emerald-400"></i>
+                    <span>Sauvegardes & Sécurité</span>
+                </a>
+
+                <div class="px-3 pt-3 py-1.5 text-[10px] uppercase font-bold tracking-widest text-emerald-400/60">Documentation & Aide</div>
+
+                <a href="#/guide" class="nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-emerald-100 hover:bg-emerald-900/40 hover:text-white" data-route="guide">
+                    <i class="fas fa-book-open text-sm w-4 text-yellow-400"></i>
+                    <span class="font-bold text-yellow-400">Guide d'Utilisation</span>
+                </a>
+
+                <a href="#/formation" class="nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-emerald-100 hover:bg-emerald-900/40 hover:text-white" data-route="formation">
+                    <i class="fas fa-graduation-cap text-sm w-4 text-yellow-400"></i>
+                    <span class="font-bold text-yellow-400">Guide de Formation</span>
+                </a>
+            </nav>
+
+            <!-- Bottom Utilities -->
+            <div class="p-3 border-t border-emerald-900/60 space-y-1">
+                <a href="/" target="_blank" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-emerald-300 hover:bg-emerald-900/50 hover:text-white transition">
+                    <i class="fas fa-arrow-up-right-from-square text-xs"></i>
+                    <span>Voir le site public</span>
+                </a>
+                <button onclick="logout()" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-red-300 hover:bg-red-950/40 hover:text-red-200 transition">
+                    <i class="fas fa-right-from-bracket text-xs"></i>
+                    <span>Déconnexion</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT AREA -->
+        <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+            
+            <!-- TOP NAVBAR -->
+            <header class="bg-white border-b border-slate-200/80 h-16 flex items-center justify-between px-6 flex-shrink-0 z-20 shadow-sm">
+                <div class="flex items-center gap-4">
+                    <button onclick="toggleMobileSidebar()" class="lg:hidden text-slate-600 hover:text-slate-900 text-lg">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <div>
+                        <h2 id="page-title" class="text-lg font-extrabold text-slate-800 leading-none">Tableau de bord</h2>
+                        <span id="page-subtitle" class="text-[11px] text-slate-500 font-medium">Vue d'ensemble et pilotage de la plateforme</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <!-- Quick Role Switcher Banner for Stakeholders Testing -->
+                    <div class="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200/80 rounded-xl text-[11px]">
+                        <span class="text-amber-800 font-bold flex items-center gap-1">
+                            <i class="fas fa-vial text-xs"></i> Mode Test :
+                        </span>
+                        <button onclick="switchRoleDemo('superadmin')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-white text-emerald-950 hover:bg-emerald-700 hover:text-white transition shadow-xs border border-slate-200" title="Tester en tant que Super Admin">SuperAdmin</button>
+                        <button onclick="switchRoleDemo('admin')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-white text-slate-800 hover:bg-slate-700 hover:text-white transition shadow-xs border border-slate-200" title="Tester en tant qu'Admin">Admin</button>
+                        <button onclick="switchRoleDemo('filiale_manager', 1)" class="px-2 py-0.5 rounded text-[10px] font-bold bg-white text-orange-800 hover:bg-orange-700 hover:text-white transition shadow-xs border border-slate-200" title="Tester en tant que Resp. FRIVIA">Resp. FRIVIA</button>
+                    </div>
+
+                    <!-- Notification Bell Dropdown -->
+                    <div class="relative">
+                        <button onclick="toggleNotificationDropdown()" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition relative">
+                            <i class="fas fa-bell text-sm"></i>
+                            <span id="notif-unread-dot" class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-white"></span>
+                        </button>
+                        <div id="notif-dropdown" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 py-2 z-50">
+                            <div class="px-4 py-2 border-b border-slate-100 flex items-center justify-between">
+                                <span class="text-xs font-bold text-slate-800">Notifications récentes</span>
+                                <button onclick="markAllNotificationsRead()" class="text-[10px] text-emerald-700 font-bold hover:underline">Tout marquer comme lu</button>
+                            </div>
+                            <div id="notif-list" class="max-h-72 overflow-y-auto divide-y divide-slate-50 text-xs">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- User Profile Quick Menu -->
+                    <button onclick="openChangePasswordModal()" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition" title="Modifier mon mot de passe">
+                        <i class="fas fa-key text-xs"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- SCROLLABLE VIEW CONTAINER -->
+            <main id="view-container" class="flex-1 overflow-y-auto p-6 md:p-8">
+                <!-- Views are dynamically injected here by admin.js -->
+            </main>
+        </div>
+    </div>
+
+    <!-- GLOBAL MODAL CONTAINER -->
+    <div id="modal-container" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs modal-overlay">
+        <div id="modal-content" class="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden modal-box max-h-[90vh] flex flex-col">
+            <!-- Modal header & body injected dynamically -->
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 space-y-2 pointer-events-none"></div>
+
+    <!-- Admin Client Logic -->
+    <script src="/admin/admin.js"></script>
+</body>
+</html>

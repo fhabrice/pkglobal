@@ -1,0 +1,32 @@
+{
+  "name": "pkglobal",
+  "version": "1.0.0",
+  "description": "site web dynamique",
+  "main": "lang.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fhabrice/pkglobal.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/fhabrice/pkglobal/issues"
+  },
+  "homepage": "https://github.com/fhabrice/pkglobal#readme",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^13.0.3",
+    "chart.js": "^4.6.1",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.9",
+    "exceljs": "^4.4.0",
+    "express": "^5.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.5.0",
+    "pdfkit": "^0.20.2"
+  }
+}
