@@ -4,9 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Administration | PK GLOBAL PARTNERS</title>
-    <!-- Tailwind CSS -->
+    <!-- Local Compiled CSS (Works 100% offline and in all iframes) -->
+    <link rel="stylesheet" href="/public/css/tailwind.css">
+    <!-- Tailwind CSS CDN Fallback -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Font Awesome -->
+    <!-- Local Font Awesome -->
+    <link rel="stylesheet" href="/public/css/fontawesome/css/all.min.css">
+    <!-- Font Awesome CDN Fallback -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -120,7 +124,7 @@
     <div id="app-wrapper" class="hidden flex h-screen overflow-hidden bg-slate-50">
         
         <!-- SIDEBAR -->
-        <aside id="sidebar" class="w-72 bg-emerald-950 text-white flex flex-col flex-shrink-0 transition-all duration-300 z-30 shadow-xl border-r border-emerald-900/50">
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-72 bg-emerald-950 text-white flex flex-col transition-transform duration-300 -translate-x-full lg:translate-x-0 lg:static lg:inset-auto lg:z-auto shadow-xl border-r border-emerald-900/50">
             <!-- Sidebar Header / Logo -->
             <div class="p-5 border-b border-emerald-900/60 flex items-center justify-between">
                 <a href="#/dashboard" class="flex items-center space-x-3 group">

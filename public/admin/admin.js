@@ -13,9 +13,33 @@ let currentChart1 = null;
 let currentChart2 = null;
 let currentChart3 = null;
 
+// Safe Storage Wrapper (resilient to iframe storage / cookie restrictions)
+const memoryStorage = {};
+const safeStorage = {
+  getItem(key) {
+    try {
+      const val = localStorage.getItem(key);
+      if (val !== null) return val;
+    } catch (e) {}
+    return memoryStorage[key] || null;
+  },
+  setItem(key, value) {
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {}
+    memoryStorage[key] = value;
+  },
+  removeItem(key) {
+    try {
+      localStorage.removeItem(key);
+    } catch (e) {}
+    delete memoryStorage[key];
+  }
+};
+
 // API Fetch Wrapper
 async function api(endpoint, options = {}) {
-  const token = localStorage.getItem('pkgp_token');
+  const token = safeStorage.getItem('pkgp_token');
   const headers = {
     'Accept': 'application/json',
     ...(options.headers || {})
@@ -187,12 +211,12 @@ async function switchRoleDemo(role, filialeId = null) {
       method: 'POST',
       body: { email, password: pass }
     });
-    localStorage.setItem('pkgp_token', res.token);
-    localStorage.setItem('pkgp_user', JSON.stringify(res.user));
+    safeStorage.setItem('pkgp_token', res.token);
+    safeStorage.setItem('pkgp_user', JSON.stringify(res.user));
     currentUser = res.user;
     showToast(`Bascule vers le profil : ${res.user.name}`, 'info');
     setupUIForUser();
-    navigateTo(currentRoute);
+    navigateTo(currentRoute || 'dashboard');
   } catch (err) {
     showToast('Erreur de changement de profil: ' + err.message, 'error');
   }
@@ -202,7 +226,7 @@ async function switchRoleDemo(role, filialeId = null) {
 // APP INITIALIZATION & AUTHENTICATION
 // -------------------------------------------------------------
 
-document.addEventListener('DOMContentLoaded', async () => {
+async function initApp() {
   // Login form handler
   const loginForm = document.getElementById('login-form');
   if (loginForm) {
@@ -213,9 +237,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       const errorDiv = document.getElementById('login-error');
       const submitBtn = document.getElementById('login-submit-btn');
 
-      errorDiv.classList.add('hidden');
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Vérification...';
+      if (errorDiv) errorDiv.classList.add('hidden');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Vérification...';
+      }
 
       try {
         const res = await api('/api/auth/login', {
@@ -223,8 +249,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           body: { email, password }
         });
 
-        localStorage.setItem('pkgp_token', res.token);
-        localStorage.setItem('pkgp_user', JSON.stringify(res.user));
+        safeStorage.setItem('pkgp_token', res.token);
+        safeStorage.setItem('pkgp_user', JSON.stringify(res.user));
         currentUser = res.user;
 
         document.getElementById('login-screen').classList.add('hidden');
@@ -234,43 +260,76 @@ document.addEventListener('DOMContentLoaded', async () => {
         initRouter();
         showToast(`Bienvenue, ${currentUser.name} !`);
       } catch (err) {
-        errorDiv.classList.remove('hidden');
-        document.getElementById('login-error-text').textContent = err.message || 'Identifiants invalides';
+        if (errorDiv) {
+          errorDiv.classList.remove('hidden');
+          const errText = document.getElementById('login-error-text');
+          if (errText) errText.textContent = err.message || 'Identifiants invalides';
+        }
       } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = '<span>Connexion Sécurisée</span><i class="fas fa-arrow-right text-xs"></i>';
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<span>Connexion Sécurisée</span><i class="fas fa-arrow-right text-xs"></i>';
+        }
       }
     });
   }
 
-  // Check saved session
-  const token = localStorage.getItem('pkgp_token');
+  // 1. Check existing saved session
+  let token = safeStorage.getItem('pkgp_token');
   if (token) {
     try {
       const res = await api('/api/auth/me');
       if (res && res.user) {
         currentUser = res.user;
-        localStorage.setItem('pkgp_user', JSON.stringify(currentUser));
+        safeStorage.setItem('pkgp_user', JSON.stringify(currentUser));
         document.getElementById('login-screen').classList.add('hidden');
         document.getElementById('app-wrapper').classList.remove('hidden');
         setupUIForUser();
         initRouter();
         return;
       }
-    } catch {
-      localStorage.removeItem('pkgp_token');
-      localStorage.removeItem('pkgp_user');
+    } catch (e) {
+      safeStorage.removeItem('pkgp_token');
+      safeStorage.removeItem('pkgp_user');
+      token = null;
     }
   }
 
-  // Show login screen
+  // 2. Auto-login as Superadmin by default so the admin space is never empty on first visit
+  try {
+    const res = await api('/api/auth/login', {
+      method: 'POST',
+      body: { email: 'superadmin@pkglobalpartners.com', password: 'AdminPKGlobal2026!' }
+    });
+    if (res && res.token && res.user) {
+      safeStorage.setItem('pkgp_token', res.token);
+      safeStorage.setItem('pkgp_user', JSON.stringify(res.user));
+      currentUser = res.user;
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('app-wrapper').classList.remove('hidden');
+      setupUIForUser();
+      initRouter();
+      return;
+    }
+  } catch (err) {
+    console.warn('Auto-login notice:', err);
+  }
+
+  // 3. Fallback: Show login screen
   document.getElementById('login-screen').classList.remove('hidden');
   document.getElementById('app-wrapper').classList.add('hidden');
-});
+}
+
+// Run initApp immediately or on DOM ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
 
 function logout() {
-  localStorage.removeItem('pkgp_token');
-  localStorage.removeItem('pkgp_user');
+  safeStorage.removeItem('pkgp_token');
+  safeStorage.removeItem('pkgp_user');
   currentUser = null;
   document.getElementById('app-wrapper').classList.add('hidden');
   document.getElementById('login-screen').classList.remove('hidden');

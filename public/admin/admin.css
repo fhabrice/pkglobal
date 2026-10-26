@@ -1,5 +1,9 @@
 /* Custom Admin Dashboard Styles for PK GLOBAL PARTNERS */
 
+.hidden {
+  display: none !important;
+}
+
 :root {
   --pk-green-dark: #064e3b;
   --pk-green-emerald: #047857;
