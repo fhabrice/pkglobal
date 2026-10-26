@@ -577,6 +577,12 @@ async function renderView(route) {
         await renderBackupsView(container);
         break;
 
+      case 'supabase':
+        titleEl.textContent = 'Intégration Backend Supabase';
+        subEl.textContent = 'Connexion BaaS Cloud, export SQL PostgreSQL et synchronisation';
+        await renderSupabaseView(container);
+        break;
+
       case 'guide':
         titleEl.textContent = 'Guide simplifié d\'utilisation (Livrable 5)';
         subEl.textContent = 'Manuel complet d\'utilisation de l\'espace administrateur';
@@ -2995,3 +3001,155 @@ async function renderFormationView(container) {
     </div>
   `;
 }
+
+// -------------------------------------------------------------
+// MODULE 12: INTÉGRATION BACKEND SUPABASE (POSTGRESQL BAAS)
+// -------------------------------------------------------------
+
+async function renderSupabaseView(container) {
+  const status = await api('/api/supabase/status');
+
+  container.innerHTML = `
+    <div class="space-y-8 max-w-5xl mx-auto">
+      
+      <!-- Top Banner -->
+      <div class="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white p-8 rounded-3xl shadow-xl relative overflow-hidden">
+        <div class="max-w-2xl">
+          <span class="px-3 py-1 bg-yellow-400 text-emerald-950 text-[10px] font-black uppercase tracking-widest rounded-full">BaaS PostgreSQL</span>
+          <h2 class="text-2xl font-black mt-3 mb-2 text-white">Architecture & Backend Supabase</h2>
+          <p class="text-emerald-100 text-xs leading-relaxed">
+            La plateforme PK GLOBAL PARTNERS est conçue pour être <strong>100% compatible avec Supabase</strong>. Vous disposez ici du schéma PostgreSQL complet, du script de migration des données et du testeur de connexion Cloud.
+          </p>
+        </div>
+      </div>
+
+      <!-- Connection Status Card -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div class="flex items-center gap-4">
+          <div class="w-14 h-14 rounded-2xl ${status.configured ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'} flex items-center justify-center text-2xl">
+            <i class="fas ${status.configured ? 'fa-bolt text-emerald-600' : 'fa-database text-amber-600'}"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="text-base font-bold text-slate-800">État du Backend Actuel</h3>
+              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold ${status.configured ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
+                ${status.configured ? '🟢 Connecté à Supabase Cloud' : '🟡 Mode SQLite Local (Prêt pour Supabase)'}
+              </span>
+            </div>
+            <p class="text-xs text-slate-500 mt-0.5">
+              ${status.configured ? `Projet Supabase actif : ${status.url}` : 'Le système fonctionne sur la base relationnelle locale et peut être basculé sur Supabase en 1 clic.'}
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 self-end md:self-center">
+          <a href="/api/supabase/schema" class="px-4 py-2 bg-emerald-900 hover:bg-emerald-800 text-yellow-400 text-xs font-bold rounded-xl shadow flex items-center gap-2 transition">
+            <i class="fas fa-file-code"></i> Télécharger Schema SQL
+          </a>
+          <a href="/api/supabase/seed" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-2 transition">
+            <i class="fas fa-download"></i> Données (Seed SQL)
+          </a>
+        </div>
+      </div>
+
+      <!-- 2 Columns: Connection Form & Steps -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- Column 1: Connection Tester -->
+        <div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+          <h4 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <i class="fas fa-plug text-emerald-700"></i>
+            <span>Tester la Connexion à votre Projet Supabase</span>
+          </h4>
+          <p class="text-xs text-slate-500">
+            Renseignez l'URL et la clé API de votre projet Supabase pour vérifier l'accès à la base de données PostgreSQL.
+          </p>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Project URL (Supabase)</label>
+            <input type="text" id="supabase-url" placeholder="https://xyzcompany.supabase.co" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-mono">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">API Key (Anon Public ou Service Role)</label>
+            <input type="password" id="supabase-key" placeholder="eyJhbGciOiJIUzI1NiIsIn..." class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-mono">
+          </div>
+
+          <div id="supabase-test-result" class="hidden p-3 rounded-xl text-xs font-semibold"></div>
+
+          <button onclick="testSupabaseCredentials()" id="supabase-test-btn" class="w-full py-2.5 bg-yellow-400 hover:bg-yellow-500 text-emerald-950 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition shadow">
+            <i class="fas fa-vial"></i> Tester la Connexion Supabase
+          </button>
+        </div>
+
+        <!-- Column 2: 3-step Quick Setup Guide -->
+        <div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+          <h4 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <i class="fas fa-list-check text-yellow-500"></i>
+            <span>Procédure de Mise en Route Supabase en 3 Étapes</span>
+          </h4>
+
+          <div class="space-y-3 text-xs text-slate-600">
+            <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+              <strong class="text-slate-800 block mb-0.5">Étape 1 : Créer votre projet Supabase gratuit</strong>
+              <span>Rendez-vous sur <a href="https://supabase.com" target="_blank" class="text-emerald-700 font-bold underline">supabase.com</a>, créez une organisation et un projet nommé <em>pkglobal-backend</em>.</span>
+            </div>
+
+            <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+              <strong class="text-slate-800 block mb-0.5">Étape 2 : Exécuter le Schéma SQL</strong>
+              <span>Téléchargez le fichier <a href="/api/supabase/schema" class="text-emerald-700 font-bold underline">schema_supabase_pkglobal.sql</a> et collez son contenu dans le <strong>SQL Editor</strong> de Supabase pour créer instantanément toutes les tables, relations et politiques de sécurité RLS.</span>
+            </div>
+
+            <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+              <strong class="text-slate-800 block mb-0.5">Étape 3 : Importer les Données Démo</strong>
+              <span>Téléchargez et exécutez <a href="/api/supabase/seed" class="text-emerald-700 font-bold underline">seed_data_supabase_pkglobal.sql</a> pour importer les 3 filiales, les investisseurs, les candidatures et les pôles d'expertise.</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  `;
+}
+
+async function testSupabaseCredentials() {
+  const url = document.getElementById('supabase-url').value.trim();
+  const key = document.getElementById('supabase-key').value.trim();
+  const resDiv = document.getElementById('supabase-test-result');
+  const btn = document.getElementById('supabase-test-btn');
+
+  if (!url || !key) {
+    showToast('Veuillez renseigner l\'URL et la clé Supabase.', 'error');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Test en cours...';
+  resDiv.className = 'hidden';
+
+  try {
+    const res = await api('/api/supabase/test', {
+      method: 'POST',
+      body: { url, key }
+    });
+
+    resDiv.classList.remove('hidden');
+    if (res.success) {
+      resDiv.className = 'p-3 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-2';
+      resDiv.innerHTML = '<i class="fas fa-check-circle text-emerald-600"></i> <span>Connexion réussie ! Projet Supabase accessible et tables reconnues.</span>';
+      showToast('Connexion Supabase réussie !');
+    } else {
+      resDiv.className = 'p-3 rounded-xl text-xs font-semibold bg-red-50 text-red-800 border border-red-200 flex items-center gap-2';
+      resDiv.innerHTML = `<i class="fas fa-times-circle text-red-600"></i> <span>Échec : ${res.error || 'Vérifiez l\'URL et la clé API.'}</span>`;
+    }
+  } catch (err) {
+    resDiv.classList.remove('hidden');
+    resDiv.className = 'p-3 rounded-xl text-xs font-semibold bg-red-50 text-red-800 border border-red-200 flex items-center gap-2';
+    resDiv.innerHTML = `<i class="fas fa-times-circle text-red-600"></i> <span>Erreur : ${err.message}</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-vial"></i> Tester la Connexion Supabase';
+  }
+}
+

@@ -2072,6 +2072,53 @@ app.get('/api/backups/export-json', authenticateToken, requireRole('superadmin')
   }
 });
 
+// -------------------------------------------------------------
+// SUPABASE BACKEND INTEGRATION & TOOLS
+// -------------------------------------------------------------
+
+const { getSupabaseConfig, testSupabaseConnection } = require('./supabase');
+
+app.get('/api/supabase/status', (req, res) => {
+  const config = getSupabaseConfig();
+  res.json({
+    configured: config.isConfigured,
+    url: config.url || null,
+    backend: config.isConfigured ? 'supabase' : 'sqlite_ready_for_supabase',
+    schema_ready: true
+  });
+});
+
+app.post('/api/supabase/test', async (req, res) => {
+  try {
+    const { url, key } = req.body;
+    if (!url || !key) {
+      return res.status(400).json({ error: 'URL Supabase et clé API requises.' });
+    }
+    const result = await testSupabaseConnection(url, key);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/supabase/schema', (req, res) => {
+  const schemaPath = path.join(__dirname, 'supabase', 'schema.sql');
+  if (fs.existsSync(schemaPath)) {
+    res.download(schemaPath, 'schema_supabase_pkglobal.sql');
+  } else {
+    res.status(404).json({ error: 'Schéma introuvable' });
+  }
+});
+
+app.get('/api/supabase/seed', (req, res) => {
+  const seedPath = path.join(__dirname, 'supabase', 'seed-data.sql');
+  if (fs.existsSync(seedPath)) {
+    res.download(seedPath, 'seed_data_supabase_pkglobal.sql');
+  } else {
+    res.status(404).json({ error: 'Données introuvables' });
+  }
+});
+
 // Fallback: send index.html for unknown web paths
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/')) {

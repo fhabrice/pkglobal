@@ -446,6 +446,21 @@ async function runTests() {
     assert.ok(res.body.investors);
   });
 
+  // 11. SUPABASE INTEGRATION ENDPOINTS
+  await test('11.1 Supabase Status & Schema Endpoints', async () => {
+    const statusRes = await request('/api/supabase/status');
+    assert.strictEqual(statusRes.status, 200);
+    assert.strictEqual(statusRes.body.schema_ready, true);
+
+    const schemaRes = await request('/api/supabase/schema');
+    assert.strictEqual(schemaRes.status, 200);
+    assert.ok(schemaRes.body.length > 500);
+
+    const seedRes = await request('/api/supabase/seed');
+    assert.strictEqual(seedRes.status, 200);
+    assert.ok(seedRes.body.length > 500);
+  });
+
   console.log('\n====================================================');
   console.log(` RESULTS: ${passed} PASSED, ${failed} FAILED`);
   console.log('====================================================\n');
