@@ -3067,7 +3067,7 @@ async function renderSupabaseView(container) {
 
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Project URL (Supabase)</label>
-            <input type="text" id="supabase-url" placeholder="https://xyzcompany.supabase.co" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-mono">
+            <input type="text" id="supabase-url" value="${status.url || 'https://vumerporrumovowyonfj.supabase.co'}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-mono">
           </div>
 
           <div>

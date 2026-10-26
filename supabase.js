@@ -5,7 +5,7 @@ const path = require('path');
 let supabaseClient = null;
 
 function getSupabaseConfig() {
-  const url = process.env.SUPABASE_URL || '';
+  const url = process.env.SUPABASE_URL || 'https://vumerporrumovowyonfj.supabase.co';
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || '';
   return { url, key, isConfigured: Boolean(url && key) };
 }
