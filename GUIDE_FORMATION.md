@@ -1,6 +1,6 @@
 # GUIDE DE FORMATION À L'INTERFACE ADMINISTRATEUR
 ## Plateforme Web PK GLOBAL PARTNERS
-**Livrable 6 — Formation des Utilisateurs**  
+**Livrable 6 — Formation des Utilisateurs**
 **Date :** Octobre 2026 — Version 1.0
 
 ---
@@ -26,7 +26,7 @@
   - **Super Administrateur :** Tous les droits (gouvernance, utilisateurs, sauvegardes, base de données).
   - **Administrateur :** Gestion des contenus, projets, investisseurs, filiales et CRM.
   - **Responsable de filiale :** Espace dédié à sa filiale (FRIVIA, ELIKYA ou YOUPI).
-- **Bonnes pratiques de sécurité :** Choix d'un mot de passe fort (8+ caractères, chiffres et symboles), procédure de réinitialisation, vérification des alertes.
+- **Bonnes pratiques de sécurité :** Utilisez un mot de passe unique de 12 caractères ou plus, ne le partagez pas, déconnectez-vous sur un appareil partagé et vérifiez les notifications de connexion.
 
 ---
 
@@ -88,14 +88,14 @@
 
 ## 4. Foire Aux Questions (FAQ)
 
-**Q1 : Comment tester les différents niveaux d'accès sans changer d'ordinateur ?**  
-*R :* Utilisez la bannière "Mode Test" en haut à droite de l'écran ou les boutons d'accès rapide sur l'écran de connexion pour basculer instantanément entre *SuperAdmin*, *Admin* et *Responsable Filiale*.
+**Q1 : Comment tester les différents niveaux d'accès ?**
+*R :* En environnement local de test, utilisez les comptes de démonstration seedés par l'application. En production, créez un compte distinct pour chaque profil depuis **Utilisateurs & Droits** et connectez-vous avec ses propres identifiants. Les comptes et raccourcis de démonstration ne sont pas proposés en production.
 
-**Q2 : Que se passe-t-il si un candidat postule avec un fichier lourd ?**  
+**Q2 : Que se passe-t-il si un candidat postule avec un fichier lourd ?**
 *R :* Le serveur accepte les documents (PDF, Word, Excel) jusqu'à 20 Mo et les stocke de façon sécurisée dans le répertoire `uploads/`.
 
-**Q3 : Les exports Excel sont-ils compatibles avec Microsoft Excel et Google Sheets ?**  
+**Q3 : Les exports Excel sont-ils compatibles avec Microsoft Excel et Google Sheets ?**
 *R :* Oui, tous les fichiers sont générés au format officiel `.xlsx` avec formatage professionnel des colonnes et en-têtes PK Global Partners.
 
-**Q4 : Peut-on ajouter une 4ème ou 5ème filiale à l'avenir ?**  
+**Q4 : Peut-on ajouter une 4ème ou 5ème filiale à l'avenir ?**
 *R :* Oui, le Super Administrateur peut créer une nouvelle filiale d'un simple clic dans le module *Filiales* ; elle disposera immédiatement de son catalogue de produits, de ses réalisations et pourra se voir attribuer son propre responsable.

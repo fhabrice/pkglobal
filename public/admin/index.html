@@ -79,40 +79,6 @@
                 </button>
             </form>
 
-            <!-- Test Accounts Quick Fill (Pour tester facilement les 3 profils) -->
-            <div class="mt-8 pt-6 border-t border-slate-100">
-                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2.5 flex items-center justify-between">
-                    <span>Accès Rapides (Comptes de Test) :</span>
-                    <i class="fas fa-key text-xs text-yellow-500"></i>
-                </p>
-                <div class="grid grid-cols-1 gap-1.5">
-                    <button type="button" onclick="quickFill('superadmin@pkglobalpartners.com', 'AdminPKGlobal2026!')"
-                        class="text-left px-3 py-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-950 text-xs font-semibold border border-emerald-200/60 transition flex items-center justify-between">
-                        <div>
-                            <span class="font-bold text-emerald-800">1. Super Administrateur</span>
-                            <span class="text-[10px] text-slate-500 block">Accès complet à toute la plateforme</span>
-                        </div>
-                        <i class="fas fa-chevron-right text-[10px] text-emerald-600"></i>
-                    </button>
-                    <button type="button" onclick="quickFill('admin@pkglobalpartners.com', 'AdminPKGlobal2026!')"
-                        class="text-left px-3 py-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-800 text-xs font-semibold border border-slate-200 transition flex items-center justify-between">
-                        <div>
-                            <span class="font-bold text-slate-700">2. Administrateur Général</span>
-                            <span class="text-[10px] text-slate-500 block">Gestion contenus, projets, investisseurs</span>
-                        </div>
-                        <i class="fas fa-chevron-right text-[10px] text-slate-400"></i>
-                    </button>
-                    <button type="button" onclick="quickFill('frivia.manager@pkglobalpartners.com', 'ManagerPKGlobal2026!')"
-                        class="text-left px-3 py-2 rounded-lg bg-orange-50 hover:bg-orange-100 text-orange-950 text-xs font-semibold border border-orange-200 transition flex items-center justify-between">
-                        <div>
-                            <span class="font-bold text-orange-800">3. Resp. Filiale (FRIVIA Fast-Food)</span>
-                            <span class="text-[10px] text-slate-500 block">Accès cloisonné à la filiale uniquement</span>
-                        </div>
-                        <i class="fas fa-chevron-right text-[10px] text-orange-600"></i>
-                    </button>
-                </div>
-            </div>
-
             <div class="mt-6 text-center">
                 <a href="/" class="text-xs font-semibold text-emerald-700 hover:text-emerald-950 transition inline-flex items-center gap-1.5">
                     <i class="fas fa-arrow-left text-[10px]"></i>
@@ -266,16 +232,6 @@
                 </div>
 
                 <div class="flex items-center gap-3">
-                    <!-- Quick Role Switcher Banner for Stakeholders Testing -->
-                    <div class="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200/80 rounded-xl text-[11px]">
-                        <span class="text-amber-800 font-bold flex items-center gap-1">
-                            <i class="fas fa-vial text-xs"></i> Mode Test :
-                        </span>
-                        <button onclick="switchRoleDemo('superadmin')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-white text-emerald-950 hover:bg-emerald-700 hover:text-white transition shadow-xs border border-slate-200" title="Tester en tant que Super Admin">SuperAdmin</button>
-                        <button onclick="switchRoleDemo('admin')" class="px-2 py-0.5 rounded text-[10px] font-bold bg-white text-slate-800 hover:bg-slate-700 hover:text-white transition shadow-xs border border-slate-200" title="Tester en tant qu'Admin">Admin</button>
-                        <button onclick="switchRoleDemo('filiale_manager', 1)" class="px-2 py-0.5 rounded text-[10px] font-bold bg-white text-orange-800 hover:bg-orange-700 hover:text-white transition shadow-xs border border-slate-200" title="Tester en tant que Resp. FRIVIA">Resp. FRIVIA</button>
-                    </div>
-
                     <!-- Notification Bell Dropdown -->
                     <div class="relative">
                         <button onclick="toggleNotificationDropdown()" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition relative">

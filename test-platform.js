@@ -59,6 +59,28 @@ async function runTests() {
   // Tokens for different roles
   let superToken, adminToken, friviaToken;
 
+  // 0. ADMIN PORTAL & PUBLISHED CMS CONTENT
+  await test('0.1 Admin portal is served at both /admin URL forms', async () => {
+    const bare = await request('/admin');
+    const slash = await request('/admin/');
+    assert.strictEqual(bare.status, 200);
+    assert.strictEqual(slash.status, 200);
+    assert.ok(bare.body.includes('login-form'));
+    assert.ok(slash.body.includes('login-form'));
+  });
+
+  await test('0.2 Public CMS endpoints return content, services and published news', async () => {
+    const [content, services, news] = await Promise.all([
+      request('/api/content'), request('/api/services'), request('/api/news?status=published')
+    ]);
+    assert.strictEqual(content.status, 200);
+    assert.ok(content.body.hero);
+    assert.strictEqual(services.status, 200);
+    assert.ok(Array.isArray(services.body));
+    assert.strictEqual(news.status, 200);
+    assert.ok(Array.isArray(news.body));
+  });
+
   // 1. PUBLIC VISITOR & FORM SUBMISSIONS
   await test('1.1 Track Page Visit (Public API)', async () => {
     const res = await request('/api/track-visit', {
@@ -84,6 +106,7 @@ async function runTests() {
     });
     assert.strictEqual(res.status, 201);
     assert.strictEqual(res.body.success, true);
+    assert.strictEqual(res.body.email_status, 'not_configured');
     assert.ok(res.body.reference.startsWith('DEM-'));
   });
 
@@ -468,6 +491,13 @@ async function runTests() {
   process.exit(failed > 0 ? 1 : 0);
 }
 
-// Start background server instance if not already running, then test
+// Start the integration server with demo identities and no outbound email enabled.
+// These test-only settings are applied before the server module is initialized.
+process.env.NODE_ENV = 'test';
+process.env.ALLOW_DEMO_USERS = 'true';
+process.env.JWT_SECRET = 'pkglobal_integration_tests_only_secret_2026';
+process.env.MAIL_HOST = '';
+process.env.MAIL_USER = '';
+process.env.MAIL_PASSWORD = '';
 const app = require('./server');
 setTimeout(runTests, 1200);

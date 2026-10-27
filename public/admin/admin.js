@@ -181,46 +181,6 @@ function togglePasswordVisibility(inputId) {
   }
 }
 
-// Quick fill for testing
-function quickFill(email, password) {
-  document.getElementById('login-email').value = email;
-  document.getElementById('login-password').value = password;
-  document.getElementById('login-form').dispatchEvent(new Event('submit'));
-}
-
-// Quick role switch helper for stakeholders
-async function switchRoleDemo(role, filialeId = null) {
-  let email = 'superadmin@pkglobalpartners.com';
-  let pass = 'AdminPKGlobal2026!';
-
-  if (role === 'admin') {
-    email = 'admin@pkglobalpartners.com';
-  } else if (role === 'filiale_manager') {
-    if (filialeId === 2) {
-      email = 'elikya.manager@pkglobalpartners.com';
-    } else if (filialeId === 3) {
-      email = 'youpi.manager@pkglobalpartners.com';
-    } else {
-      email = 'frivia.manager@pkglobalpartners.com';
-    }
-    pass = 'ManagerPKGlobal2026!';
-  }
-
-  try {
-    const res = await api('/api/auth/login', {
-      method: 'POST',
-      body: { email, password: pass }
-    });
-    safeStorage.setItem('pkgp_token', res.token);
-    safeStorage.setItem('pkgp_user', JSON.stringify(res.user));
-    currentUser = res.user;
-    showToast(`Bascule vers le profil : ${res.user.name}`, 'info');
-    setupUIForUser();
-    navigateTo(currentRoute || 'dashboard');
-  } catch (err) {
-    showToast('Erreur de changement de profil: ' + err.message, 'error');
-  }
-}
 
 // -------------------------------------------------------------
 // APP INITIALIZATION & AUTHENTICATION
@@ -295,27 +255,9 @@ async function initApp() {
     }
   }
 
-  // 2. Auto-login as Superadmin by default so the admin space is never empty on first visit
-  try {
-    const res = await api('/api/auth/login', {
-      method: 'POST',
-      body: { email: 'superadmin@pkglobalpartners.com', password: 'AdminPKGlobal2026!' }
-    });
-    if (res && res.token && res.user) {
-      safeStorage.setItem('pkgp_token', res.token);
-      safeStorage.setItem('pkgp_user', JSON.stringify(res.user));
-      currentUser = res.user;
-      document.getElementById('login-screen').classList.add('hidden');
-      document.getElementById('app-wrapper').classList.remove('hidden');
-      setupUIForUser();
-      initRouter();
-      return;
-    }
-  } catch (err) {
-    console.warn('Auto-login notice:', err);
-  }
-
-  // 3. Fallback: Show login screen
+  // Always require an explicit login when no valid session exists.
+  // Production administrators are provisioned via INITIAL_ADMIN_* environment variables.
+  // 2. Fallback: Show login screen
   document.getElementById('login-screen').classList.remove('hidden');
   document.getElementById('app-wrapper').classList.add('hidden');
 }
@@ -433,7 +375,7 @@ function openChangePasswordModal() {
         <input type="password" id="pw-old" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-emerald-600">
       </div>
       <div>
-        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nouveau mot de passe (min. 6 car.)</label>
+        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nouveau mot de passe (min. 12 caractères)</label>
         <input type="password" id="pw-new" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-emerald-600">
       </div>
       <div>
@@ -448,7 +390,7 @@ function openChangePasswordModal() {
 
     if (!oldP || !newP) throw new Error('Veuillez remplir tous les champs.');
     if (newP !== confP) throw new Error('Les mots de passe ne correspondent pas.');
-    if (newP.length < 6) throw new Error('Le mot de passe doit comporter au moins 6 caractères.');
+    if (newP.length < 12) throw new Error('Le mot de passe doit comporter au moins 12 caractères.');
 
     await api('/api/auth/change-password', {
       method: 'POST',
@@ -985,6 +927,14 @@ async function renderContentsView(container) {
               <label class="block text-xs font-bold text-slate-600 mb-1">Sous-titre / Descriptif</label>
               <textarea id="hero-subtitle" rows="2" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm leading-relaxed">${content.hero?.subtitle || ''}</textarea>
             </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">Texte du bouton principal</label>
+              <input type="text" id="hero-cta-primary" value="${content.hero?.cta_primary || ''}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">Texte du bouton secondaire</label>
+              <input type="text" id="hero-cta-secondary" value="${content.hero?.cta_secondary || ''}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm">
+            </div>
           </div>
         </div>
 
@@ -1112,6 +1062,14 @@ async function renderContentsView(container) {
               <input type="email" id="contact-email-investors" value="${content.contact_info?.email_investors || 'investors@pkglobalpartners.com'}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm">
             </div>
             <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">Email Carrières</label>
+              <input type="email" id="contact-email-careers" value="${content.contact_info?.email_careers || 'careers@pkglobalpartners.com'}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">Email Partenariats</label>
+              <input type="email" id="contact-email-partnerships" value="${content.contact_info?.email_partnerships || 'partnerships@pkglobalpartners.com'}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm">
+            </div>
+            <div>
               <label class="block text-xs font-bold text-slate-600 mb-1">Adresse Siège Goma (RDC)</label>
               <input type="text" id="contact-addr-goma" value="${content.contact_info?.address_goma || ''}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm">
             </div>
@@ -1144,10 +1102,12 @@ async function saveHeroContent() {
   const title = document.getElementById('hero-title').value;
   const subtitle = document.getElementById('hero-subtitle').value;
   const badge = document.getElementById('hero-badge').value;
+  const cta_primary = document.getElementById('hero-cta-primary').value;
+  const cta_secondary = document.getElementById('hero-cta-secondary').value;
 
   await api('/api/content/hero', {
     method: 'PUT',
-    body: { title, subtitle, badge }
+    body: { title, subtitle, badge, cta_primary, cta_secondary }
   });
   showToast('Accroche Hero mise à jour !');
 }
@@ -1169,12 +1129,14 @@ async function saveContactDetails() {
   const whatsapp = document.getElementById('contact-whatsapp').value;
   const email_general = document.getElementById('contact-email-general').value;
   const email_investors = document.getElementById('contact-email-investors').value;
+  const email_careers = document.getElementById('contact-email-careers').value;
+  const email_partnerships = document.getElementById('contact-email-partnerships').value;
   const address_goma = document.getElementById('contact-addr-goma').value;
   const address_kinshasa = document.getElementById('contact-addr-kin').value;
 
   await api('/api/content/contact_info', {
     method: 'PUT',
-    body: { phone, whatsapp, email_general, email_investors, address_goma, address_kinshasa }
+    body: { phone, whatsapp, email_general, email_investors, email_careers, email_partnerships, address_goma, address_kinshasa }
   });
   showToast('Coordonnées mises à jour !');
 }
@@ -1669,12 +1631,12 @@ async function openNotifyCandidateModal(id) {
     const subject = document.getElementById('notif-subject').value;
     const message = document.getElementById('notif-body').value;
 
-    await api(`/api/candidatures/${id}/notify`, {
+    const result = await api(`/api/candidatures/${id}/notify`, {
       method: 'POST',
       body: { subject, message }
     });
 
-    showToast(`Notification email envoyée à ${c.candidate_email} !`);
+    showToast(result.message, result.email_status === 'sent' ? 'success' : 'error');
   }, 'Envoyer la Notification');
 }
 
@@ -2083,12 +2045,12 @@ async function openRespondModal(id) {
 
     if (!response_text) throw new Error('Veuillez saisir votre réponse');
 
-    await api(`/api/inquiries/${id}/respond`, {
+    const result = await api(`/api/inquiries/${id}/respond`, {
       method: 'POST',
       body: { response_text, mark_resolved }
     });
 
-    showToast('Réponse transmise avec succès au prospect !');
+    showToast(result.message, result.email_status === 'sent' ? 'success' : 'error');
     renderView('inquiries');
   }, 'Envoyer la Réponse');
 }
@@ -2552,7 +2514,7 @@ function openUserModal(user = null) {
         <input type="email" id="user-email" value="${user?.email || ''}" class="w-full px-4 py-2 rounded-xl border border-slate-200 text-sm">
       </div>
       <div>
-        <label class="block text-xs font-bold text-slate-700 mb-1">Mot de passe ${user ? '(laisser vide pour ne pas changer)' : ''}</label>
+        <label class="block text-xs font-bold text-slate-700 mb-1">Mot de passe (12 caractères minimum) ${user ? '(laisser vide pour ne pas changer)' : ''}</label>
         <input type="password" id="user-pw" class="w-full px-4 py-2 rounded-xl border border-slate-200 text-sm" placeholder="••••••••">
       </div>
       <div class="grid grid-cols-2 gap-4">
@@ -2583,6 +2545,7 @@ function openUserModal(user = null) {
 
     if (!name || !email) throw new Error('Nom et email requis');
     if (!user && !password) throw new Error('Mot de passe requis pour la création');
+    if (password && password.length < 12) throw new Error('Le mot de passe doit comporter au moins 12 caractères.');
 
     if (user) {
       await api(`/api/users/${user.id}`, {
@@ -2931,13 +2894,8 @@ async function renderFormationView(container) {
           </h3>
           <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2">
             <p><strong>Étape 1 :</strong> Rendez-vous sur <code>/admin</code> depuis votre navigateur.</p>
-            <p><strong>Étape 2 :</strong> Saisissez vos identifiants officiels. En mode test, utilisez les boutons de raccourci pour tester les 3 profils :</p>
-            <ul class="list-disc pl-5 text-slate-600">
-              <li><code>superadmin@pkglobalpartners.com</code> : Accès total à toute la plateforme.</li>
-              <li><code>admin@pkglobalpartners.com</code> : Gestion quotidienne des contenus, candidatures et CRM.</li>
-              <li><code>frivia.manager@pkglobalpartners.com</code> : Cloisonné à sa propre filiale.</li>
-            </ul>
-            <p><strong>Étape 3 :</strong> Pour changer votre mot de passe, cliquez sur l'icône clé en haut à droite.</p>
+            <p><strong>Étape 2 :</strong> Saisissez les identifiants personnels fournis par votre Super Administrateur. Chaque collaborateur doit utiliser son propre compte et le rôle correspondant à ses responsabilités.</p>
+            <p><strong>Étape 3 :</strong> Utilisez un mot de passe unique de 12 caractères ou plus. Pour le modifier, cliquez sur l'icône clé en haut à droite.</p>
           </div>
         </div>
 

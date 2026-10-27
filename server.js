@@ -8,8 +8,23 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const ExcelJS = require('exceljs');
 const PDFDocument = require('pdfkit');
+const nodemailer = require('nodemailer');
 
 const { db, initializeDatabase } = require('./database');
+const PORT = process.env.PORT || 3000;
+const allowDemoAccounts = process.env.ALLOW_DEMO_USERS === 'true' && process.env.NODE_ENV !== 'production';
+const JWT_SECRET = allowDemoAccounts
+  ? (process.env.JWT_SECRET || 'pk_global_local_demo_secret_not_for_production_2026')
+  : (process.env.JWT_SECRET || '');
+
+if (!JWT_SECRET || JWT_SECRET.length < 32 || JWT_SECRET === 'pk_global_partners_secret_key_2026' || /replace-with/i.test(JWT_SECRET)) {
+  throw new Error('Set a unique, non-placeholder JWT_SECRET of at least 32 characters in the server environment; the old built-in secret is not accepted.');
+}
+const initialAdminEmail = (process.env.INITIAL_ADMIN_EMAIL || '').trim().toLowerCase();
+const initialAdminPassword = process.env.INITIAL_ADMIN_PASSWORD || '';
+if (!allowDemoAccounts && (!initialAdminEmail || initialAdminEmail.endsWith('@example.com') || initialAdminPassword.length < 12 || /replace-with/i.test(initialAdminPassword))) {
+  throw new Error('Set a real INITIAL_ADMIN_EMAIL and a unique INITIAL_ADMIN_PASSWORD (minimum 12 characters), or explicitly enable ALLOW_DEMO_USERS=true for local development only.');
+}
 
 // Ensure directories exist
 const uploadDir = path.join(__dirname, 'uploads');
@@ -21,8 +36,6 @@ if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
 initializeDatabase();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'pk_global_partners_secret_key_2026';
 
 // Middleware
 app.use(cors());
@@ -31,7 +44,12 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Static files
 app.use(express.static(__dirname)); // Serves root html (index.html, about.html, filiales.html, etc.)
-app.use('/admin', express.static(path.join(__dirname, 'public', 'admin')));
+const adminDir = path.join(__dirname, 'public', 'admin');
+const adminIndexPath = path.join(adminDir, 'index.html');
+// Serve the portal explicitly at both URL forms; some hosts do not preserve
+// Express static's directory-index redirect for the bare /admin URL.
+app.get(['/admin', '/admin/'], (req, res) => res.sendFile(adminIndexPath));
+app.use('/admin', express.static(adminDir));
 app.use('/uploads', express.static(uploadDir));
 
 // Multer storage for documents & uploads
@@ -50,13 +68,42 @@ const upload = multer({
   limits: { fileSize: 20 * 1024 * 1024 } // 20 MB max
 });
 
-// Helper: Email logger & notification
-function logEmailAndNotify({ recipient, subject, body, notifType, notifTitle, notifMessage, targetRole }) {
+// SMTP is optional for local development, but production deployments should set MAIL_*.
+const mailConfig = {
+  host: process.env.MAIL_HOST,
+  port: Number(process.env.MAIL_PORT || 587),
+  secure: process.env.MAIL_SECURE === 'true',
+  user: process.env.MAIL_USER,
+  password: process.env.MAIL_PASSWORD,
+  from: process.env.MAIL_FROM || process.env.MAIL_USER
+};
+const mailIsConfigured = Boolean(
+  mailConfig.host && !/example\.com/i.test(mailConfig.host) &&
+  mailConfig.user && !/example\.com/i.test(mailConfig.user) &&
+  mailConfig.password && !/replace-with/i.test(mailConfig.password)
+);
+const mailTransporter = mailIsConfigured
+  ? nodemailer.createTransport({
+      host: mailConfig.host,
+      port: mailConfig.port,
+      secure: mailConfig.secure,
+      auth: { user: mailConfig.user, pass: mailConfig.password },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000
+    })
+  : null;
+
+// Persist each outgoing email and deliver it through the configured SMTP service.
+// The status is explicit so the app never reports a message as sent when it was not.
+async function logEmailAndNotify({ recipient, subject, body, notifType, notifTitle, notifMessage, targetRole }) {
+  let emailId = null;
   try {
-    db.prepare(`
+    const result = db.prepare(`
       INSERT INTO email_logs (recipient, subject, body, status, sent_at)
-      VALUES (?, ?, ?, 'sent', CURRENT_TIMESTAMP)
+      VALUES (?, ?, ?, 'queued', NULL)
     `).run(recipient, subject, body);
+    emailId = result.lastInsertRowid;
 
     if (notifType && notifTitle) {
       db.prepare(`
@@ -66,6 +113,27 @@ function logEmailAndNotify({ recipient, subject, body, notifType, notifTitle, no
     }
   } catch (err) {
     console.error('Error logging email/notification:', err);
+    return 'failed';
+  }
+
+  if (!mailTransporter) {
+    db.prepare("UPDATE email_logs SET status = 'not_configured' WHERE id = ?").run(emailId);
+    return 'not_configured';
+  }
+
+  try {
+    await mailTransporter.sendMail({
+      from: mailConfig.from,
+      to: recipient,
+      subject,
+      text: body
+    });
+    db.prepare("UPDATE email_logs SET status = 'sent', sent_at = CURRENT_TIMESTAMP WHERE id = ?").run(emailId);
+    return 'sent';
+  } catch (err) {
+    console.error(`Email delivery failed for ${recipient}:`, err.message);
+    db.prepare("UPDATE email_logs SET status = 'failed' WHERE id = ?").run(emailId);
+    return 'failed';
   }
 }
 
@@ -151,7 +219,7 @@ app.post('/api/track-visit', (req, res) => {
 });
 
 // Public: Contact Form submission (Inquiry)
-app.post('/api/inquiries', (req, res) => {
+app.post('/api/inquiries', async (req, res) => {
   try {
     const { nom, name, email, telephone, phone, organisation, organization, service, service_requested, objet, subject, message } = req.body;
     
@@ -180,7 +248,7 @@ app.post('/api/inquiries', (req, res) => {
     );
 
     // Notify administrators and send auto-acknowledgment
-    logEmailAndNotify({
+    const emailStatus = await logEmailAndNotify({
       recipient: clientEmail,
       subject: `Accusé de réception - PK Global Partners [Réf: ${refNumber}]`,
       body: `Bonjour ${clientName},\n\nNous avons bien reçu votre demande concernant "${clientSubject}" (Pôle : ${clientService}).\nNotre équipe commerciale ou le responsable de service concerné vous apportera une réponse sous 24 à 48 heures.\n\nCordialement,\nL'équipe PK GLOBAL PARTNERS\nKinshasa & Goma, RDC`,
@@ -191,9 +259,10 @@ app.post('/api/inquiries', (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Votre message a été transmis avec succès. Notre équipe vous recontactera sous peu.',
+      message: 'Votre demande a bien été enregistrée. Notre équipe vous recontactera sous peu.',
       reference: refNumber,
-      id: result.lastInsertRowid
+      id: result.lastInsertRowid,
+      email_status: emailStatus
     });
   } catch (err) {
     console.error('Error submitting inquiry:', err);
@@ -202,7 +271,7 @@ app.post('/api/inquiries', (req, res) => {
 });
 
 // Public: Investor Registration / Expression of Interest
-app.post('/api/investors/interest', (req, res) => {
+app.post('/api/investors/interest', async (req, res) => {
   try {
     const { name, organization, email, phone, country, investor_type, ticket_min, ticket_max, sectors_of_interest, project_interest, message } = req.body;
 
@@ -251,7 +320,7 @@ app.post('/api/investors/interest', (req, res) => {
       `).run(investorId, project_interest, parseFloat(ticket_min) || 50000, message || 'Intérêt exprimé via le site');
     }
 
-    logEmailAndNotify({
+    const emailStatus = await logEmailAndNotify({
       recipient: email,
       subject: 'Bienvenue au réseau Investisseurs PK GLOBAL PARTNERS',
       body: `Cher(e) ${name},\n\nNous vous remercions de votre intérêt pour les opportunités d'investissement de PK GLOBAL PARTNERS en République Démocratique du Congo.\nUn membre de notre Direction des Investissements prendra contact avec vous pour vous présenter nos projets en cours de financement et notre pipeline d'accélération.\n\nCordialement,\nRelations Investisseurs - PK GLOBAL PARTNERS`,
@@ -262,7 +331,8 @@ app.post('/api/investors/interest', (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Votre profil investisseur a été enregistré avec succès. Notre équipe relations investisseurs vous contactera sous peu.'
+      message: 'Votre profil investisseur a été enregistré avec succès. Notre équipe relations investisseurs vous contactera sous peu.',
+      email_status: emailStatus
     });
   } catch (err) {
     console.error('Error registering investor:', err);
@@ -271,7 +341,7 @@ app.post('/api/investors/interest', (req, res) => {
 });
 
 // Public: Submit Candidature / Project
-app.post('/api/candidatures', upload.single('document'), (req, res) => {
+app.post('/api/candidatures', upload.single('document'), async (req, res) => {
   try {
     const {
       call_id, candidate_name, candidate_email, candidate_phone,
@@ -315,7 +385,7 @@ app.post('/api/candidatures', upload.single('document'), (req, res) => {
 
     const candId = result.lastInsertRowid;
 
-    logEmailAndNotify({
+    const emailStatus = await logEmailAndNotify({
       recipient: candidate_email,
       subject: 'Confirmation de dépôt de candidature - PK GLOBAL PARTNERS',
       body: `Bonjour ${candidate_name},\n\nNous accusons réception de votre dossier de candidature pour le projet "${project_title}".\nVotre dossier a été enregistré sous la référence #CAND-${candId} et est en cours d'attribution à notre comité d'évaluation.\n\nVous serez informé des étapes suivantes de l'appel à projets par email.\n\nCordialement,\nLe Comité de Sélection - PK GLOBAL PARTNERS`,
@@ -326,8 +396,9 @@ app.post('/api/candidatures', upload.single('document'), (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Votre candidature a été soumise avec succès ! Un email de confirmation vous a été envoyé.',
-      id: candId
+      message: 'Votre candidature a été soumise avec succès.',
+      id: candId,
+      email_status: emailStatus
     });
   } catch (err) {
     console.error('Error submitting candidature:', err);
@@ -402,8 +473,8 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
 app.post('/api/auth/change-password', authenticateToken, (req, res) => {
   try {
     const { old_password, new_password } = req.body;
-    if (!new_password || new_password.length < 6) {
-      return res.status(400).json({ error: 'Le nouveau mot de passe doit comporter au moins 6 caractères.' });
+    if (!old_password || !new_password || new_password.length < 12) {
+      return res.status(400).json({ error: 'Le mot de passe actuel est requis et le nouveau doit comporter au moins 12 caractères.' });
     }
 
     const user = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(req.user.id);
@@ -411,7 +482,7 @@ app.post('/api/auth/change-password', authenticateToken, (req, res) => {
       return res.status(400).json({ error: 'L\'ancien mot de passe est incorrect.' });
     }
 
-    const newHash = bcrypt.hashSync(new_password, 10);
+    const newHash = bcrypt.hashSync(new_password, 12);
     db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(newHash, req.user.id);
 
     logAudit(req.user.id, 'PASSWORD_CHANGE', 'Changement de mot de passe réussi', req);
@@ -876,7 +947,7 @@ app.put('/api/candidatures/:id/evaluate', authenticateToken, requireRole('supera
   }
 });
 
-app.post('/api/candidatures/:id/notify', authenticateToken, requireRole('superadmin', 'admin'), (req, res) => {
+app.post('/api/candidatures/:id/notify', authenticateToken, requireRole('superadmin', 'admin'), async (req, res) => {
   try {
     const { subject, message, new_status } = req.body;
     const cand = db.prepare('SELECT * FROM candidatures WHERE id = ?').get(req.params.id);
@@ -887,17 +958,21 @@ app.post('/api/candidatures/:id/notify', authenticateToken, requireRole('superad
       db.prepare('UPDATE candidatures SET status = ? WHERE id = ?').run(new_status, cand.id);
     }
 
-    logEmailAndNotify({
+    const emailStatus = await logEmailAndNotify({
       recipient: cand.candidate_email,
       subject: subject || `Information relative à votre candidature : ${cand.project_title}`,
       body: `Bonjour ${cand.candidate_name},\n\n${message}\n\nCordialement,\nLe Comité de Sélection PK GLOBAL PARTNERS`,
       notifType: 'candidature',
-      notifTitle: `Notification envoyée à ${cand.candidate_name}`,
+      notifTitle: `Notification préparée pour ${cand.candidate_name}`,
       notifMessage: subject
     });
 
-    logAudit(req.user.id, 'NOTIFY_CANDIDATE', `Email envoyé au candidat #${cand.id} (${cand.candidate_email})`, req);
-    res.json({ success: true, message: 'Notification envoyée avec succès.' });
+    logAudit(req.user.id, 'NOTIFY_CANDIDATE', `Notification candidat #${cand.id} (${emailStatus})`, req);
+    res.json({
+      success: true,
+      email_status: emailStatus,
+      message: emailStatus === 'sent' ? 'Notification envoyée.' : `Notification enregistrée, mais email ${emailStatus === 'not_configured' ? 'non envoyé : SMTP non configuré' : 'non délivré'}.`
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1305,7 +1380,7 @@ app.put('/api/inquiries/:id/status', authenticateToken, (req, res) => {
   }
 });
 
-app.post('/api/inquiries/:id/respond', authenticateToken, (req, res) => {
+app.post('/api/inquiries/:id/respond', authenticateToken, async (req, res) => {
   try {
     const { response_text, mark_resolved } = req.body;
     const inq = db.prepare('SELECT * FROM inquiries WHERE id = ?').get(req.params.id);
@@ -1324,17 +1399,21 @@ app.post('/api/inquiries/:id/respond', authenticateToken, (req, res) => {
       WHERE id = ?
     `).run(response_text, newStatus, req.user.id, inq.id);
 
-    logEmailAndNotify({
+    const emailStatus = await logEmailAndNotify({
       recipient: inq.email,
       subject: `Re: ${inq.subject} [Réf: ${inq.reference}]`,
       body: `Bonjour ${inq.name},\n\n${response_text}\n\nCordialement,\n${req.user.name}\nPK GLOBAL PARTNERS\nKinshasa & Goma, RDC`,
       notifType: 'inquiry',
-      notifTitle: `Réponse envoyée pour ${inq.reference}`,
+      notifTitle: `Réponse préparée pour ${inq.reference}`,
       notifMessage: `Destinataire : ${inq.email}`
     });
 
-    logAudit(req.user.id, 'RESPOND_INQUIRY', `Réponse transmise au client (${inq.email})`, req);
-    res.json({ success: true, message: 'Réponse transmise avec succès au prospect.' });
+    logAudit(req.user.id, 'RESPOND_INQUIRY', `Réponse au client (${inq.email}; email ${emailStatus})`, req);
+    res.json({
+      success: true,
+      email_status: emailStatus,
+      message: emailStatus === 'sent' ? 'Réponse envoyée par email au prospect.' : `Réponse enregistrée, mais email ${emailStatus === 'not_configured' ? 'non envoyé : SMTP non configuré' : 'non délivré'}.`
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1671,7 +1750,11 @@ app.post('/api/users', authenticateToken, requireRole('superadmin'), (req, res) 
       return res.status(400).json({ error: 'Cet email est déjà utilisé.' });
     }
 
-    const hash = bcrypt.hashSync(password, 10);
+    if (password.length < 12) {
+      return res.status(400).json({ error: 'Le mot de passe doit comporter au moins 12 caractères.' });
+    }
+
+    const hash = bcrypt.hashSync(password, 12);
     const result = db.prepare(`
       INSERT INTO users (name, email, password_hash, role, filiale_id, active, created_at)
       VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
@@ -1692,9 +1775,12 @@ app.put('/api/users/:id', authenticateToken, requireRole('superadmin'), (req, re
     let passUpdate = '';
     const params = [name, email, role, filiale_id ? parseInt(filiale_id) : null, active !== undefined ? (active ? 1 : 0) : 1];
 
-    if (password && password.trim().length >= 6) {
+    if (password && password.trim()) {
+      if (password.trim().length < 12) {
+        return res.status(400).json({ error: 'Le mot de passe doit comporter au moins 12 caractères.' });
+      }
       passUpdate = ', password_hash = ?';
-      params.push(bcrypt.hashSync(password, 10));
+      params.push(bcrypt.hashSync(password, 12));
     }
     params.push(userId);
 
@@ -2126,8 +2212,8 @@ app.use((req, res, next) => {
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: 'API route non trouvée' });
   }
-  if (req.path.startsWith('/admin')) {
-    return res.sendFile(path.join(__dirname, 'public', 'admin', 'index.html'));
+  if (req.path === '/admin' || req.path.startsWith('/admin/')) {
+    return res.sendFile(adminIndexPath);
   }
   next();
 });

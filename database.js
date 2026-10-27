@@ -210,7 +210,54 @@ function initializeDatabase() {
     );
   `);
 
+  secureSeededDemoAccounts();
   seedData();
+}
+
+// Revoke seeded demo credentials when a database is started without explicit
+// local demo mode. Upgrade the seeded superadmin in place using server secrets.
+function secureSeededDemoAccounts() {
+  const useDemoAccounts = process.env.ALLOW_DEMO_USERS === 'true' && process.env.NODE_ENV !== 'production';
+  if (useDemoAccounts) return;
+
+  const email = (process.env.INITIAL_ADMIN_EMAIL || '').trim().toLowerCase();
+  const password = process.env.INITIAL_ADMIN_PASSWORD || '';
+  if (!email || email.endsWith('@example.com') || password.length < 12 || /replace-with/i.test(password)) {
+    throw new Error('Set INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_PASSWORD (minimum 12 characters), or explicitly enable ALLOW_DEMO_USERS=true for local development only.');
+  }
+
+  const demoAccounts = [
+    ['superadmin@pkglobalpartners.com', 'AdminPKGlobal2026!'],
+    ['admin@pkglobalpartners.com', 'AdminPKGlobal2026!'],
+    ['frivia.manager@pkglobalpartners.com', 'ManagerPKGlobal2026!'],
+    ['elikya.manager@pkglobalpartners.com', 'ManagerPKGlobal2026!'],
+    ['youpi.manager@pkglobalpartners.com', 'ManagerPKGlobal2026!']
+  ];
+  const findUser = db.prepare('SELECT id, password_hash FROM users WHERE email = ?');
+  const updateSuperadmin = db.prepare(`
+    UPDATE users SET name = ?, email = ?, password_hash = ?, role = 'superadmin', active = 1
+    WHERE id = ?
+  `);
+  const disableDemo = db.prepare('UPDATE users SET active = 0 WHERE id = ?');
+
+  for (const [demoEmail, demoPassword] of demoAccounts) {
+    const user = findUser.get(demoEmail);
+    if (!user || !bcrypt.compareSync(demoPassword, user.password_hash)) continue;
+    if (demoEmail === 'superadmin@pkglobalpartners.com') {
+      const collision = findUser.get(email);
+      if (collision && collision.id !== user.id) {
+        throw new Error(`INITIAL_ADMIN_EMAIL ${email} is already assigned to a different account.`);
+      }
+      updateSuperadmin.run(
+        process.env.INITIAL_ADMIN_NAME || 'Super Administrateur',
+        email,
+        bcrypt.hashSync(password, 12),
+        user.id
+      );
+    } else {
+      disableDemo.run(user.id);
+    }
+  }
 }
 
 function seedData() {
@@ -266,11 +313,14 @@ function seedData() {
     'Goma & Kinshasa, RDC'
   ).lastInsertRowid;
 
-  // 2. Seed Users (with secure hashed passwords)
-  // Super Admin & Admin: AdminPKGlobal2026!
-  // Managers: ManagerPKGlobal2026!
-  const adminHash = bcrypt.hashSync('AdminPKGlobal2026!', 10);
-  const managerHash = bcrypt.hashSync('ManagerPKGlobal2026!', 10);
+  // 2. Create administrator accounts. Production credentials are supplied out-of-band;
+  // demo accounts are created only when ALLOW_DEMO_USERS=true outside production.
+  const useDemoAccounts = process.env.ALLOW_DEMO_USERS === 'true' && process.env.NODE_ENV !== 'production';
+  const initialAdminEmail = (process.env.INITIAL_ADMIN_EMAIL || '').trim().toLowerCase();
+  const initialAdminPassword = process.env.INITIAL_ADMIN_PASSWORD || '';
+  if (!useDemoAccounts && (!initialAdminEmail || initialAdminEmail.endsWith('@example.com') || initialAdminPassword.length < 12 || /replace-with/i.test(initialAdminPassword))) {
+    throw new Error('Set INITIAL_ADMIN_EMAIL and INITIAL_ADMIN_PASSWORD (minimum 12 characters), or explicitly enable ALLOW_DEMO_USERS=true for local development only.');
+  }
 
   const insertUser = db.prepare(`
     INSERT INTO users (name, email, password_hash, role, filiale_id, active)
@@ -278,49 +328,31 @@ function seedData() {
   `);
 
   const superAdminId = insertUser.run(
-    'Ferdinand Kabwe (Super Admin)',
-    'superadmin@pkglobalpartners.com',
-    adminHash,
+    useDemoAccounts ? 'Ferdinand Kabwe (Super Admin)' : (process.env.INITIAL_ADMIN_NAME || 'Super Administrateur'),
+    useDemoAccounts ? 'superadmin@pkglobalpartners.com' : initialAdminEmail,
+    bcrypt.hashSync(useDemoAccounts ? 'AdminPKGlobal2026!' : initialAdminPassword, 12),
     'superadmin',
     null
   ).lastInsertRowid;
 
-  const adminId = insertUser.run(
-    'Clarisse Mwamba (Administrateur)',
-    'admin@pkglobalpartners.com',
-    adminHash,
-    'admin',
-    null
-  ).lastInsertRowid;
+  let adminId = superAdminId;
+  let friviaMgrId = superAdminId;
+  let elikyaMgrId = superAdminId;
+  let youpiMgrId = superAdminId;
 
-  const friviaMgrId = insertUser.run(
-    'Patrick Ilunga (Responsable FRIVIA)',
-    'frivia.manager@pkglobalpartners.com',
-    managerHash,
-    'filiale_manager',
-    friviaId
-  ).lastInsertRowid;
+  if (useDemoAccounts) {
+    const adminHash = bcrypt.hashSync('AdminPKGlobal2026!', 10);
+    const managerHash = bcrypt.hashSync('ManagerPKGlobal2026!', 10);
+    adminId = insertUser.run('Clarisse Mwamba (Administrateur)', 'admin@pkglobalpartners.com', adminHash, 'admin', null).lastInsertRowid;
+    friviaMgrId = insertUser.run('Patrick Ilunga (Responsable FRIVIA)', 'frivia.manager@pkglobalpartners.com', managerHash, 'filiale_manager', friviaId).lastInsertRowid;
+    elikyaMgrId = insertUser.run('Aimée Kasongo (Responsable ELIKYA COFFEE)', 'elikya.manager@pkglobalpartners.com', managerHash, 'filiale_manager', elikyaId).lastInsertRowid;
+    youpiMgrId = insertUser.run('Jean-Luc Bakari (Responsable YOUPI)', 'youpi.manager@pkglobalpartners.com', managerHash, 'filiale_manager', youpiId).lastInsertRowid;
 
-  const elikyaMgrId = insertUser.run(
-    'Aimée Kasongo (Responsable ELIKYA COFFEE)',
-    'elikya.manager@pkglobalpartners.com',
-    managerHash,
-    'filiale_manager',
-    elikyaId
-  ).lastInsertRowid;
-
-  const youpiMgrId = insertUser.run(
-    'Jean-Luc Bakari (Responsable YOUPI)',
-    'youpi.manager@pkglobalpartners.com',
-    managerHash,
-    'filiale_manager',
-    youpiId
-  ).lastInsertRowid;
-
-  // Link manager IDs to filiales
-  db.prepare('UPDATE filiales SET manager_id = ? WHERE id = ?').run(friviaMgrId, friviaId);
-  db.prepare('UPDATE filiales SET manager_id = ? WHERE id = ?').run(elikyaMgrId, elikyaId);
-  db.prepare('UPDATE filiales SET manager_id = ? WHERE id = ?').run(youpiMgrId, youpiId);
+    // Seed demonstration managers only when local demo mode is explicitly enabled.
+    db.prepare('UPDATE filiales SET manager_id = ? WHERE id = ?').run(friviaMgrId, friviaId);
+    db.prepare('UPDATE filiales SET manager_id = ? WHERE id = ?').run(elikyaMgrId, elikyaId);
+    db.prepare('UPDATE filiales SET manager_id = ? WHERE id = ?').run(youpiMgrId, youpiId);
+  }
 
   // 3. Seed Site Content (CMS)
   const insertContent = db.prepare(`
