@@ -35,6 +35,9 @@
     adminBtn.title = 'Accéder à l\'espace d\'administration PK Global';
     document.body.appendChild(adminBtn);
 
+    // Apply CMS-managed public content without injecting administrator text as HTML.
+    syncManagedPublicContent();
+
     // 3. Intercept Contact Form if present
     const contactForm = document.getElementById('contact-form') || document.querySelector('form[action*="contact"]');
     if (contactForm) {
@@ -77,7 +80,7 @@
             showModal({
               title: 'Message Transmis avec Succès !',
               icon: 'fa-check-circle text-emerald-500',
-              message: `Votre demande a bien été enregistrée sous la référence <span class="font-bold text-emerald-800">${res.reference}</span>.<br><br>Un email d'accusé de réception vous a été adressé et notre équipe vous recontactera dans les plus brefs délais.`
+              message: `Votre demande a bien été enregistrée sous la référence <span class="font-bold text-emerald-800">${res.reference}</span>.<br><br>${res.email_status === 'sent' ? 'Un email d\'accusé de réception vous a été adressé.' : 'La demande est enregistrée ; la confirmation email n\'est pas disponible actuellement.'} Notre équipe vous recontactera dans les plus brefs délais.`
             });
             contactForm.reset();
           } else {
@@ -207,7 +210,7 @@
             showModal({
               title: 'Candidature Bien Reçue !',
               icon: 'fa-id-badge text-emerald-500',
-              message: `Votre candidature a été transmise à notre service Ressources Humaines (Réf: #CAND-${res.id}). Un email de confirmation vous a été envoyé.`
+              message: `Votre candidature a été transmise à notre service Ressources Humaines (Réf: #CAND-${res.id}). ${res.email_status === 'sent' ? 'Un email de confirmation vous a été envoyé.' : 'La confirmation par email n\'a pas pu être délivrée pour le moment.'}`
             });
             careersForm.reset();
           } else {
@@ -224,6 +227,141 @@
       });
     }
   });
+
+  async function syncManagedPublicContent() {
+    try {
+      const [contentResponse, servicesResponse, newsResponse] = await Promise.all([
+        fetch('/api/content'),
+        fetch('/api/services'),
+        fetch('/api/news?status=published')
+      ]);
+
+      const content = contentResponse.ok ? await contentResponse.json() : {};
+      const services = servicesResponse.ok ? await servicesResponse.json() : [];
+      const news = newsResponse.ok ? await newsResponse.json() : [];
+
+      document.querySelectorAll('[data-cms]').forEach((element) => {
+        const value = String(element.getAttribute('data-cms') || '').split('.').reduce((item, key) => item && item[key], content);
+        if (typeof value === 'string' && value.trim()) element.textContent = value;
+      });
+
+      renderPublicServices(Array.isArray(services) ? services.filter((service) => Number(service.active) === 1) : []);
+      renderPublicNews(Array.isArray(news) ? news : []);
+      applyPublicContactInfo(content.contact_info || {});
+    } catch (error) {
+      console.warn('Unable to load CMS-managed public content:', error);
+    }
+  }
+
+  function renderPublicServices(services) {
+    const grid = document.getElementById('public-services-grid');
+    if (!grid) return;
+    grid.replaceChildren();
+
+    if (!services.length) {
+      const empty = document.createElement('p');
+      empty.className = 'text-emerald-100/70 text-sm';
+      empty.textContent = 'Nos pôles d’expertise seront bientôt présentés ici.';
+      grid.appendChild(empty);
+      return;
+    }
+
+    services.forEach((service) => {
+      const card = document.createElement('article');
+      card.className = 'bg-white/5 border border-white/10 p-10 rounded-3xl hover:bg-emerald-900 transition duration-500 group';
+      const iconBox = document.createElement('div');
+      iconBox.className = 'w-16 h-16 bg-emerald-800 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-yellow-400 group-hover:text-emerald-900 transition-colors';
+      const icon = document.createElement('i');
+      const iconTokens = String(service.icon || 'fa-briefcase').split(/\s+/).filter((token) => /^[a-z0-9_-]+$/i.test(token));
+      icon.className = `fas ${iconTokens.join(' ') || 'fa-briefcase'} text-2xl`;
+      iconBox.appendChild(icon);
+
+      const title = document.createElement('h3');
+      title.className = 'text-xl font-bold mb-4';
+      title.textContent = service.title || '';
+      const description = document.createElement('p');
+      description.className = 'text-emerald-100/60 text-sm leading-relaxed';
+      description.textContent = service.description || '';
+      card.append(iconBox, title, description);
+      grid.appendChild(card);
+    });
+  }
+
+  function renderPublicNews(items) {
+    const section = document.getElementById('public-news');
+    const grid = document.getElementById('public-news-grid');
+    if (!section || !grid) return;
+    grid.replaceChildren();
+
+    if (!items.length) {
+      section.classList.add('hidden');
+      return;
+    }
+
+    items.slice(0, 3).forEach((item) => {
+      const card = document.createElement('article');
+      card.className = 'bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden';
+      if (item.image_url) {
+        try {
+          const imageUrl = new URL(item.image_url, window.location.origin);
+          if (imageUrl.protocol === 'http:' || imageUrl.protocol === 'https:') {
+            const image = document.createElement('img');
+            image.src = imageUrl.href;
+            image.alt = item.title || 'Actualité PK Global Partners';
+            image.loading = 'lazy';
+            image.className = 'w-full h-52 object-cover';
+            card.appendChild(image);
+          }
+        } catch (_) {}
+      }
+      const contentBox = document.createElement('div');
+      contentBox.className = 'p-6';
+      const category = document.createElement('p');
+      category.className = 'text-emerald-700 text-xs font-bold uppercase tracking-widest mb-2';
+      category.textContent = item.category || 'Actualité';
+      const title = document.createElement('h3');
+      title.className = 'text-xl font-bold text-emerald-950 mb-3';
+      title.textContent = item.title || '';
+      const summary = document.createElement('p');
+      summary.className = 'text-sm text-slate-600 leading-relaxed';
+      summary.textContent = item.summary || item.content || '';
+      contentBox.append(category, title, summary);
+      card.appendChild(contentBox);
+      grid.appendChild(card);
+    });
+    section.classList.remove('hidden');
+  }
+
+  function applyPublicContactInfo(info) {
+    if (info.whatsapp) {
+      const whatsappNumber = String(info.whatsapp).replace(/\\D/g, '');
+      document.querySelectorAll('a[href*="wa.me"], a[href*="whatsapp"]').forEach((link) => {
+        link.setAttribute('href', `https://wa.me/${whatsappNumber}`);
+      });
+    }
+
+    if (info.phone) {
+      const phoneUri = `tel:${String(info.phone).replace(/[^+\\d]/g, '')}`;
+      document.querySelectorAll('a[href^="tel:"], [data-site-phone]').forEach((link) => {
+        link.setAttribute('href', phoneUri);
+        const textNode = Array.from(link.childNodes).find((node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+        if (textNode) textNode.textContent = ` ${info.phone}`;
+        else if (!link.querySelector('i')) link.textContent = info.phone;
+      });
+    }
+
+    document.querySelectorAll('a[href^="mailto:"]').forEach((link) => {
+      const href = link.getAttribute('href') || '';
+      let email = info.email_general;
+      if (/investors/i.test(href)) email = info.email_investors || email;
+      else if (/careers/i.test(href)) email = info.email_careers || email;
+      else if (/partnerships/i.test(href)) email = info.email_partnerships || email;
+      if (!email) return;
+      link.setAttribute('href', `mailto:${email}`);
+      const textNode = Array.from(link.childNodes).find((node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+      if (textNode) textNode.textContent = ` ${email}`;
+    });
+  }
 
   // Modal helper
   function showModal({ title, message, icon }) {

@@ -203,23 +203,23 @@
         <div class="max-w-7xl mx-auto w-full">
             <div class="flex flex-col items-center text-center">
                 <div class="inline-block bg-emerald-500/20 backdrop-blur-md border border-emerald-400/30 px-6 py-2 rounded-full mb-8 animate-pulse">
-                    <span class="text-xs font-bold uppercase tracking-[0.4em] text-emerald-200">Vision 2030 : L'Afrique de demain</span>
+                    <span data-cms="hero.badge" class="text-xs font-bold uppercase tracking-[0.4em] text-emerald-200">Vision 2030 : L'Afrique de demain</span>
                 </div>
                 
-                <h1 class="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white leading-[1.1] mb-8 max-w-5xl">
+                <h1 data-cms="hero.title" class="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white leading-[1.1] mb-8 max-w-5xl">
                     Transformer l’Afrique par <br>
                     <span class="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-500">l’Investissement d’Impact</span>
                 </h1>
                 
-                <p class="text-lg md:text-xl text-emerald-50 mb-12 max-w-3xl mx-auto font-light leading-relaxed opacity-90">
+                <p data-cms="hero.subtitle" class="text-lg md:text-xl text-emerald-50 mb-12 max-w-3xl mx-auto font-light leading-relaxed opacity-90">
                     PK GLOBAL PARTNERS est une holding stratégique dédiée à l'éclosion de champions nationaux et au développement de projets multisectoriels en République Démocratique du Congo.
                 </p>
                 
                 <div class="flex flex-col sm:flex-row justify-center items-center gap-4 mb-20 w-full">
-                    <a href="investors.html" class="btn-gold w-full sm:w-64 py-5 rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-2xl">
+                    <a data-cms="hero.cta_primary" href="investors.html" class="btn-gold w-full sm:w-64 py-5 rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-2xl">
                         Investir avec nous
                     </a>
-                    <a href="filiales.html" class="bg-white/10 backdrop-blur-md border border-white/20 w-full sm:w-64 py-5 rounded-2xl font-bold text-xs uppercase tracking-[0.2em] text-white hover:bg-white/20 transition">
+                    <a data-cms="hero.cta_secondary" href="filiales.html" class="bg-white/10 backdrop-blur-md border border-white/20 w-full sm:w-64 py-5 rounded-2xl font-bold text-xs uppercase tracking-[0.2em] text-white hover:bg-white/20 transition">
                         Nos Réalisations
                     </a>
                 </div>
@@ -276,8 +276,8 @@
                 </div>
                 <div>
                     <span class="text-emerald-600 font-bold uppercase tracking-widest text-sm">Vision & Leadership</span>
-                    <h2 class="text-4xl font-extrabold mt-4 mb-8 text-emerald-950 leading-tight">Une holding structurée pour la performance durable</h2>
-                    <p class="text-gray-600 leading-relaxed mb-8 text-lg">
+                    <h2 data-cms="presentation.headline" class="text-4xl font-extrabold mt-4 mb-8 text-emerald-950 leading-tight">Une holding structurée pour la performance durable</h2>
+                    <p data-cms="presentation.mission" class="text-gray-600 leading-relaxed mb-8 text-lg">
                         PK GLOBAL PARTNERS opère comme un moteur de croissance en RDC. Nous combinons expertise financière et rigueur opérationnelle pour développer des solutions dans l'énergie, la mobilité et le digital.
                     </p>
                     <div class="space-y-6">
@@ -316,29 +316,20 @@
                 <div class="h-1 w-32 bg-yellow-400 rounded-full"></div>
             </div>
             
-            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <div class="bg-white/5 border border-white/10 p-10 rounded-3xl hover:bg-emerald-900 transition duration-500 group">
-                    <div class="w-16 h-16 bg-emerald-800 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-yellow-400 group-hover:text-emerald-900 transition-colors">
-                        <i class="fas fa-university text-2xl"></i>
-                    </div>
-                    <h3 class="text-xl font-bold mb-4">Investissement & Structuration</h3>
-                    <p class="text-emerald-100/60 text-sm leading-relaxed">Ingénierie financière avancée et mobilisation de capitaux pour projets structurants.</p>
-                </div>
-                <div class="bg-white/5 border border-white/10 p-10 rounded-3xl hover:bg-emerald-900 transition duration-500 group">
-                    <div class="w-16 h-16 bg-emerald-800 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-yellow-400 group-hover:text-emerald-900 transition-colors">
-                        <i class="fas fa-charging-station text-2xl"></i>
-                    </div>
-                    <h3 class="text-xl font-bold mb-4">Énergies & Mobilité</h3>
-                    <p class="text-emerald-100/60 text-sm leading-relaxed">Transition énergétique par le solaire et déploiement de flottes électriques urbaines.</p>
-                </div>
-                <div class="bg-white/5 border border-white/10 p-10 rounded-3xl hover:bg-emerald-900 transition duration-500 group">
-                    <div class="w-16 h-16 bg-emerald-800 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-yellow-400 group-hover:text-emerald-900 transition-colors">
-                        <i class="fas fa-laptop-code text-2xl"></i>
-                    </div>
-                    <h3 class="text-xl font-bold mb-4">Fintech & Services</h3>
-                    <p class="text-emerald-100/60 text-sm leading-relaxed">Solutions transactionnelles digitales pour l'inclusion financière des populations.</p>
+            <div id="public-services-grid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            </div>
+        </div>
+    </section>
+
+    <section id="public-news" class="hidden py-24 px-6 md:px-12 bg-white">
+        <div class="max-w-7xl mx-auto">
+            <div class="flex items-end justify-between gap-6 mb-12">
+                <div>
+                    <span class="text-emerald-600 font-black uppercase tracking-[0.3em] text-xs">À la une</span>
+                    <h2 class="text-4xl font-extrabold text-emerald-950 mt-3">Actualités & annonces</h2>
                 </div>
             </div>
+            <div id="public-news-grid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-8"></div>
         </div>
     </section>
 

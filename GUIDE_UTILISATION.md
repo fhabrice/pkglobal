@@ -18,18 +18,18 @@ Ce guide s'adresse aux équipes dirigeantes, aux administrateurs de la holding e
 2. Saisissez votre adresse email professionnelle et votre mot de passe.
 3. Cliquez sur **Connexion Sécurisée**.
 
-### 2.2 Comptes et Niveaux d'Accès Pré-configurés
-La plateforme applique un modèle de sécurité RBAC (*Role-Based Access Control*) prévoyant trois profils :
+### 2.2 Profils et création sécurisée des accès
+La plateforme applique un modèle RBAC (*Role-Based Access Control*) avec trois profils :
 
-| Profil | Identifiant (Email) | Mot de Passe Initial | Périmètre et Responsabilités |
-| :--- | :--- | :--- | :--- |
-| **Super Administrateur** | `superadmin@pkglobalpartners.com` | `AdminPKGlobal2026!` | Accès complet : gouvernance, utilisateurs, sauvegardes, audit de sécurité et tous les modules. |
-| **Administrateur** | `admin@pkglobalpartners.com` | `AdminPKGlobal2026!` | Gestion des contenus, appels à projets, candidatures, investisseurs, filiales et CRM. |
-| **Responsable FRIVIA** | `frivia.manager@pkglobalpartners.com` | `ManagerPKGlobal2026!` | Gestion exclusive de la filiale FRIVIA (Fast-food, menus, réalisations et demandes liées). |
-| **Responsable ELIKYA** | `elikya.manager@pkglobalpartners.com` | `ManagerPKGlobal2026!` | Gestion exclusive d'ELIKYA COFFEE (Café grand cru Kivu, produits, partenariats coopératives). |
-| **Responsable YOUPI** | `youpi.manager@pkglobalpartners.com` | `ManagerPKGlobal2026!` | Gestion exclusive de YOUPI PÂTISSERIE (Boulangerie moderne, offres corporate). |
+| Profil | Périmètre et responsabilités |
+| :--- | :--- |
+| **Super Administrateur** | Accès complet : gouvernance, utilisateurs, sauvegardes, audit et tous les modules. |
+| **Administrateur** | Gestion des contenus, appels à projets, candidatures, investisseurs, filiales et CRM. |
+| **Responsable de filiale** | Gestion limitée aux informations et demandes de sa filiale. |
 
-> *Note : Les mots de passe peuvent être modifiés à tout moment via l'icône de clé en haut à droite de l'écran.*
+En production, aucun compte ni mot de passe de démonstration n'est exposé dans l'interface. Le premier Super Administrateur est créé ou sécurisé au démarrage à partir des variables `INITIAL_ADMIN_NAME`, `INITIAL_ADMIN_EMAIL` et `INITIAL_ADMIN_PASSWORD` configurées côté serveur (voir `.env.example`). Choisissez un mot de passe unique d'au moins 12 caractères. Après connexion, le Super Administrateur peut créer les comptes des autres profils depuis **Utilisateurs & Droits**. Les comptes de démonstration ne sont actifs qu'en environnement local de développement.
+
+Pour l'envoi réel des accusés de réception et réponses, configurez également `MAIL_HOST`, `MAIL_PORT`, `MAIL_SECURE`, `MAIL_USER`, `MAIL_PASSWORD` et `MAIL_FROM` auprès de votre fournisseur SMTP. Sans ces paramètres, les demandes restent enregistrées dans l'administration, mais aucun email n'est prétendu envoyé ; le statut le signale.
 
 ---
 
@@ -51,7 +51,7 @@ Ce module permet d'éditer dynamiquement les pages du site web sans toucher au c
 1. **Présentation & Hero :** Modifier les titres d'accroche, sous-titres, slogans, mission et vision d'impact.
 2. **Pôles d'Expertise :** Ajouter, modifier ou masquer les 4 pôles (Agroalimentaire, Financement, Distribution, Conseil).
 3. **Actualités & Annonces :** Rédiger et publier des articles, événements et communiqués avec image d'illustration.
-4. **Coordonnées :** Actualiser les numéros WhatsApp, téléphones, emails de contact et adresses des sièges de Goma et Kinshasa.
+4. **Coordonnées :** Actualiser les numéros WhatsApp, téléphones, emails de contact et adresses des sièges de Goma et Kinshasa. Les textes du Hero et de présentation, les pôles actifs, les actualités publiées et les coordonnées sont synchronisés avec les pages publiques lors de leur chargement.
 
 ---
 
@@ -70,7 +70,7 @@ Ce module gère le processus d'incubation et d'accélération d'entreprises :
 4. **Notification du Candidat :**
    - Cliquez sur l'icône **Avion de papier**.
    - Choisissez un modèle de message rapide (*Accusé de réception*, *Convocation entretien*, *Projet retenu*, *Projet non retenu*).
-   - L'email est transmis au candidat et archivé dans le système.
+   - Si le serveur SMTP est configuré, l'email est envoyé au candidat et son état est archivé. L'interface indique explicitement si l'envoi a réussi ou si le SMTP n'est pas configuré.
 5. **Export Excel :** Cliquez sur le bouton vert **Exporter en Excel (.xlsx)** pour obtenir le fichier complet des candidatures.
 
 ---
@@ -88,7 +88,7 @@ Ce module suit les partenaires financiers de la holding :
 Ce module centralise tous les messages émis depuis le formulaire de contact du site :
 1. **Boîte de réception :** Visualisez les demandes avec identification automatique du service demandé (*Agroalimentaire*, *Distribution*, *Investissement*, *Carrières*).
 2. **Attribution :** Dans la colonne *Attribué à*, affectez la demande à un collaborateur de l'équipe.
-3. **Réponse au client :** Cliquez sur **Répondre**, saisissez le message et cochez *Marquer comme résolu*. Le client reçoit un email officiel PK Global Partners.
+3. **Réponse au client :** Cliquez sur **Répondre**, saisissez le message et cochez *Marquer comme résolu*. Avec la configuration SMTP active, le client reçoit l'email officiel ; l'interface signale tout échec ou absence de configuration.
 4. **Export Excel :** Téléchargement du journal des demandes.
 
 ---
