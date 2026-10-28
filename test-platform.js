@@ -67,6 +67,20 @@ async function runTests() {
     assert.strictEqual(slash.status, 200);
     assert.ok(bare.body.includes('login-form'));
     assert.ok(slash.body.includes('login-form'));
+    // The login and dashboard must not depend on a blocking third-party CDN.
+    assert.ok(!bare.body.includes('cdn.tailwindcss.com'));
+    assert.strictEqual((await request('/data/pkglobal.sqlite')).status, 404);
+    assert.strictEqual((await request('/backups/')).status, 404);
+    for (const [asset, contentType] of [
+      ['/admin/admin.js', 'javascript'],
+      ['/admin/admin.css', 'css'],
+      ['/public/css/tailwind.css', 'css'],
+      ['/public/js/chart.min.js', 'javascript']
+    ]) {
+      const res = await request(asset);
+      assert.strictEqual(res.status, 200, asset);
+      assert.ok(res.headers.get('content-type').includes(contentType), asset);
+    }
   });
 
   await test('0.2 Public CMS endpoints return content, services and published news', async () => {
