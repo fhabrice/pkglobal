@@ -74,6 +74,7 @@ async function runTests() {
     for (const [asset, contentType] of [
       ['/admin/admin.js', 'javascript'],
       ['/admin/admin.css', 'css'],
+      ['/public/admin/supabase-admin.js', 'javascript'],
       ['/public/css/tailwind.css', 'css'],
       ['/public/js/chart.min.js', 'javascript']
     ]) {

@@ -197,6 +197,7 @@ async function initApp() {
   // Login form handler
   const loginForm = document.getElementById('login-form');
   if (loginForm) {
+    document.getElementById('login-submit-btn').disabled = false;
     loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = document.getElementById('login-email').value;
@@ -269,14 +270,38 @@ async function initApp() {
   document.getElementById('app-wrapper').classList.add('hidden');
 }
 
-// Run initApp immediately or on DOM ready
+// The static deployment uses Supabase; Node/SQLite can still be selected in the HTML.
+function startAdmin() {
+  if (document.body.dataset.adminBackend === 'supabase') {
+    if (window.SupabaseAdmin) {
+      window.SupabaseAdmin.start(document, window.supabase);
+    } else {
+      document.getElementById('login-error-text').textContent = 'Le module de connexion Supabase est indisponible.';
+      document.getElementById('login-error').classList.remove('hidden');
+    }
+  } else {
+    initApp();
+  }
+}
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initApp);
+  document.addEventListener('DOMContentLoaded', startAdmin);
 } else {
-  initApp();
+  startAdmin();
 }
 
-function logout() {
+async function logout() {
+  if (window.supabaseAdminPortal) {
+    try {
+      await window.supabaseAdminPortal.signOut();
+    } catch (err) {
+      showToast(err.message, 'error');
+      return;
+    }
+    document.getElementById('app-wrapper').classList.add('hidden');
+    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('view-container').textContent = '';
+    return;
+  }
   safeStorage.removeItem('pkgp_token');
   safeStorage.removeItem('pkgp_user');
   currentUser = null;
