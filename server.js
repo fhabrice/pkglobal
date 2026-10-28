@@ -42,6 +42,9 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// SQLite data and backups must not be reachable through the public static server.
+app.use(['/data', '/backups'], (req, res) => res.sendStatus(404));
+
 // Static files
 app.use(express.static(__dirname)); // Serves root html (index.html, about.html, filiales.html, etc.)
 const adminDir = path.join(__dirname, 'public', 'admin');

@@ -1,8 +1,12 @@
 const Database = require('better-sqlite3');
+const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 
-const dbPath = path.join(__dirname, 'data', 'pkglobal.sqlite');
+// Git does not retain the data directory on a fresh installation.
+const dataDir = path.join(__dirname, 'data');
+fs.mkdirSync(dataDir, { recursive: true });
+const dbPath = path.join(dataDir, 'pkglobal.sqlite');
 const db = new Database(dbPath);
 
 // Enable WAL mode for performance & concurrency

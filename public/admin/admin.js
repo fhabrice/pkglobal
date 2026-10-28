@@ -74,6 +74,10 @@ async function api(endpoint, options = {}) {
       return response;
     }
 
+    if (!contentType.includes('application/json')) {
+      throw new Error('Le serveur de gestion est indisponible ou mal configuré. Vérifiez que l’application Node.js est démarrée.');
+    }
+
     const data = await response.json();
     if (!response.ok) {
       throw new Error(data.error || 'Une erreur est survenue.');
@@ -81,6 +85,9 @@ async function api(endpoint, options = {}) {
     return data;
   } catch (err) {
     console.error(`API Error on ${endpoint}:`, err);
+    if (err instanceof TypeError) {
+      throw new Error('Impossible de joindre le serveur de gestion. Vérifiez votre connexion et réessayez.');
+    }
     throw err;
   }
 }
