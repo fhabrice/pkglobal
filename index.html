@@ -270,7 +270,7 @@
             <div class="grid lg:grid-cols-2 gap-20 items-center">
                 <div class="relative">
                     <div class="absolute -top-10 -left-10 w-64 h-64 bg-emerald-50 rounded-full -z-10"></div>
-                    <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80" alt="Entrepreneur Africain" class="rounded-3xl shadow-2xl object-cover h-96 md:h-[500px] w-full">
+                    <img data-media-slot="accueil-hero" src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80" alt="Entrepreneur Africain" class="rounded-3xl shadow-2xl object-cover h-96 md:h-[500px] w-full">
                     <div class="absolute -bottom-6 -right-6 bg-yellow-400 p-6 md:p-8 rounded-2xl shadow-xl max-w-[88%] md:max-w-none">
                         <i class="fas fa-quote-left text-emerald-900 text-3xl opacity-50 mb-4"></i>
                         <p class="text-emerald-900 font-bold italic text-sm">"L'Afrique ne se construit pas, elle se transforme par l'action structurée."</p>
@@ -386,37 +386,37 @@
                 <p class="text-gray-500 max-w-md text-sm md:text-right">Aperçu de nos infrastructures et de nos flottes déployées à travers la République Démocratique du Congo.</p>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div id="media-gallery-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div class="gallery-item h-80 group lg:col-span-2" onclick="openModal('raka')">
-                    <img src="images/young-businessmen-standing-together-holding-laptop-discussing-business.jpg" alt="RAKA Logistique" class="w-full h-full object-cover">
+                    <img data-media-slot="galerie-1" src="images/young-businessmen-standing-together-holding-laptop-discussing-business.jpg" alt="RAKA Logistique" class="w-full h-full object-cover">
                     <div class="gallery-overlay">
                         <span class="text-yellow-400 text-xs font-bold uppercase tracking-widest mb-1">RAKA</span>
                         <h4 class="text-white font-bold text-lg">Hub Logistique Urbain</h4>
                     </div>
                 </div>
                 <div class="gallery-item h-80 group" onclick="openModal('elvo')">
-                    <img src="images/PHOTO-2026-02-14-12-54-22 (6).jpg" alt="ELVO Moto Electrique" class="w-full h-full object-cover">
+                    <img data-media-slot="galerie-2" src="images/PHOTO-2026-02-14-12-54-22 (6).jpg" alt="ELVO Moto Electrique" class="w-full h-full object-cover">
                     <div class="gallery-overlay">
                         <span class="text-yellow-400 text-xs font-bold uppercase tracking-widest mb-1">ELVO</span>
                         <h4 class="text-white font-bold text-lg">Flotte Électrique</h4>
                     </div>
                 </div>
                 <div class="gallery-item h-80 group" onclick="openModal('savi')">
-                    <img src="images/PHOTO-2026-02-14-12-54-22 (5).jpg" alt="SAVI Energie" class="w-full h-full object-cover">
+                    <img data-media-slot="galerie-3" src="images/PHOTO-2026-02-14-12-54-22 (5).jpg" alt="SAVI Energie" class="w-full h-full object-cover">
                     <div class="gallery-overlay">
                         <span class="text-yellow-400 text-xs font-bold uppercase tracking-widest mb-1">SAVI</span>
                         <h4 class="text-white font-bold text-lg">Énergie Biomasse</h4>
                     </div>
                 </div>
                 <div class="gallery-item h-80 group lg:col-span-2">
-                    <img src="images/PHOTO-2026-02-14-12-54-22 (4).jpg" alt="Impact Social" class="w-full h-full object-cover">
+                    <img data-media-slot="galerie-4" src="images/PHOTO-2026-02-14-12-54-22 (4).jpg" alt="Impact Social" class="w-full h-full object-cover">
                     <div class="gallery-overlay">
                         <span class="text-yellow-400 text-xs font-bold uppercase tracking-widest mb-1">Impact</span>
                         <h4 class="text-white font-bold text-lg">Formation & Inclusion</h4>
                     </div>
                 </div>
                 <div class="gallery-item h-80 group lg:col-span-2">
-                    <img src="images/businessman-smiling-camera-office.jpg" alt="Bureau PK" class="w-full h-full object-cover">
+                    <img data-media-slot="galerie-5" src="images/businessman-smiling-camera-office.jpg" alt="Bureau PK" class="w-full h-full object-cover">
                     <div class="gallery-overlay">
                         <span class="text-yellow-400 text-xs font-bold uppercase tracking-widest mb-1">Holding</span>
                         <h4 class="text-white font-bold text-lg">Excellence Opérationnelle</h4>
@@ -501,7 +501,7 @@
     <section id="investisseurs" class="py-24 px-6 md:px-12 bg-white">
         <div class="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-20">
             <div class="lg:w-1/2">
-                <img src="https://images.unsplash.com/photo-1573163281534-ddb2807c6c58?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80" alt="Réunion d'affaires" class="rounded-[3rem] shadow-2xl">
+                <img data-media-slot="accueil-presentation" src="https://images.unsplash.com/photo-1573163281534-ddb2807c6c58?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80" alt="Réunion d'affaires" class="rounded-[3rem] shadow-2xl">
             </div>
             <div class="lg:w-1/2">
                 <span class="text-yellow-600 font-bold uppercase tracking-[0.2em] text-xs">Relations Investisseurs</span>

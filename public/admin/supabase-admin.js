@@ -1,6 +1,9 @@
-/* Supabase-backed login, dashboard and CRM for the static admin portal.
+/* Supabase-backed login, dashboard, CRM, calls for projects and media library
+ * for the static admin portal.
  * The publishable key is intentionally public; authorization is enforced by RLS.
- * CRM tables and policies are installed with supabase/crm.sql. */
+ * CRM tables and policies are installed with supabase/crm.sql.
+ * Calls admin policies, site_media table and the "site-media" storage bucket
+ * are installed with supabase/admin-modules.sql. */
 (function (root) {
   'use strict';
 
@@ -36,6 +39,25 @@
   const CRM_ACTIVITY_TYPE_LABELS = {
     note: 'Note', appel: 'Appel', email: 'Email', reunion: 'Réunion', whatsapp: 'WhatsApp', tache: 'Tâche', autre: 'Autre'
   };
+
+  const CALL_STATUSES = ['draft', 'open', 'closed'];
+  const CALL_STATUS_LABELS = {
+    draft: 'Brouillon (non public)',
+    open: 'Ouvert aux candidatures',
+    closed: 'Clôturé'
+  };
+  const MEDIA_BUCKET = 'site-media';
+  const MEDIA_SECTIONS = ['galerie', 'hero', 'filiales', 'general'];
+  const MEDIA_SECTION_LABELS = {
+    galerie: 'Galerie (accueil)',
+    hero: 'Image principale (hero)',
+    filiales: 'Filiales',
+    general: 'Général'
+  };
+  // Emplacements connus du site public : une image active portant un de ces
+  // emplacements remplace l'image par défaut du même emplacement.
+  const MEDIA_PLACEMENTS = ['accueil-hero', 'accueil-presentation', 'galerie-1', 'galerie-2', 'galerie-3', 'galerie-4', 'galerie-5'];
+  const ADMIN_ROUTES = ['dashboard', 'calls', 'media', 'crm'];
 
   function escapeHtml(value) {
     return String(value ?? '')
@@ -143,6 +165,63 @@
       source_ref_type: cleanText(input.source_ref_type, 80),
       source_ref_id: input.source_ref_id === undefined || input.source_ref_id === null || input.source_ref_id === '' ? null : Number(input.source_ref_id),
       owner_id: input.owner_id || null
+    };
+  }
+
+  function adminModuleError(error, moduleLabel, fallback) {
+    const code = String(error?.code || '');
+    const message = String(error?.message || '');
+    if (code === '42P01' || code === 'PGRST205' || /(does not exist|schema cache|bucket not found)/i.test(message)) {
+      return new Error(`Le module « ${moduleLabel} » n’est pas encore installé dans Supabase. Exécutez supabase/admin-modules.sql dans le SQL Editor du projet, puis réessayez. Aucune donnée fictive n’est affichée.`);
+    }
+    if (code === '42501' || /row-level security|permission denied|not authorized/i.test(message)) {
+      return new Error(`Accès « ${moduleLabel} » refusé par Supabase. Vérifiez que votre profil est actif avec le rôle superadmin ou admin et que supabase/admin-modules.sql a été appliqué.`);
+    }
+    return new Error(message || fallback);
+  }
+
+  function slugify(text) {
+    return String(text || '')
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '')
+      .slice(0, 120) || 'appel-a-projets';
+  }
+
+  function callPayload(input = {}) {
+    const title = cleanText(input.title, 300);
+    const rawDeadline = cleanText(input.deadline, 40);
+    let deadline = null;
+    if (rawDeadline) {
+      const parsed = new Date(/^\d{4}-\d{2}-\d{2}$/.test(rawDeadline) ? `${rawDeadline}T23:59:59` : rawDeadline.replace(' ', 'T'));
+      if (!Number.isNaN(parsed.getTime())) deadline = parsed.toISOString();
+    }
+    return {
+      title,
+      slug: title ? slugify(title) : null,
+      description: cleanText(input.description, 10000) || '',
+      target_sector: cleanText(input.target_sector, 200) || 'Tous secteurs',
+      budget_indicatif: cleanText(input.budget_indicatif, 200) || '',
+      eligibility: cleanText(input.eligibility, 10000) || '',
+      deadline,
+      status: CALL_STATUSES.includes(input.status) ? input.status : 'draft'
+    };
+  }
+
+  function mediaPayload(input = {}) {
+    const imageUrl = cleanText(input.image_url, 1000);
+    const linkUrl = cleanText(input.link_url, 1000);
+    return {
+      title: cleanText(input.title, 250),
+      alt_text: cleanText(input.alt_text, 300),
+      image_url: imageUrl && /^(https?:\/\/|\/)/i.test(imageUrl) ? imageUrl : null,
+      storage_path: input.storage_path === undefined ? undefined : (cleanText(input.storage_path, 500) || null),
+      section: MEDIA_SECTIONS.includes(input.section) ? input.section : 'galerie',
+      placement: cleanText(input.placement, 80)?.replace(/[^a-zA-Z0-9-_]/g, '') || null,
+      link_url: linkUrl && /^(https?:\/\/|\/)/i.test(linkUrl) ? linkUrl : null,
+      active: input.active === false || input.active === 0 || input.active === '0' ? false : true,
+      display_order: Number.isFinite(Number(input.display_order)) ? Math.round(Number(input.display_order)) : 0
     };
   }
 
@@ -578,11 +657,198 @@
       if (error) throw new Error('La déconnexion a échoué. Réessayez.');
     }
 
+    async function moduleQuery(builder, moduleLabel, fallback) {
+      const result = await builder;
+      if (result.error) throw adminModuleError(result.error, moduleLabel, fallback);
+      return result.data;
+    }
+
+    // --- Appels à projets (gestion complète depuis l'espace admin) ---
+
+    async function listCalls() {
+      const data = await moduleQuery(
+        client.from('call_for_projects').select('*').order('deadline', { ascending: false }),
+        'Appels à projets',
+        'Impossible de charger les appels à projets.'
+      );
+      const calls = Array.isArray(data) ? data : [];
+      try {
+        const candidatures = await moduleQuery(
+          client.from('candidatures').select('call_id'),
+          'Appels à projets',
+          'Impossible de compter les candidatures.'
+        );
+        const counts = new Map();
+        (Array.isArray(candidatures) ? candidatures : []).forEach(row => {
+          if (row.call_id !== null && row.call_id !== undefined) {
+            counts.set(String(row.call_id), (counts.get(String(row.call_id)) || 0) + 1);
+          }
+        });
+        calls.forEach(call => { call.candidatures_count = counts.get(String(call.id)) || 0; });
+      } catch (err) {
+        calls.forEach(call => { call.candidatures_count = null; });
+      }
+      return calls;
+    }
+
+    async function saveCall(input, id = null) {
+      const payload = callPayload(input);
+      if (!payload.title || !payload.deadline) throw new Error('Titre et date limite valides obligatoires.');
+      const builder = id
+        ? client.from('call_for_projects').update(payload).eq('id', Number(id)).select().single()
+        : client.from('call_for_projects').insert(payload).select().single();
+      return moduleQuery(builder, 'Appels à projets', 'Impossible d’enregistrer l’appel à projets.');
+    }
+
+    async function setCallStatus(id, status) {
+      if (!CALL_STATUSES.includes(status)) throw new Error('Statut invalide : utilisez draft, open ou closed.');
+      return moduleQuery(
+        client.from('call_for_projects').update({ status }).eq('id', Number(id)).select().single(),
+        'Appels à projets',
+        'Impossible de changer le statut de l’appel à projets.'
+      );
+    }
+
+    async function deleteCall(id) {
+      const linked = await moduleQuery(
+        client.from('candidatures').select('id').eq('call_id', Number(id)),
+        'Appels à projets',
+        'Impossible de vérifier les candidatures liées à cet appel.'
+      );
+      if (Array.isArray(linked) && linked.length > 0) {
+        throw new Error('Cet appel possède déjà des candidatures réelles. Passez-le en brouillon ou clôturé au lieu de le supprimer.');
+      }
+      await moduleQuery(
+        client.from('call_for_projects').delete().eq('id', Number(id)).select('id').single(),
+        'Appels à projets',
+        'Impossible de supprimer l’appel à projets.'
+      );
+      return true;
+    }
+
+    // --- Médiathèque : images du site (table site_media + Storage) ---
+
+    async function listMedia() {
+      const data = await moduleQuery(
+        client.from('site_media').select('*').order('display_order', { ascending: true }).order('created_at', { ascending: false }),
+        'Médiathèque',
+        'Impossible de charger les images du site.'
+      );
+      return Array.isArray(data) ? data : [];
+    }
+
+    async function saveMedia(input, id = null) {
+      const payload = mediaPayload(input);
+      if (!payload.title || !payload.image_url) throw new Error('Titre et URL d’image (http(s):// ou /…) requis.');
+      let replacedStoragePath = null;
+      if (id) {
+        const existing = await moduleQuery(
+          client.from('site_media').select('*').eq('id', Number(id)).maybeSingle(),
+          'Médiathèque',
+          'Image introuvable.'
+        );
+        if (!existing) throw new Error('Image introuvable.');
+        if (payload.storage_path === undefined) payload.storage_path = existing.storage_path || null;
+        if (existing.storage_path && payload.image_url !== existing.image_url) {
+          replacedStoragePath = existing.storage_path;
+          payload.storage_path = null;
+        }
+      }
+      const insertPayload = { ...payload };
+      if (insertPayload.storage_path === undefined) insertPayload.storage_path = null;
+      if (!id && input.created_by) insertPayload.created_by = input.created_by;
+      const builder = id
+        ? client.from('site_media').update(payload).eq('id', Number(id)).select().single()
+        : client.from('site_media').insert(insertPayload).select().single();
+      const saved = await moduleQuery(builder, 'Médiathèque', 'Impossible d’enregistrer l’image.');
+      if (replacedStoragePath) await removeMediaFile(replacedStoragePath).catch(() => {});
+      return saved;
+    }
+
+    async function deleteMedia(id) {
+      const existing = await moduleQuery(
+        client.from('site_media').select('*').eq('id', Number(id)).maybeSingle(),
+        'Médiathèque',
+        'Image introuvable.'
+      );
+      if (!existing) throw new Error('Image introuvable.');
+      await moduleQuery(
+        client.from('site_media').delete().eq('id', Number(id)).select('id').single(),
+        'Médiathèque',
+        'Impossible de supprimer l’image.'
+      );
+      if (existing.storage_path) await removeMediaFile(existing.storage_path).catch(() => {});
+      return true;
+    }
+
+    async function uploadMediaFile(file) {
+      if (!file) throw new Error('Aucun fichier image sélectionné.');
+      if (!/^image\/(jpeg|png|webp|gif)$/.test(String(file.type || ''))) {
+        throw new Error('Format d’image non accepté : utilisez JPG, PNG, WEBP ou GIF.');
+      }
+      if (Number(file.size || 0) > 8 * 1024 * 1024) throw new Error('Image trop lourde : 8 Mo maximum.');
+      if (!client.storage || typeof client.storage.from !== 'function') {
+        throw new Error('Le stockage Supabase est indisponible dans ce navigateur.');
+      }
+      const safeName = String(file.name || 'image').replace(/[^a-zA-Z0-9.-]/g, '_');
+      const storagePath = `${Date.now()}-${Math.round(Math.random() * 1E9)}-${safeName}`;
+      const bucket = client.storage.from(MEDIA_BUCKET);
+      const { error } = await bucket.upload(storagePath, file, { cacheControl: '3600', upsert: false });
+      if (error) throw adminModuleError(error, 'Médiathèque', 'Téléversement de l’image impossible.');
+      const { data } = bucket.getPublicUrl(storagePath);
+      if (!data || !data.publicUrl) throw new Error('Image téléversée, mais son URL publique est introuvable.');
+      return { image_url: data.publicUrl, storage_path: storagePath };
+    }
+
+    async function removeMediaFile(storagePath) {
+      if (!storagePath || !client.storage || typeof client.storage.from !== 'function') return false;
+      const { error } = await client.storage.from(MEDIA_BUCKET).remove([storagePath]);
+      if (error) throw adminModuleError(error, 'Médiathèque', 'Suppression du fichier image impossible.');
+      return true;
+    }
+
+    // État réel des modules pour le tableau de bord (jamais d'exception :
+    // un module non installé est signalé avec la marche à suivre).
+    async function modulesOverview() {
+      const overview = {
+        crm: { installed: false, contacts: 0, error: null },
+        calls: { installed: false, total: 0, open: 0, error: null },
+        media: { installed: false, total: 0, error: null }
+      };
+      try {
+        const result = await client.from('crm_contacts').select('id', { count: 'exact', head: true });
+        if (result.error) throw crmError(result.error);
+        overview.crm = { installed: true, contacts: Number(result.count || 0), error: null };
+      } catch (err) { overview.crm.error = err.message; }
+      try {
+        const result = await client.from('call_for_projects').select('status');
+        if (result.error) throw adminModuleError(result.error, 'Appels à projets', 'Lecture impossible.');
+        const rows = Array.isArray(result.data) ? result.data : [];
+        overview.calls = { installed: true, total: rows.length, open: rows.filter(row => row.status === 'open').length, error: null };
+      } catch (err) { overview.calls.error = err.message; }
+      try {
+        const result = await client.from('site_media').select('id', { count: 'exact', head: true });
+        if (result.error) throw adminModuleError(result.error, 'Médiathèque', 'Lecture impossible.');
+        overview.media = { installed: true, total: Number(result.count || 0), error: null };
+      } catch (err) { overview.media.error = err.message; }
+      return overview;
+    }
+
     return {
       signIn,
       restore,
       dashboard,
       signOut,
+      modulesOverview,
+      listCalls,
+      saveCall,
+      setCallStatus,
+      deleteCall,
+      listMedia,
+      saveMedia,
+      deleteMedia,
+      uploadMediaFile,
+      removeMediaFile,
       crmOverview,
       syncCrmSources,
       listCrmOwners,
@@ -639,6 +905,8 @@
     let crmOpportunities = [];
     let crmActivities = [];
     let crmOverviewData = null;
+    let adminCalls = [];
+    let adminMedia = [];
     let navBound = false;
     let crmEventsBound = false;
     let modalEventsBound = false;
@@ -711,11 +979,40 @@
       badge.title = `${count} tâche(s) CRM en retard`;
     }
 
+    function routeFromHash() {
+      try {
+        const hash = String((root && root.location && root.location.hash) || '');
+        const match = hash.match(/^#\/([a-z-]+)/);
+        const route = match ? match[1] : 'dashboard';
+        return ADMIN_ROUTES.includes(route) ? route : 'dashboard';
+      } catch (e) {
+        return 'dashboard';
+      }
+    }
+
+    function setRouteHash(route) {
+      try {
+        if (root && root.history && root.location) {
+          const target = `#/${route}`;
+          if (root.location.hash !== target) root.history.replaceState(null, '', target);
+        }
+      } catch (e) {}
+    }
+
+    async function showRoute(profile, route) {
+      if (!profile) return;
+      setRouteHash(route);
+      if (route === 'crm') await showCRM(profile);
+      else if (route === 'calls') await showCalls(profile);
+      else if (route === 'media') await showMedia(profile);
+      else await showDashboard(profile, true);
+    }
+
     function configureNav(activeRoute) {
       const links = document.querySelectorAll('.nav-item');
       links.forEach(link => {
         const route = link.getAttribute('data-route');
-        const visible = route === 'dashboard' || route === 'crm';
+        const visible = ADMIN_ROUTES.includes(route);
         setHidden(link, !visible);
         if (route === activeRoute) link.classList.add('active');
         else link.classList.remove('active');
@@ -723,15 +1020,16 @@
           link.addEventListener('click', async event => {
             event.preventDefault();
             if (!currentProfile) return;
-            if (route === 'crm') await showCRM(currentProfile);
-            else await showDashboard(currentProfile);
+            await showRoute(currentProfile, route);
           });
         }
       });
       navBound = true;
       document.querySelectorAll('#sidebar nav > div').forEach(heading => {
-        const isCrmHeading = String(heading.textContent || '').toLowerCase().includes('relation client');
-        setHidden(heading, !isCrmHeading);
+        const text = String(heading.textContent || '').toLowerCase();
+        const visible = text.includes('général') || text.includes('general')
+          || text.includes('gestion & contenus') || text.includes('relation client');
+        setHidden(heading, !visible);
       });
     }
 
@@ -767,6 +1065,8 @@
       content.addEventListener('click', async event => {
         const closeButton = event.target?.closest?.('[data-crm-modal-close]');
         if (closeButton) { closeCrmModal(); return; }
+        const adminActionButton = event.target?.closest?.('[data-admin-action]');
+        if (adminActionButton) { await handleAdminAction(adminActionButton); return; }
         const actionButton = event.target?.closest?.('[data-crm-action]');
         if (actionButton) { await handleCrmAction(actionButton); return; }
         const confirmButton = event.target?.closest?.('#sb-crm-modal-confirm');
@@ -826,6 +1126,8 @@
       if (crmEventsBound || !view || !view.addEventListener) return;
       crmEventsBound = true;
       view.addEventListener('click', async event => {
+        const adminActionButton = event.target?.closest?.('[data-admin-action]');
+        if (adminActionButton) { await handleAdminAction(adminActionButton); return; }
         const tabButton = event.target?.closest?.('[data-crm-tab]');
         if (tabButton) {
           crmTab = tabButton.getAttribute('data-crm-tab') || 'contacts';
@@ -842,6 +1144,13 @@
       view.addEventListener('change', async event => {
         const target = event.target;
         if (!target) return;
+        if (target.id === 'sb-media-file' && target.files && target.files[0]) {
+          const titleInput = optionalEl('sb-media-title');
+          if (titleInput && !titleInput.value) {
+            titleInput.value = String(target.files[0].name || '').replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
+          }
+          return;
+        }
         if (target.id === 'sb-crm-type' || target.id === 'sb-crm-status') {
           applyContactFilters();
           return;
@@ -883,7 +1192,7 @@
       const opportunityId = button.getAttribute('data-opportunity-id');
       try {
         if (action === 'open-crm' || action === 'retry-crm') await showCRM(currentProfile);
-        else if (action === 'back-dashboard') await showDashboard(currentProfile);
+        else if (action === 'back-dashboard') await showDashboard(currentProfile, true);
         else if (action === 'sync-sources') {
           button.disabled = true;
           const result = await portal.syncCrmSources(currentProfile?.id);
@@ -958,15 +1267,73 @@
       showCrmToast('Export CRM CSV téléchargé.');
     }
 
-    async function showDashboard(profile) {
-      if (root && root.location && root.location.hash === '#/crm') {
-        await showCRM(profile);
-        return;
+    function moduleCard({ icon, title, description, installed, statusText, error, action, actionLabel, crmAction = false }) {
+      const statusBadge = installed
+        ? `<span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase tracking-wider">Actif</span>`
+        : `<span class="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-[10px] font-black uppercase tracking-wider">À installer</span>`;
+      const button = crmAction
+        ? `<button type="button" data-crm-action="${action}" class="px-4 py-2.5 bg-emerald-900 hover:bg-emerald-800 text-yellow-400 text-xs font-bold rounded-xl shadow">${actionLabel}</button>`
+        : `<button type="button" data-admin-action="${action}" class="px-4 py-2.5 bg-emerald-900 hover:bg-emerald-800 text-yellow-400 text-xs font-bold rounded-xl shadow">${actionLabel}</button>`;
+      return `<div class="bg-white p-5 rounded-3xl border ${installed ? 'border-slate-200' : 'border-amber-300'} shadow-xs flex flex-col gap-3">
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <span class="w-10 h-10 rounded-2xl ${installed ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-600'} flex items-center justify-center"><i class="fas ${icon}"></i></span>
+            <strong class="text-sm text-slate-800">${escapeHtml(title)}</strong>
+          </div>${statusBadge}
+        </div>
+        <p class="text-xs text-slate-500 leading-relaxed flex-1">${escapeHtml(description)}</p>
+        ${installed
+          ? `<p class="text-xs font-bold text-emerald-800">${escapeHtml(statusText)}</p>`
+          : `<p class="text-[11px] leading-relaxed text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-3">${escapeHtml(error || 'Module non installé dans Supabase.')}</p>`}
+        <div>${button}</div>
+      </div>`;
+    }
+
+    async function showDashboard(profile, force = false) {
+      if (!force) {
+        const route = routeFromHash();
+        if (route !== 'dashboard') { await showRoute(profile, route); return; }
       }
-      setShell(profile, 'Tableau de bord', 'Données Supabase réelles — dashboard et CRM', 'dashboard');
+      setRouteHash('dashboard');
+      setShell(profile, 'Tableau de bord', 'Données Supabase réelles — CRM, appels à projets et images', 'dashboard');
       view.textContent = 'Chargement des données Supabase…';
       try {
-        const counts = await portal.dashboard();
+        const [counts, modules] = await Promise.all([
+          portal.dashboard(),
+          portal.modulesOverview().catch(() => null)
+        ]);
+        const moduleCards = modules ? `<div>
+            <h3 class="text-sm font-extrabold text-slate-800 mb-3">Modules de gestion</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+              ${moduleCard({
+                icon: 'fa-address-book',
+                title: 'CRM — Contacts & Pipeline',
+                description: 'Contacts réels, opportunités par étape et relances. Menu de gauche : « CRM — Contacts & Pipeline ».',
+                installed: modules.crm.installed,
+                statusText: `${modules.crm.contacts} contact(s) CRM enregistré(s)`,
+                error: modules.crm.error,
+                action: 'open-crm', actionLabel: 'Ouvrir le CRM', crmAction: true
+              })}
+              ${moduleCard({
+                icon: 'fa-bullhorn',
+                title: 'Appels à projets',
+                description: 'Créez et publiez vos appels ici : ils s’affichent automatiquement sur la page « Appels à projets » du site.',
+                installed: modules.calls.installed,
+                statusText: `${modules.calls.total} appel(s) au total · ${modules.calls.open} ouvert(s)`,
+                error: modules.calls.error,
+                action: 'open-calls', actionLabel: 'Gérer les appels à projets'
+              })}
+              ${moduleCard({
+                icon: 'fa-images',
+                title: 'Médiathèque — Images',
+                description: 'Ajoutez, remplacez ou supprimez les images du site (galerie de l’accueil et emplacements des pages).',
+                installed: modules.media.installed,
+                statusText: `${modules.media.total} image(s) dans la médiathèque`,
+                error: modules.media.error,
+                action: 'open-media', actionLabel: 'Gérer les images'
+              })}
+            </div>
+          </div>` : '';
         // Only fixed labels and numeric counts are inserted as HTML here.
         view.innerHTML = `<div class="space-y-6">
           <div class="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white p-6 md:p-8 rounded-3xl shadow-xl">
@@ -974,13 +1341,19 @@
               <div>
                 <span class="px-3 py-1 bg-yellow-400 text-emerald-950 text-[10px] font-black uppercase tracking-widest rounded-full">Supabase</span>
                 <h1 class="text-2xl font-black mt-3">Bienvenue dans l’espace administrateur</h1>
-                <p class="text-emerald-100/85 text-sm mt-2 max-w-2xl">Les indicateurs ci-dessous et le module CRM utilisent uniquement les données réelles de votre projet Supabase. Les modules historiques Node/SQLite restent disponibles uniquement en mode Node.</p>
+                <p class="text-emerald-100/85 text-sm mt-2 max-w-2xl">Depuis cet espace, vous gérez le <strong>CRM</strong>, vous <strong>publiez les appels à projets</strong> affichés sur le site public et vous <strong>ajoutez ou remplacez les images</strong> du site. Toutes les données ci-dessous sont réelles et proviennent de votre projet Supabase.</p>
               </div>
-              <button type="button" data-crm-action="open-crm" class="px-5 py-3 bg-yellow-400 hover:bg-yellow-500 text-emerald-950 text-sm font-black rounded-2xl shadow shrink-0"><i class="fas fa-address-book mr-2"></i>Ouvrir le CRM</button>
+              <div class="flex flex-col sm:flex-row lg:flex-col gap-2 shrink-0">
+                <button type="button" data-crm-action="open-crm" class="px-5 py-3 bg-yellow-400 hover:bg-yellow-500 text-emerald-950 text-sm font-black rounded-2xl shadow"><i class="fas fa-address-book mr-2"></i>Ouvrir le CRM</button>
+                <button type="button" data-admin-action="open-calls" class="px-5 py-3 bg-white/10 hover:bg-white/20 text-white text-sm font-bold rounded-2xl border border-white/20"><i class="fas fa-bullhorn mr-2"></i>Appels à projets</button>
+                <button type="button" data-admin-action="open-media" class="px-5 py-3 bg-white/10 hover:bg-white/20 text-white text-sm font-bold rounded-2xl border border-white/20"><i class="fas fa-images mr-2"></i>Images du site</button>
+              </div>
             </div>
           </div>
+          ${moduleCards}
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">${[['Candidatures', counts.candidatures], ['Investisseurs', counts.investors], ['Demandes', counts.inquiries], ['Filiales', counts.filiales]].map(([label, count]) => `<div class="bg-white p-5 rounded-2xl border border-slate-200"><div class="text-sm text-slate-500">${label}</div><div class="text-2xl font-bold mt-2">${count}</div></div>`).join('')}</div>
         </div>`;
+        try { updateCrmBadge(await portal.crmOverview()); } catch (e) { /* CRM badge is best-effort. */ }
       } catch (err) {
         view.textContent = err.message;
       }
@@ -988,6 +1361,7 @@
 
     async function showCRM(profile) {
       if (!profile) return;
+      setRouteHash('crm');
       setShell(profile, 'CRM — Contacts & Pipeline', 'CRM Supabase : contacts réels, opportunités et relances', 'crm');
       view.textContent = 'Chargement du CRM Supabase…';
       try {
@@ -1352,6 +1726,305 @@
       await populateActivityOpportunities(contactId || optionalEl('sb-crm-activity-contact')?.value, opportunityId);
     }
 
+    // -------------------------------------------------------------
+    // APPELS À PROJETS (Supabase) : créer, publier, modifier, supprimer.
+    // Les appels « Ouvert » / « Clôturé » s'affichent sur la page publique.
+    // -------------------------------------------------------------
+
+    function callStatusBadge(status) {
+      const classes = status === 'open' ? 'badge-open' : status === 'draft' ? 'badge-draft' : 'badge-closed';
+      return `<span class="badge-status ${classes}">${escapeHtml(CALL_STATUS_LABELS[status] || status)}</span>`;
+    }
+
+    async function showCalls(profile) {
+      if (!profile) return;
+      setRouteHash('calls');
+      setShell(profile, 'Appels à projets', 'Publiez vos appels : ils apparaissent sur la page « Appels à projets » du site', 'calls');
+      view.textContent = 'Chargement des appels à projets…';
+      try {
+        adminCalls = await portal.listCalls();
+        const openCount = adminCalls.filter(call => call.status === 'open').length;
+        view.innerHTML = `<div class="space-y-6">
+          <div class="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white p-6 rounded-3xl shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+            <div>
+              <h3 class="text-lg font-black">Programmes et Appels à Projets</h3>
+              <p class="text-emerald-100/85 text-xs mt-1 max-w-2xl">Créez un appel ici, passez son statut à <strong>« Ouvert »</strong> et il s’affichera immédiatement sur la page publique des appels à projets. Les <strong>brouillons</strong> restent visibles uniquement dans cet espace. ${adminCalls.length} appel(s) au total · ${openCount} ouvert(s).</p>
+            </div>
+            <div class="flex flex-wrap gap-2 shrink-0">
+              <a href="/appels-a-projets.html" target="_blank" rel="noopener" class="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl border border-white/20 flex items-center gap-2"><i class="fas fa-arrow-up-right-from-square"></i> Voir la page publique</a>
+              <button type="button" data-admin-action="new-call" class="px-4 py-2.5 bg-yellow-400 hover:bg-yellow-500 text-emerald-950 text-xs font-black rounded-xl shadow flex items-center gap-2"><i class="fas fa-plus"></i> Créer un Appel à Projets</button>
+            </div>
+          </div>
+          ${adminCalls.length === 0 ? `<div class="bg-white border border-dashed border-slate-300 rounded-3xl p-10 text-center">
+            <i class="fas fa-bullhorn text-3xl text-slate-300 mb-3"></i>
+            <p class="text-sm font-bold text-slate-700">Aucun appel à projets pour le moment</p>
+            <p class="text-xs text-slate-500 mt-1">Cliquez sur « Créer un Appel à Projets », remplissez le formulaire et choisissez le statut « Ouvert » pour le publier sur le site.</p>
+          </div>` : `<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            ${adminCalls.map(call => `<div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between gap-3 mb-3">
+                  ${callStatusBadge(call.status)}
+                  <span class="text-xs font-bold text-slate-500 flex items-center gap-1"><i class="fas fa-folder-open text-emerald-600"></i> ${call.candidatures_count === null ? '—' : Number(call.candidatures_count || 0)} dossier(s) reçu(s)</span>
+                </div>
+                <h4 class="font-extrabold text-base text-slate-800 mb-2">${escapeHtml(call.title)}</h4>
+                <p class="text-xs text-slate-600 leading-relaxed mb-4">${escapeHtml(call.description || '')}</p>
+                <div class="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs mb-4">
+                  <div class="flex items-center justify-between"><span class="text-slate-400 font-semibold">Secteur cible :</span><span class="font-bold text-slate-700">${escapeHtml(call.target_sector || 'Tous secteurs')}</span></div>
+                  <div class="flex items-center justify-between"><span class="text-slate-400 font-semibold">Enveloppe :</span><span class="font-bold text-emerald-700">${escapeHtml(call.budget_indicatif || '—')}</span></div>
+                  <div class="flex items-center justify-between"><span class="text-slate-400 font-semibold">Date limite :</span><span class="font-bold text-red-600">${formatDate(call.deadline)}</span></div>
+                </div>
+              </div>
+              <div class="flex flex-wrap items-center justify-end gap-2 pt-4 border-t border-slate-100">
+                ${call.status !== 'open' ? `<button type="button" data-admin-action="set-call-status" data-id="${Number(call.id)}" data-status="open" class="px-3 py-1.5 bg-emerald-900 hover:bg-emerald-800 text-yellow-400 text-xs font-bold rounded-xl"><i class="fas fa-upload mr-1"></i>Publier</button>` : ''}
+                ${call.status === 'open' ? `<button type="button" data-admin-action="set-call-status" data-id="${Number(call.id)}" data-status="closed" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl">Clôturer</button>` : ''}
+                ${call.status !== 'draft' ? `<button type="button" data-admin-action="set-call-status" data-id="${Number(call.id)}" data-status="draft" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold rounded-xl">Dépublier</button>` : ''}
+                <button type="button" data-admin-action="edit-call" data-id="${Number(call.id)}" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl">Modifier</button>
+                <button type="button" data-admin-action="delete-call" data-id="${Number(call.id)}" class="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold rounded-xl" title="Supprimer seulement si aucune candidature réelle n’est liée">Supprimer</button>
+              </div>
+            </div>`).join('')}
+          </div>`}
+        </div>`;
+      } catch (err) {
+        view.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-800 p-6 rounded-3xl text-xs space-y-3">
+          <p class="font-bold text-sm">Module « Appels à projets » indisponible</p>
+          <p>${escapeHtml(err.message)}</p>
+          <button type="button" data-admin-action="open-calls" class="px-4 py-2 bg-red-700 text-white rounded-xl font-bold">Réessayer</button>
+        </div>`;
+      }
+    }
+
+    function openCallEditor(callId = null) {
+      const call = callId ? adminCalls.find(item => String(item.id) === String(callId)) : null;
+      if (callId && !call) { showCrmToast('Appel à projets introuvable. Rechargez la liste.', 'error'); return; }
+      openCrmModal(call ? 'Modifier l’Appel à Projets' : 'Créer un Nouvel Appel à Projets', `
+        <div class="space-y-4 text-xs">
+          <div><label class="block font-bold mb-1">Titre de l’appel *</label><input type="text" id="sb-call-title" value="${escapeHtml(call?.title || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold" placeholder="Ex. Appel à Projets 2026 : Agro-transformation"></div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div><label class="block font-bold mb-1">Secteur cible</label><input type="text" id="sb-call-sector" value="${escapeHtml(call?.target_sector || 'Agroalimentaire & Transformation')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+            <div><label class="block font-bold mb-1">Budget / Enveloppe indicative</label><input type="text" id="sb-call-budget" value="${escapeHtml(call?.budget_indicatif || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200" placeholder="Ex. Jusqu’à 100 000 USD"></div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div><label class="block font-bold mb-1">Date limite de dépôt *</label><input type="date" id="sb-call-deadline" value="${escapeHtml(call?.deadline ? String(call.deadline).slice(0, 10) : '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+            <div><label class="block font-bold mb-1">Statut de publication</label><select id="sb-call-status" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">
+              <option value="draft" ${!call || call.status === 'draft' ? 'selected' : ''}>Brouillon (visible uniquement dans l’admin)</option>
+              <option value="open" ${call?.status === 'open' ? 'selected' : ''}>Ouvert (publié sur le site, candidatures ouvertes)</option>
+              <option value="closed" ${call?.status === 'closed' ? 'selected' : ''}>Clôturé (publié comme terminé)</option>
+            </select><p class="text-[10px] text-slate-500 mt-1">La page publique affiche uniquement les appels réels publiés depuis cet espace.</p></div>
+          </div>
+          <div><label class="block font-bold mb-1">Description des objectifs</label><textarea id="sb-call-desc" rows="3" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">${escapeHtml(call?.description || '')}</textarea></div>
+          <div><label class="block font-bold mb-1">Critères d’éligibilité</label><textarea id="sb-call-elig" rows="2" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">${escapeHtml(call?.eligibility || '')}</textarea></div>
+        </div>`, async () => {
+          const payload = {
+            title: optionalEl('sb-call-title').value,
+            target_sector: optionalEl('sb-call-sector').value,
+            budget_indicatif: optionalEl('sb-call-budget').value,
+            deadline: optionalEl('sb-call-deadline').value,
+            status: optionalEl('sb-call-status').value,
+            description: optionalEl('sb-call-desc').value,
+            eligibility: optionalEl('sb-call-elig').value
+          };
+          const saved = await portal.saveCall(payload, call?.id || null);
+          showCrmToast(call
+            ? 'Appel à projets mis à jour.'
+            : (saved?.status === 'open' ? 'Appel à projets publié sur le site !' : 'Appel à projets enregistré (brouillon non public).'));
+          await showCalls(currentProfile);
+        });
+    }
+
+    // -------------------------------------------------------------
+    // MÉDIATHÈQUE (Supabase) : téléverser, modifier, supprimer les images.
+    // -------------------------------------------------------------
+
+    async function showMedia(profile) {
+      if (!profile) return;
+      setRouteHash('media');
+      setShell(profile, 'Médiathèque — Images du site', 'Ajoutez, remplacez ou supprimez les images affichées sur le site public', 'media');
+      view.textContent = 'Chargement de la médiathèque…';
+      try {
+        adminMedia = await portal.listMedia();
+        view.innerHTML = `<div class="space-y-6">
+          <div class="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white p-6 rounded-3xl shadow-xl">
+            <h3 class="text-lg font-black">Images du site</h3>
+            <p class="text-emerald-100/85 text-xs mt-1 max-w-3xl">Téléversez une image ou indiquez son URL. Les images <strong>actives</strong> de la section <strong>« Galerie »</strong> s’ajoutent à la galerie de la page d’accueil. Une image portant un <strong>emplacement</strong> connu (ex. <code>accueil-hero</code>, <code>galerie-1</code>) remplace l’image par défaut de cet emplacement sur le site.</p>
+          </div>
+
+          <div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs">
+            <h4 class="text-sm font-extrabold text-slate-800 mb-4"><i class="fas fa-cloud-arrow-up text-emerald-700 mr-2"></i>Ajouter une image</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div><label class="block font-bold mb-1">Fichier image (JPG, PNG, WEBP, GIF — 8 Mo max)</label><input type="file" id="sb-media-file" accept="image/jpeg,image/png,image/webp,image/gif" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white"></div>
+              <div><label class="block font-bold mb-1">… ou URL de l’image</label><input type="url" id="sb-media-url" placeholder="https://exemple.com/image.jpg" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+              <div><label class="block font-bold mb-1">Titre *</label><input type="text" id="sb-media-title" placeholder="Ex. Flotte ELVO à Goma" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+              <div><label class="block font-bold mb-1">Texte alternatif (accessibilité)</label><input type="text" id="sb-media-alt" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+              <div><label class="block font-bold mb-1">Section du site</label><select id="sb-media-section" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">${optionsHtml(MEDIA_SECTION_LABELS, 'galerie')}</select></div>
+              <div><label class="block font-bold mb-1">Emplacement (optionnel)</label><input type="text" id="sb-media-placement" list="sb-media-placements" placeholder="Ex. accueil-hero ou galerie-1" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"><datalist id="sb-media-placements">${MEDIA_PLACEMENTS.map(value => `<option value="${value}"></option>`).join('')}</datalist></div>
+              <div><label class="block font-bold mb-1">Lien au clic (optionnel)</label><input type="url" id="sb-media-link" placeholder="https://…" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+              <div class="grid grid-cols-2 gap-3">
+                <div><label class="block font-bold mb-1">Ordre d’affichage</label><input type="number" id="sb-media-order" value="0" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+                <div><label class="block font-bold mb-1">Visibilité</label><select id="sb-media-active" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"><option value="1" selected>Publiée sur le site</option><option value="0">Masquée</option></select></div>
+              </div>
+            </div>
+            <div class="mt-4 flex justify-end"><button type="button" data-admin-action="create-media" class="px-5 py-2.5 bg-emerald-900 hover:bg-emerald-800 text-yellow-400 text-xs font-bold rounded-xl shadow flex items-center gap-2"><i class="fas fa-plus"></i> Ajouter l’image</button></div>
+          </div>
+
+          ${adminMedia.length === 0 ? `<div class="bg-white border border-dashed border-slate-300 rounded-3xl p-10 text-center">
+            <i class="fas fa-images text-3xl text-slate-300 mb-3"></i>
+            <p class="text-sm font-bold text-slate-700">Aucune image dans la médiathèque</p>
+            <p class="text-xs text-slate-500 mt-1">Ajoutez votre première image ci-dessus : elle apparaîtra sur le site selon sa section et son emplacement.</p>
+          </div>` : `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            ${adminMedia.map(item => `<div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col">
+              <div class="relative h-44 bg-slate-100">
+                <img src="${escapeHtml(item.image_url)}" alt="${escapeHtml(item.alt_text || item.title)}" class="w-full h-full object-cover" loading="lazy">
+                <span class="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${item.active ? 'bg-emerald-600 text-white' : 'bg-slate-600 text-white'}">${item.active ? 'Publiée' : 'Masquée'}</span>
+              </div>
+              <div class="p-4 flex-1 flex flex-col gap-2">
+                <strong class="text-sm text-slate-800">${escapeHtml(item.title)}</strong>
+                <div class="text-[11px] text-slate-500 space-y-0.5">
+                  <div>Section : <strong>${escapeHtml(MEDIA_SECTION_LABELS[item.section] || item.section)}</strong>${item.placement ? ` · Emplacement : <code>${escapeHtml(item.placement)}</code>` : ''}</div>
+                  <div>Ordre : ${Number(item.display_order || 0)} · Ajoutée le ${formatDate(item.created_at)}</div>
+                  <div class="truncate" title="${escapeHtml(item.image_url)}">${escapeHtml(item.image_url)}</div>
+                </div>
+                <div class="flex flex-wrap gap-2 pt-2 mt-auto border-t border-slate-100">
+                  <button type="button" data-admin-action="edit-media" data-id="${Number(item.id)}" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl">Modifier</button>
+                  <button type="button" data-admin-action="toggle-media" data-id="${Number(item.id)}" class="px-3 py-1.5 ${item.active ? 'bg-amber-50 hover:bg-amber-100 text-amber-700' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800'} text-xs font-semibold rounded-xl">${item.active ? 'Masquer' : 'Publier'}</button>
+                  <button type="button" data-admin-action="copy-media-url" data-id="${Number(item.id)}" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl">Copier l’URL</button>
+                  <button type="button" data-admin-action="delete-media" data-id="${Number(item.id)}" class="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold rounded-xl">Supprimer</button>
+                </div>
+              </div>
+            </div>`).join('')}
+          </div>`}
+        </div>`;
+      } catch (err) {
+        view.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-800 p-6 rounded-3xl text-xs space-y-3">
+          <p class="font-bold text-sm">Médiathèque indisponible</p>
+          <p>${escapeHtml(err.message)}</p>
+          <button type="button" data-admin-action="open-media" class="px-4 py-2 bg-red-700 text-white rounded-xl font-bold">Réessayer</button>
+        </div>`;
+      }
+    }
+
+    function openMediaEditor(mediaId) {
+      const item = adminMedia.find(media => String(media.id) === String(mediaId));
+      if (!item) { showCrmToast('Image introuvable. Rechargez la médiathèque.', 'error'); return; }
+      openCrmModal('Modifier l’image', `
+        <div class="space-y-4 text-xs">
+          <div class="rounded-2xl overflow-hidden border border-slate-200"><img src="${escapeHtml(item.image_url)}" alt="${escapeHtml(item.alt_text || item.title)}" class="w-full h-44 object-cover"></div>
+          <div><label class="block font-bold mb-1">Remplacer par un nouveau fichier (optionnel)</label><input type="file" id="sb-media-edit-file" accept="image/jpeg,image/png,image/webp,image/gif" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white"></div>
+          <div><label class="block font-bold mb-1">URL de l’image *</label><input type="url" id="sb-media-edit-url" value="${escapeHtml(item.image_url)}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+          <div><label class="block font-bold mb-1">Titre *</label><input type="text" id="sb-media-edit-title" value="${escapeHtml(item.title)}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+          <div><label class="block font-bold mb-1">Texte alternatif</label><input type="text" id="sb-media-edit-alt" value="${escapeHtml(item.alt_text || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div><label class="block font-bold mb-1">Section</label><select id="sb-media-edit-section" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">${optionsHtml(MEDIA_SECTION_LABELS, item.section)}</select></div>
+            <div><label class="block font-bold mb-1">Emplacement</label><input type="text" id="sb-media-edit-placement" list="sb-media-placements-edit" value="${escapeHtml(item.placement || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"><datalist id="sb-media-placements-edit">${MEDIA_PLACEMENTS.map(value => `<option value="${value}"></option>`).join('')}</datalist></div>
+            <div><label class="block font-bold mb-1">Lien au clic</label><input type="url" id="sb-media-edit-link" value="${escapeHtml(item.link_url || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+            <div class="grid grid-cols-2 gap-3">
+              <div><label class="block font-bold mb-1">Ordre</label><input type="number" id="sb-media-edit-order" value="${Number(item.display_order || 0)}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+              <div><label class="block font-bold mb-1">Visibilité</label><select id="sb-media-edit-active" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"><option value="1" ${item.active ? 'selected' : ''}>Publiée</option><option value="0" ${item.active ? '' : 'selected'}>Masquée</option></select></div>
+            </div>
+          </div>
+        </div>`, async () => {
+          const fileInput = optionalEl('sb-media-edit-file');
+          let imageUrl = optionalEl('sb-media-edit-url').value;
+          let storagePath = item.storage_path || null;
+          if (fileInput && fileInput.files && fileInput.files[0]) {
+            const uploaded = await portal.uploadMediaFile(fileInput.files[0]);
+            imageUrl = uploaded.image_url;
+            storagePath = uploaded.storage_path;
+            if (item.storage_path) await portal.removeMediaFile(item.storage_path).catch(() => {});
+          }
+          await portal.saveMedia({
+            title: optionalEl('sb-media-edit-title').value,
+            alt_text: optionalEl('sb-media-edit-alt').value,
+            image_url: imageUrl,
+            storage_path: storagePath,
+            section: optionalEl('sb-media-edit-section').value,
+            placement: optionalEl('sb-media-edit-placement').value,
+            link_url: optionalEl('sb-media-edit-link').value,
+            display_order: optionalEl('sb-media-edit-order').value,
+            active: optionalEl('sb-media-edit-active').value === '1'
+          }, item.id);
+          showCrmToast('Image mise à jour.');
+          await showMedia(currentProfile);
+        });
+    }
+
+    async function handleAdminAction(button) {
+      const action = button.getAttribute('data-admin-action');
+      const id = button.getAttribute('data-id');
+      try {
+        if (action === 'open-calls') await showCalls(currentProfile);
+        else if (action === 'open-media') await showMedia(currentProfile);
+        else if (action === 'back-dashboard') await showDashboard(currentProfile, true);
+        else if (action === 'new-call') openCallEditor();
+        else if (action === 'edit-call') openCallEditor(id);
+        else if (action === 'set-call-status') {
+          const status = button.getAttribute('data-status');
+          await portal.setCallStatus(id, status);
+          showCrmToast(status === 'open' ? 'Appel publié sur le site.' : status === 'closed' ? 'Appel clôturé.' : 'Appel repassé en brouillon (non public).');
+          await showCalls(currentProfile);
+        }
+        else if (action === 'delete-call') {
+          if (!confirmAction('Supprimer définitivement cet appel à projets ? Cette action est refusée si des candidatures réelles y sont liées.')) return;
+          await portal.deleteCall(id);
+          showCrmToast('Appel à projets supprimé.');
+          await showCalls(currentProfile);
+        }
+        else if (action === 'create-media') {
+          button.disabled = true;
+          const fileInput = optionalEl('sb-media-file');
+          const file = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+          let imageUrl = optionalEl('sb-media-url')?.value || '';
+          let storagePath = null;
+          if (file) {
+            const uploaded = await portal.uploadMediaFile(file);
+            imageUrl = uploaded.image_url;
+            storagePath = uploaded.storage_path;
+          }
+          await portal.saveMedia({
+            title: optionalEl('sb-media-title').value,
+            alt_text: optionalEl('sb-media-alt').value,
+            image_url: imageUrl,
+            storage_path: storagePath,
+            section: optionalEl('sb-media-section').value,
+            placement: optionalEl('sb-media-placement').value,
+            link_url: optionalEl('sb-media-link').value,
+            display_order: optionalEl('sb-media-order').value,
+            active: optionalEl('sb-media-active').value === '1',
+            created_by: currentProfile?.id || null
+          });
+          showCrmToast('Image ajoutée à la médiathèque.');
+          await showMedia(currentProfile);
+        }
+        else if (action === 'edit-media') openMediaEditor(id);
+        else if (action === 'toggle-media') {
+          const item = adminMedia.find(media => String(media.id) === String(id));
+          if (!item) throw new Error('Image introuvable. Rechargez la médiathèque.');
+          await portal.saveMedia({ ...item, active: !item.active }, item.id);
+          showCrmToast(item.active ? 'Image masquée du site public.' : 'Image publiée sur le site.');
+          await showMedia(currentProfile);
+        }
+        else if (action === 'delete-media') {
+          if (!confirmAction('Supprimer définitivement cette image ? Le fichier téléversé sera aussi supprimé du stockage.')) return;
+          await portal.deleteMedia(id);
+          showCrmToast('Image supprimée.');
+          await showMedia(currentProfile);
+        }
+        else if (action === 'copy-media-url') {
+          const item = adminMedia.find(media => String(media.id) === String(id));
+          if (!item) throw new Error('Image introuvable.');
+          if (root && root.navigator && root.navigator.clipboard && root.navigator.clipboard.writeText) {
+            await root.navigator.clipboard.writeText(item.image_url);
+            showCrmToast('URL de l’image copiée.');
+          } else {
+            showCrmToast(`URL de l’image : ${item.image_url}`);
+          }
+        }
+      } catch (err) {
+        showCrmToast(err.message, 'error');
+      } finally {
+        button.disabled = false;
+      }
+    }
+
     form.addEventListener('submit', async event => {
       event.preventDefault();
       errorBox.classList.add('hidden');
@@ -1366,6 +2039,12 @@
         button.disabled = false;
       }
     });
+
+    if (root && typeof root.addEventListener === 'function') {
+      root.addEventListener('hashchange', async () => {
+        if (currentProfile) await showRoute(currentProfile, routeFromHash());
+      });
+    }
 
     try {
       const profile = await portal.restore();

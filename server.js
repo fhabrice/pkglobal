@@ -1420,6 +1420,208 @@ app.delete('/api/calls/:id', authenticateToken, requireRole('superadmin', 'admin
   }
 });
 
+// ---------------------------------------------------------------
+// MÉDIATHÈQUE : images du site gérées depuis le dashboard admin.
+// Les images actives sont publiques (GET /api/public/media) ;
+// la création, la modification et la suppression exigent un admin.
+// ---------------------------------------------------------------
+
+const MEDIA_SECTIONS = ['galerie', 'hero', 'filiales', 'general'];
+const mediaUploadDir = path.join(uploadDir, 'media');
+if (!fs.existsSync(mediaUploadDir)) fs.mkdirSync(mediaUploadDir, { recursive: true });
+
+const mediaUpload = multer({
+  storage: multer.diskStorage({
+    destination: function (req, file, cb) { cb(null, mediaUploadDir); },
+    filename: function (req, file, cb) {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+      cb(null, uniqueSuffix + '-' + safeName);
+    }
+  }),
+  limits: { fileSize: 8 * 1024 * 1024 }, // 8 MB max par image
+  fileFilter: function (req, file, cb) {
+    if (/^image\/(jpeg|png|webp|gif)$/.test(file.mimetype)) cb(null, true);
+    else cb(new Error('Format d’image non accepté : utilisez JPG, PNG, WEBP ou GIF.'));
+  }
+});
+
+function cleanMediaPayload(body) {
+  const section = MEDIA_SECTIONS.includes(body.section) ? body.section : 'galerie';
+  const placement = String(body.placement || '').trim().replace(/[^a-zA-Z0-9-_]/g, '').slice(0, 80) || null;
+  const imageUrl = String(body.image_url || '').trim();
+  const linkUrl = String(body.link_url || '').trim();
+  return {
+    title: String(body.title || '').trim().slice(0, 250),
+    alt_text: String(body.alt_text || '').trim().slice(0, 300) || null,
+    image_url: /^(https?:\/\/|\/)/i.test(imageUrl) ? imageUrl.slice(0, 1000) : '',
+    section,
+    placement,
+    link_url: /^(https?:\/\/|\/)/i.test(linkUrl) ? linkUrl.slice(0, 1000) : null,
+    active: body.active === false || body.active === 0 || body.active === '0' ? 0 : 1,
+    display_order: Number.isFinite(Number(body.display_order)) ? Math.round(Number(body.display_order)) : 0
+  };
+}
+
+function deleteLocalMediaFile(storagePath) {
+  if (!storagePath) return;
+  try {
+    const resolved = path.resolve(path.join(uploadDir, storagePath));
+    if (resolved.startsWith(path.resolve(mediaUploadDir)) && fs.existsSync(resolved)) {
+      fs.unlinkSync(resolved);
+    }
+  } catch (err) {
+    console.error('Error deleting media file:', err);
+  }
+}
+
+// Endpoint public : uniquement les images actives publiées dans l'admin.
+app.get('/api/public/media', (req, res) => {
+  try {
+    const media = db.prepare(`
+      SELECT id, title, alt_text, image_url, section, placement, link_url, display_order, created_at
+      FROM site_media
+      WHERE active = 1
+      ORDER BY display_order ASC, created_at DESC
+    `).all();
+    res.set('Cache-Control', 'no-store');
+    res.json(media.map(item => ({ ...item, active: true })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/media', authenticateToken, requireRole('superadmin', 'admin'), (req, res) => {
+  try {
+    const media = db.prepare(`
+      SELECT * FROM site_media ORDER BY display_order ASC, created_at DESC
+    `).all();
+    res.json(media.map(item => ({ ...item, active: Boolean(item.active) })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Création par URL externe ou chemin du site.
+app.post('/api/media', authenticateToken, requireRole('superadmin', 'admin'), (req, res) => {
+  try {
+    const payload = cleanMediaPayload(req.body || {});
+    if (!payload.title || !payload.image_url) {
+      return res.status(400).json({ error: 'Titre et URL d’image (http(s):// ou /…) requis.' });
+    }
+    const result = db.prepare(`
+      INSERT INTO site_media (title, alt_text, image_url, storage_path, section, placement, link_url, active, display_order, created_by)
+      VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)
+    `).run(payload.title, payload.alt_text, payload.image_url, payload.section, payload.placement, payload.link_url, payload.active, payload.display_order, req.user.id);
+    logAudit(req.user.id, 'CREATE_MEDIA', `Image ajoutée : ${payload.title}`, req);
+    res.status(201).json({ success: true, id: result.lastInsertRowid });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Création par téléversement d'un fichier image.
+app.post('/api/media/upload', authenticateToken, requireRole('superadmin', 'admin'), (req, res) => {
+  mediaUpload.single('image')(req, res, (uploadErr) => {
+    if (uploadErr) return res.status(400).json({ error: uploadErr.message });
+    try {
+      if (!req.file) return res.status(400).json({ error: 'Aucun fichier image reçu.' });
+      const payload = cleanMediaPayload({
+        ...(req.body || {}),
+        title: (req.body && req.body.title) || req.file.originalname.replace(/\.[^.]+$/, ''),
+        image_url: `/uploads/media/${req.file.filename}`
+      });
+      if (!payload.title) {
+        deleteLocalMediaFile(`media/${req.file.filename}`);
+        return res.status(400).json({ error: 'Titre de l’image requis.' });
+      }
+      const result = db.prepare(`
+        INSERT INTO site_media (title, alt_text, image_url, storage_path, section, placement, link_url, active, display_order, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(payload.title, payload.alt_text, payload.image_url, `media/${req.file.filename}`, payload.section, payload.placement, payload.link_url, payload.active, payload.display_order, req.user.id);
+      logAudit(req.user.id, 'UPLOAD_MEDIA', `Image téléversée : ${payload.title}`, req);
+      const created = db.prepare('SELECT * FROM site_media WHERE id = ?').get(result.lastInsertRowid);
+      res.status(201).json({ success: true, media: { ...created, active: Boolean(created.active) } });
+    } catch (err) {
+      if (req.file) deleteLocalMediaFile(`media/${req.file.filename}`);
+      res.status(500).json({ error: err.message });
+    }
+  });
+});
+
+// Remplacement du fichier d'une image existante (l'ancien fichier local est supprimé).
+app.post('/api/media/:id/replace', authenticateToken, requireRole('superadmin', 'admin'), (req, res) => {
+  mediaUpload.single('image')(req, res, (uploadErr) => {
+    if (uploadErr) return res.status(400).json({ error: uploadErr.message });
+    try {
+      if (!req.file) return res.status(400).json({ error: 'Aucun fichier image reçu.' });
+      const existing = db.prepare('SELECT * FROM site_media WHERE id = ?').get(req.params.id);
+      if (!existing) {
+        deleteLocalMediaFile(`media/${req.file.filename}`);
+        return res.status(404).json({ error: 'Image introuvable' });
+      }
+      db.prepare(`
+        UPDATE site_media SET image_url = ?, storage_path = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+      `).run(`/uploads/media/${req.file.filename}`, `media/${req.file.filename}`, existing.id);
+      deleteLocalMediaFile(existing.storage_path);
+      logAudit(req.user.id, 'REPLACE_MEDIA', `Fichier de l’image #${existing.id} remplacé`, req);
+      const updated = db.prepare('SELECT * FROM site_media WHERE id = ?').get(existing.id);
+      res.json({ success: true, media: { ...updated, active: Boolean(updated.active) } });
+    } catch (err) {
+      if (req.file) deleteLocalMediaFile(`media/${req.file.filename}`);
+      res.status(500).json({ error: err.message });
+    }
+  });
+});
+
+app.put('/api/media/:id', authenticateToken, requireRole('superadmin', 'admin'), (req, res) => {
+  try {
+    const existing = db.prepare('SELECT * FROM site_media WHERE id = ?').get(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Image introuvable' });
+    const payload = cleanMediaPayload({
+      title: req.body.title ?? existing.title,
+      alt_text: req.body.alt_text ?? existing.alt_text,
+      image_url: req.body.image_url ?? existing.image_url,
+      section: req.body.section ?? existing.section,
+      placement: req.body.placement ?? existing.placement,
+      link_url: req.body.link_url ?? existing.link_url,
+      active: req.body.active ?? Boolean(existing.active),
+      display_order: req.body.display_order ?? existing.display_order
+    });
+    if (!payload.title || !payload.image_url) {
+      return res.status(400).json({ error: 'Titre et URL d’image (http(s):// ou /…) requis.' });
+    }
+    // Si l'image téléversée est remplacée par une autre URL, supprimer l'ancien fichier.
+    const replacedLocalFile = existing.storage_path && payload.image_url !== existing.image_url;
+    db.prepare(`
+      UPDATE site_media SET
+        title = ?, alt_text = ?, image_url = ?,
+        storage_path = CASE WHEN ? THEN NULL ELSE storage_path END,
+        section = ?, placement = ?, link_url = ?, active = ?, display_order = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(payload.title, payload.alt_text, payload.image_url, replacedLocalFile ? 1 : 0, payload.section, payload.placement, payload.link_url, payload.active, payload.display_order, existing.id);
+    if (replacedLocalFile) deleteLocalMediaFile(existing.storage_path);
+    logAudit(req.user.id, 'UPDATE_MEDIA', `Image modifiée #${existing.id} : ${payload.title}`, req);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/media/:id', authenticateToken, requireRole('superadmin', 'admin'), (req, res) => {
+  try {
+    const existing = db.prepare('SELECT * FROM site_media WHERE id = ?').get(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Image introuvable' });
+    db.prepare('DELETE FROM site_media WHERE id = ?').run(existing.id);
+    deleteLocalMediaFile(existing.storage_path);
+    logAudit(req.user.id, 'DELETE_MEDIA', `Image supprimée #${existing.id} : ${existing.title}`, req);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Candidatures Management
 app.get('/api/candidatures', authenticateToken, requireRole('superadmin', 'admin'), (req, res) => {
   try {
