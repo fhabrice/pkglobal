@@ -21,6 +21,7 @@
             background-color: #ffffff;
             color: #1a2e1a;
             scroll-behavior: smooth;
+            overflow-x: hidden;
         }
 
         /* --- BARRE DE NAVIGATION --- */
@@ -174,18 +175,19 @@
                     <img src="logo.svg" alt="PK Global Partners Logo" class="h-10 w-auto object-contain">
                 </div>
                 <div class="flex flex-col">
-                    <span class="font-bold text-lg uppercase tracking-widest leading-none">Global Partners</span>
+                    <span class="font-bold text-base sm:text-lg uppercase tracking-widest leading-none">Global Partners</span>
                     <span class="text-[9px] uppercase tracking-[0.3em] text-emerald-300 font-semibold">Holding Panafricaine</span>
                 </div>
             </a>
             
             <!-- Menu Links -->
-            <div class="hidden lg:flex items-center space-x-7 text-[11px] font-bold uppercase tracking-[0.15em]">
+            <div class="hidden xl:flex items-center space-x-6 text-[11px] font-bold uppercase tracking-[0.15em]">
                 <a href="#accueil" class="nav-link hover:text-yellow-400">Accueil</a>
                 <a href="about.html" class="nav-link hover:text-yellow-400">À Propos</a>
                 <a href="#poles" class="nav-link hover:text-yellow-400">Expertise</a>
                 <a href="filiales.html" class="nav-link hover:text-yellow-400">Filiales</a>
                 <a href="investors.html" class="nav-link hover:text-yellow-400">Investisseurs</a>
+                <a href="appels-a-projets.html" class="nav-link hover:text-yellow-400">Appels à Projets</a>
                 <a href="careers.html" class="nav-link hover:text-yellow-400">Carrières</a>
                 <a href="contact.html" class="nav-link hover:text-yellow-400">Contact</a>
                 <a href="/admin" class="bg-yellow-400 text-emerald-950 px-4 py-2 rounded-xl hover:bg-white transition-colors duration-300 shadow-lg flex items-center gap-1.5 font-bold">
@@ -194,7 +196,7 @@
             </div>
 
             <!-- Mobile Toggle -->
-            <button class="lg:hidden text-2xl p-2 hover:bg-white/10 rounded-lg transition"><i class="fas fa-bars"></i></button>
+            <button class="xl:hidden text-2xl p-2 hover:bg-white/10 rounded-lg transition"><i class="fas fa-bars"></i></button>
         </div>
     </nav>
 
@@ -268,8 +270,8 @@
             <div class="grid lg:grid-cols-2 gap-20 items-center">
                 <div class="relative">
                     <div class="absolute -top-10 -left-10 w-64 h-64 bg-emerald-50 rounded-full -z-10"></div>
-                    <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80" alt="Entrepreneur Africain" class="rounded-3xl shadow-2xl object-cover h-[500px] w-full">
-                    <div class="absolute -bottom-6 -right-6 bg-yellow-400 p-8 rounded-2xl shadow-xl">
+                    <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80" alt="Entrepreneur Africain" class="rounded-3xl shadow-2xl object-cover h-96 md:h-[500px] w-full">
+                    <div class="absolute -bottom-6 -right-6 bg-yellow-400 p-6 md:p-8 rounded-2xl shadow-xl max-w-[88%] md:max-w-none">
                         <i class="fas fa-quote-left text-emerald-900 text-3xl opacity-50 mb-4"></i>
                         <p class="text-emerald-900 font-bold italic text-sm">"L'Afrique ne se construit pas, elle se transforme par l'action structurée."</p>
                     </div>
@@ -520,10 +522,10 @@
                 <h2 class="text-3xl font-bold uppercase tracking-[0.2em] mb-4">Global Partners</h2>
                 <div class="flex flex-col gap-2 mb-4">
                     <p class="text-emerald-100/70 max-w-lg text-sm mx-auto">Siège Social : Boulevard Kanyamuhanga, n°4, Ville de Goma, République Démocratique du Congo.</p>
-                    <a href="tel:+243814119635" class="text-yellow-400 font-bold text-lg hover:underline transition">
+                    <a href="tel:+243814119635" class="text-yellow-400 font-bold text-base sm:text-lg hover:underline transition break-all">
                         <i class="fas fa-phone-alt mr-2 text-sm"></i> +243 814 119 635
                     </a>
-                    <a href="mailto:info@pkglobalpartners.com" class="text-yellow-400 font-bold text-lg hover:underline transition">
+                    <a href="mailto:info@pkglobalpartners.com" class="text-yellow-400 font-bold text-base sm:text-lg hover:underline transition break-all">
                         <i class="fas fa-envelope mr-2 text-sm"></i> info@pkglobalpartners.com
                     </a>
                 </div>
@@ -534,6 +536,7 @@
                 <a href="about.html" class="hover:text-yellow-400 transition">À Propos</a>
                 <a href="filiales.html" class="hover:text-yellow-400 transition">Filiales</a>
                 <a href="investors.html" class="hover:text-yellow-400 transition">Investisseurs</a>
+                <a href="appels-a-projets.html" class="hover:text-yellow-400 transition">Appels à Projets</a>
                 <a href="careers.html" class="hover:text-yellow-400 transition">Carrières</a>
                 <a href="contact.html" class="hover:text-yellow-400 transition">Contact</a>
                 <a href="/admin" class="text-yellow-400 hover:text-white transition flex items-center gap-1 font-bold">
@@ -547,9 +550,9 @@
     </footer>
 
     <!-- MODAL -->
-    <div id="filialeModal" class="fixed inset-0 bg-emerald-950/95 z-[100] hidden items-center justify-center p-6 backdrop-blur-xl">
-        <div class="bg-white max-w-5xl w-full rounded-[3rem] overflow-hidden relative shadow-2xl">
-            <button onclick="closeModal()" class="absolute top-8 right-8 text-gray-400 hover:text-emerald-950 text-3xl z-10 transition"><i class="fas fa-times"></i></button>
+    <div id="filialeModal" class="fixed inset-0 bg-emerald-950/95 z-[100] hidden items-center justify-center p-4 sm:p-6 backdrop-blur-xl overflow-y-auto">
+        <div class="bg-white max-w-5xl w-full max-h-[92vh] overflow-y-auto rounded-3xl sm:rounded-[3rem] relative shadow-2xl">
+            <button onclick="closeModal()" class="absolute top-4 right-4 sm:top-8 sm:right-8 text-gray-400 hover:text-emerald-950 text-3xl z-10 transition"><i class="fas fa-times"></i></button>
             <div id="modalContent" class="grid md:grid-cols-2"></div>
         </div>
     </div>

@@ -13,6 +13,7 @@
     else if (pagePath.includes('filiales')) pageName = 'filiales';
     else if (pagePath.includes('investors')) pageName = 'investors';
     else if (pagePath.includes('careers')) pageName = 'careers';
+    else if (pagePath.includes('appels-a-projets')) pageName = 'appels-a-projets';
     else if (pagePath.includes('contact')) pageName = 'contact';
 
     fetch('/api/track-visit', {
@@ -34,6 +35,46 @@
     adminBtn.innerHTML = '<i class="fas fa-shield-alt text-sm"></i> <span>Espace Admin</span>';
     adminBtn.title = 'Accéder à l\'espace d\'administration PK Global';
     document.body.appendChild(adminBtn);
+
+    // Mobile navigation: wire the header hamburger button to a dropdown
+    // built from the desktop menu links of the current page.
+    try {
+      const navbar = document.getElementById('navbar');
+      const toggleBtn = navbar ? navbar.querySelector('button') : null;
+      const desktopLinks = navbar ? Array.from(navbar.querySelectorAll('a.nav-link')) : [];
+      if (navbar && toggleBtn && desktopLinks.length) {
+        const menuContainer = desktopLinks[0].parentElement;
+        const panel = document.createElement('div');
+        panel.id = 'mobile-menu';
+        panel.className = 'xl:hidden mt-4 bg-emerald-950/95 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl p-4 flex-col gap-1 max-h-[75vh] overflow-y-auto';
+        panel.style.display = 'none';
+
+        Array.from(menuContainer.querySelectorAll('a')).forEach((link) => {
+          const item = document.createElement('a');
+          item.href = link.getAttribute('href') || '#';
+          item.textContent = link.textContent.trim();
+          item.className = link.classList.contains('nav-link')
+            ? 'block px-4 py-3 rounded-xl text-sm font-bold uppercase tracking-wider text-white hover:bg-white/10 hover:text-yellow-400 transition'
+            : 'block px-4 py-3 rounded-xl text-sm font-bold uppercase tracking-wider bg-yellow-400 text-emerald-950 text-center mt-2 hover:bg-white transition';
+          if (link.classList.contains('active')) item.classList.add('text-yellow-400');
+          item.addEventListener('click', () => { panel.style.display = 'none'; });
+          panel.appendChild(item);
+        });
+
+        navbar.appendChild(panel);
+        toggleBtn.setAttribute('aria-expanded', 'false');
+        toggleBtn.addEventListener('click', () => {
+          const isOpen = panel.style.display !== 'none';
+          panel.style.display = isOpen ? 'none' : 'flex';
+          toggleBtn.setAttribute('aria-expanded', String(!isOpen));
+          const icon = toggleBtn.querySelector('i');
+          if (icon) icon.className = isOpen ? 'fas fa-bars' : 'fas fa-times';
+        });
+        window.addEventListener('resize', () => {
+          if (window.innerWidth >= 1280) panel.style.display = 'none';
+        });
+      }
+    } catch (e) {}
 
     // Apply CMS-managed public content without injecting administrator text as HTML.
     syncManagedPublicContent();
