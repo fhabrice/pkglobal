@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS public.call_for_projects (
     budget_indicatif TEXT NOT NULL,
     eligibility TEXT NOT NULL,
     deadline TIMESTAMP WITH TIME ZONE NOT NULL,
-    status TEXT DEFAULT 'open' CHECK (status IN ('open', 'closed', 'draft')),
+    status TEXT DEFAULT 'draft' CHECK (status IN ('open', 'closed', 'draft')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -154,7 +154,7 @@ CREATE TABLE IF NOT EXISTS public.investor_interests (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 12. DEMANDES COMMERCIALES & CRM
+-- 12. DEMANDES COMMERCIALES (SOURCE DU CRM)
 CREATE TABLE IF NOT EXISTS public.inquiries (
     id BIGSERIAL PRIMARY KEY,
     reference TEXT UNIQUE NOT NULL,
@@ -263,7 +263,7 @@ ALTER TABLE public.email_logs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Public read filiales" ON public.filiales FOR SELECT USING (true);
 CREATE POLICY "Public read services" ON public.services_poles FOR SELECT USING (active = true);
 CREATE POLICY "Public read news" ON public.news FOR SELECT USING (status = 'published');
-CREATE POLICY "Public read calls" ON public.call_for_projects FOR SELECT USING (status = 'open');
+CREATE POLICY "Public read calls" ON public.call_for_projects FOR SELECT USING (status IN ('open', 'closed'));
 CREATE POLICY "Public read content" ON public.site_content FOR SELECT USING (true);
 CREATE POLICY "Public read products" ON public.filiale_products FOR SELECT USING (true);
 CREATE POLICY "Public read projects" ON public.filiale_projects FOR SELECT USING (true);
@@ -329,8 +329,6 @@ VALUES
 ('Conseil Stratégique & Incubation', 'Pôle Accélération', 'Gouvernance, due diligence et mentorat pour les entrepreneurs lauréats des appels à projets.', 'fa-lightbulb', true, 4)
 ON CONFLICT DO NOTHING;
 
--- Appel à projets actif
-INSERT INTO public.call_for_projects (title, slug, description, target_sector, budget_indicatif, eligibility, deadline, status)
-VALUES
-('Appel à Projets 2026 : AgriTech & Transformation RDC', 'appel-projets-agritech-2026', 'Financement et accélération de 5 PME innovantes dans la valorisation locale et la chaîne du froid.', 'Agroalimentaire', 'Jusqu''à 150 000 USD par lauréat', 'Entreprises de droit congolais en activité depuis 1 an.', '2026-12-15 23:59:59+00', 'open')
-ON CONFLICT DO NOTHING;
+-- Aucun appel à projets n'est seedé : la page publique doit afficher uniquement
+-- les appels réels créés et publiés par l'équipe dans l'espace d'administration.
+-- Module CRM : exécutez ensuite supabase/crm.sql (migration idempotente, sans données).

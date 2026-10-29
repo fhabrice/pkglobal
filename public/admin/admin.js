@@ -2,7 +2,7 @@
  * PK GLOBAL PARTNERS - Administration Platform Client SPA
  * Full-featured administration client implementing all modules:
  * Dashboard, CMS, Calls for Projects, Candidatures, Investors,
- * CRM Inquiries, Subsidiaries, RBAC Users, Reports (PDF & Excel), Backups.
+ * CRM (Contacts, Pipeline, Activités), Inquiries, Subsidiaries, RBAC Users, Reports, Backups.
  */
 
 // Global State
@@ -522,9 +522,15 @@ async function renderView(route) {
         break;
 
       case 'inquiries':
-        titleEl.textContent = 'Demandes commerciales & CRM';
-        subEl.textContent = 'Traitement des messages du site, attribution et réponses aux prospects';
+        titleEl.textContent = 'Demandes commerciales';
+        subEl.textContent = 'Traitement des messages du site, attribution et réponses aux prospects (source du CRM)';
         await renderInquiriesView(container);
+        break;
+
+      case 'crm':
+        titleEl.textContent = 'CRM — Contacts & Pipeline';
+        subEl.textContent = 'Contacts réels, opportunités, relances et tâches commerciales';
+        await renderCRMView(container);
         break;
 
       case 'filiales':
@@ -1321,8 +1327,8 @@ async function renderCallsView(container) {
           <div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
             <div>
               <div class="flex items-center justify-between mb-3">
-                <span class="badge-status ${call.status === 'open' ? 'badge-retenu' : 'badge-rejete'}">
-                  ${call.status === 'open' ? 'Ouvert aux candidatures' : 'Clôturé'}
+                <span class="badge-status ${call.status === 'open' ? 'badge-open' : call.status === 'draft' ? 'badge-draft' : 'badge-closed'}">
+                  ${call.status === 'open' ? 'Ouvert aux candidatures' : call.status === 'draft' ? 'Brouillon (non public)' : 'Clôturé'}
                 </span>
                 <span class="text-xs font-bold text-slate-500 flex items-center gap-1">
                   <i class="fas fa-folder-open text-emerald-600"></i> ${call.candidatures_count} dossiers reçus
@@ -1350,6 +1356,7 @@ async function renderCallsView(container) {
             <div class="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
               <button onclick="navigateTo('candidatures')" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold rounded-xl">Voir Candidatures</button>
               <button onclick='editCall(${JSON.stringify(call)})' class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl">Modifier</button>
+              <button onclick="deleteCall(${call.id})" class="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold rounded-xl" title="Supprimer seulement si aucune candidature réelle n'est liée">Supprimer</button>
             </div>
           </div>
         `).join('')}
@@ -1383,9 +1390,11 @@ function openCallModal(call = null) {
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Statut</label>
           <select id="call-status" class="w-full px-4 py-2 rounded-xl border border-slate-200 text-sm">
-            <option value="open" ${call?.status === 'open' ? 'selected' : ''}>Ouvert (Acceptant candidatures)</option>
-            <option value="closed" ${call?.status === 'closed' ? 'selected' : ''}>Clôturé</option>
+            <option value="draft" ${!call || call?.status === 'draft' ? 'selected' : ''}>Brouillon (visible uniquement dans l'admin)</option>
+            <option value="open" ${call?.status === 'open' ? 'selected' : ''}>Ouvert (publié sur le site)</option>
+            <option value="closed" ${call?.status === 'closed' ? 'selected' : ''}>Clôturé (publié comme terminé)</option>
           </select>
+          <p class="text-[10px] text-slate-500 mt-1">La page publique n'affiche que les appels réels publiés depuis cet espace.</p>
         </div>
       </div>
       <div>
@@ -1427,6 +1436,17 @@ function openCallModal(call = null) {
 
 function editCall(call) {
   openCallModal(call);
+}
+
+async function deleteCall(id) {
+  if (!confirm('Supprimer définitivement cet appel à projets ? Cette action est refusée si des candidatures réelles y sont liées.')) return;
+  try {
+    await api(`/api/calls/${id}`, { method: 'DELETE' });
+    showToast('Appel à projets supprimé.');
+    renderView('calls');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
 }
 
 // -------------------------------------------------------------
@@ -1945,7 +1965,7 @@ function openAddDealModal(investorId) {
 }
 
 // -------------------------------------------------------------
-// MODULE 5: GESTION DES DEMANDES COMMERCIALES & CRM
+// MODULE 5: GESTION DES DEMANDES COMMERCIALES (SOURCE CRM)
 // -------------------------------------------------------------
 
 async function renderInquiriesView(container, filterStatus = 'all') {
@@ -2085,6 +2105,747 @@ async function openRespondModal(id) {
     showToast(result.message, result.email_status === 'sent' ? 'success' : 'error');
     renderView('inquiries');
   }, 'Envoyer la Réponse');
+}
+
+// -------------------------------------------------------------
+// MODULE 5 BIS: CRM — CONTACTS, PIPELINE & ACTIVITÉS
+// -------------------------------------------------------------
+
+let crmActiveTab = 'contacts';
+let crmSearch = '';
+let crmTypeFilter = 'all';
+let crmStatusFilter = 'all';
+let crmStageFilter = 'all';
+let crmUsersCache = [];
+let crmContactsCache = [];
+let crmOpportunitiesCache = [];
+let crmOverviewCache = null;
+
+const CRM_CONTACT_TYPE_LABELS = {
+  prospect: 'Prospect',
+  client: 'Client',
+  partenaire: 'Partenaire',
+  investisseur: 'Investisseur',
+  porteur_projet: 'Porteur de projet',
+  candidat: 'Candidat',
+  autre: 'Autre'
+};
+const CRM_CONTACT_STATUS_LABELS = { nouveau: 'Nouveau', actif: 'Actif', inactif: 'Inactif', archive: 'Archivé' };
+const CRM_OPPORTUNITY_TYPE_LABELS = {
+  commerciale: 'Commerciale',
+  investissement: 'Investissement',
+  partenariat: 'Partenariat',
+  appel_projet: 'Appel à projets',
+  recrutement: 'Recrutement',
+  autre: 'Autre'
+};
+const CRM_STAGE_LABELS = {
+  nouveau: 'Nouveau',
+  qualification: 'Qualification',
+  contacte: 'Contacté',
+  reunion: 'Réunion',
+  proposition: 'Proposition',
+  negociation: 'Négociation',
+  gagne: 'Gagné',
+  perdu: 'Perdu'
+};
+const CRM_ACTIVITY_TYPE_LABELS = {
+  note: 'Note', appel: 'Appel', email: 'Email', reunion: 'Réunion', whatsapp: 'WhatsApp', tache: 'Tâche', autre: 'Autre'
+};
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function crmFormatMoney(amount, currency = 'USD') {
+  const value = Number(amount) || 0;
+  try {
+    return new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: currency || 'USD',
+      maximumFractionDigits: 0
+    }).format(value);
+  } catch (e) {
+    return `${value.toLocaleString('fr-FR')} ${currency || 'USD'}`;
+  }
+}
+
+function crmFormatDate(value, withTime = false) {
+  if (!value) return '—';
+  const date = new Date(String(value).replace(' ', 'T'));
+  if (Number.isNaN(date.getTime())) return escapeHtml(value);
+  return date.toLocaleString('fr-FR', withTime
+    ? { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }
+    : { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function crmIsOverdue(activity) {
+  return activity?.status === 'a_faire' && activity?.due_at && new Date(String(activity.due_at).replace(' ', 'T')) < new Date();
+}
+
+function crmOwnerOptions(selectedId = '') {
+  return `<option value="">Non assigné</option>` + crmUsersCache.map(user => `
+    <option value="${Number(user.id)}" ${String(user.id) === String(selectedId) ? 'selected' : ''}>${escapeHtml(user.name)} (${escapeHtml(user.role)})</option>
+  `).join('');
+}
+
+function crmContactOptions(selectedId = '') {
+  return crmContactsCache
+    .filter(contact => contact.status !== 'archive')
+    .map(contact => `
+      <option value="${Number(contact.id)}" ${String(contact.id) === String(selectedId) ? 'selected' : ''}>
+        ${escapeHtml(contact.full_name)}${contact.organization ? ` — ${escapeHtml(contact.organization)}` : ''}
+      </option>
+    `).join('');
+}
+
+function updateCRMBadge(overview) {
+  const badge = document.getElementById('badge-crm-count');
+  if (!badge || !overview) return;
+  const count = Number(overview.tasks_overdue || 0);
+  badge.textContent = count;
+  badge.classList.toggle('hidden', count === 0);
+  badge.title = `${count} tâche(s) CRM en retard`;
+}
+
+async function renderCRMView(container) {
+  const [overview, users, contacts] = await Promise.all([
+    api('/api/crm/overview'),
+    api('/api/users'),
+    api('/api/crm/contacts?status=all')
+  ]);
+  crmOverviewCache = overview;
+  crmUsersCache = Array.isArray(users) ? users : [];
+  crmContactsCache = Array.isArray(contacts) ? contacts : [];
+  updateCRMBadge(overview);
+
+  const unsynced = Number(overview?.sources?.unsynced || 0);
+  container.innerHTML = `
+    <div class="space-y-6">
+      <div class="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white p-6 md:p-8 rounded-3xl shadow-xl overflow-hidden">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div class="max-w-3xl">
+            <span class="px-3 py-1 bg-yellow-400 text-emerald-950 text-[10px] font-black uppercase tracking-widest rounded-full">Relation client</span>
+            <h3 class="text-2xl font-black mt-3">CRM PK Global Partners</h3>
+            <p class="text-emerald-100/85 text-xs leading-relaxed mt-2">
+              Les contacts et opportunités proviennent des demandes commerciales, investisseurs et candidatures réels du site,
+              ou sont créés manuellement par l'équipe. Aucune donnée de démonstration n'est injectée en mode réel.
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 shrink-0">
+            <button onclick="syncCRMSources()" class="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl flex items-center gap-2 border border-white/15">
+              <i class="fas fa-rotate"></i> Synchroniser les sources
+              ${unsynced ? `<span class="px-1.5 py-0.5 rounded-full bg-yellow-400 text-emerald-950 text-[9px] font-black">${unsynced}</span>` : ''}
+            </button>
+            <button onclick="exportCRMExcel()" class="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl flex items-center gap-2 border border-white/15">
+              <i class="fas fa-file-excel"></i> Export Excel
+            </button>
+            <button onclick="openCRMContactModal()" class="px-4 py-2.5 bg-yellow-400 hover:bg-yellow-500 text-emerald-950 text-xs font-bold rounded-xl shadow flex items-center gap-2">
+              <i class="fas fa-user-plus"></i> Nouveau contact
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs kpi-card">
+          <div class="flex items-center justify-between"><span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Contacts actifs</span><i class="fas fa-address-book text-emerald-600"></i></div>
+          <div class="text-3xl font-black text-slate-800 mt-2">${Number(overview.contacts_total || 0)}</div>
+          <div class="text-[11px] text-slate-500 mt-1">${Number(overview.contacts_new_30d || 0)} nouveau(x) sur 30 jours</div>
+        </div>
+        <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs kpi-card">
+          <div class="flex items-center justify-between"><span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Opportunités ouvertes</span><i class="fas fa-filter-circle-dollar text-blue-600"></i></div>
+          <div class="text-3xl font-black text-slate-800 mt-2">${Number(overview.opportunities_open || 0)}</div>
+          <div class="text-[11px] text-slate-500 mt-1">${Number(overview.opportunities_won || 0)} gagnée(s) · ${Number(overview.opportunities_lost || 0)} perdue(s)</div>
+        </div>
+        <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs kpi-card">
+          <div class="flex items-center justify-between"><span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Valeur du pipeline</span><i class="fas fa-sack-dollar text-yellow-600"></i></div>
+          <div class="text-2xl font-black text-slate-800 mt-2">${crmFormatMoney(overview.pipeline_value)}</div>
+          <div class="text-[11px] text-slate-500 mt-1">Pondéré : ${crmFormatMoney(overview.pipeline_weighted_value)}</div>
+        </div>
+        <div class="bg-white p-5 rounded-3xl border ${Number(overview.tasks_overdue || 0) ? 'border-red-200 bg-red-50/60' : 'border-slate-200'} shadow-xs kpi-card">
+          <div class="flex items-center justify-between"><span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Tâches à suivre</span><i class="fas fa-list-check ${Number(overview.tasks_overdue || 0) ? 'text-red-600' : 'text-emerald-600'}"></i></div>
+          <div class="text-3xl font-black text-slate-800 mt-2">${Number(overview.tasks_open || 0)}</div>
+          <div class="text-[11px] ${Number(overview.tasks_overdue || 0) ? 'text-red-700 font-bold' : 'text-slate-500'} mt-1">${Number(overview.tasks_overdue || 0)} en retard</div>
+        </div>
+      </div>
+
+      ${unsynced ? `
+        <div class="bg-amber-50 border border-amber-200 text-amber-900 p-4 rounded-2xl text-xs flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+          <div><strong>${unsynced} enregistrement(s) réel(s)</strong> des formulaires ne sont pas encore synchronisés dans le CRM.</div>
+          <button onclick="syncCRMSources()" class="px-4 py-2 bg-amber-400 hover:bg-amber-500 text-emerald-950 font-bold rounded-xl shrink-0">Synchroniser maintenant</button>
+        </div>
+      ` : ''}
+
+      <div class="bg-white p-3 rounded-3xl border border-slate-200 shadow-xs overflow-x-auto">
+        <div class="flex items-center gap-2 min-w-[520px]">
+          ${[
+            ['contacts', 'fa-users', 'Contacts'],
+            ['pipeline', 'fa-table-columns', 'Pipeline'],
+            ['activities', 'fa-list-check', 'Activités & tâches']
+          ].map(([tab, icon, label]) => `
+            <button data-crm-tab="${tab}" onclick="switchCRMTab('${tab}')" class="px-4 py-2.5 text-xs font-bold rounded-2xl flex items-center gap-2 ${crmActiveTab === tab ? 'bg-emerald-900 text-yellow-400' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">
+              <i class="fas ${icon}"></i> ${label}
+            </button>
+          `).join('')}
+          <div class="flex-1"></div>
+          <span class="text-[10px] font-semibold text-slate-400 whitespace-nowrap">
+            Sources réelles : ${Number(overview.sources?.inquiries || 0)} demandes · ${Number(overview.sources?.investors || 0)} investisseurs · ${Number(overview.sources?.candidatures || 0)} candidatures
+          </span>
+        </div>
+      </div>
+
+      <div id="crm-tab-content"></div>
+    </div>
+  `;
+
+  await renderCRMTab();
+}
+
+function switchCRMTab(tab) {
+  crmActiveTab = tab;
+  document.querySelectorAll('[data-crm-tab]').forEach(button => {
+    const active = button.getAttribute('data-crm-tab') === tab;
+    button.className = `px-4 py-2.5 text-xs font-bold rounded-2xl flex items-center gap-2 ${active ? 'bg-emerald-900 text-yellow-400' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`;
+  });
+  renderCRMTab();
+}
+
+async function renderCRMTab() {
+  const target = document.getElementById('crm-tab-content');
+  if (!target) return;
+  target.innerHTML = `<div class="h-40 flex items-center justify-center text-slate-400 text-xs"><i class="fas fa-circle-notch fa-spin text-2xl text-emerald-600 mr-3"></i> Chargement du CRM...</div>`;
+  try {
+    if (crmActiveTab === 'pipeline') await renderCRMPipeline(target);
+    else if (crmActiveTab === 'activities') await renderCRMActivities(target);
+    else await renderCRMContacts(target);
+  } catch (err) {
+    target.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-800 p-5 rounded-3xl text-xs">${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function applyCRMContactFilters() {
+  crmSearch = document.getElementById('crm-search')?.value || '';
+  crmTypeFilter = document.getElementById('crm-type-filter')?.value || 'all';
+  crmStatusFilter = document.getElementById('crm-status-filter')?.value || 'all';
+  renderCRMTab();
+}
+
+async function renderCRMContacts(target) {
+  const query = new URLSearchParams();
+  if (crmSearch) query.set('search', crmSearch);
+  if (crmTypeFilter !== 'all') query.set('type', crmTypeFilter);
+  if (crmStatusFilter !== 'all') query.set('status', crmStatusFilter);
+  const contacts = await api(`/api/crm/contacts?${query.toString()}`);
+  crmContactsCache = Array.isArray(contacts) ? contacts : [];
+
+  target.innerHTML = `
+    <div class="space-y-4">
+      <div class="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs">
+        <div class="grid grid-cols-1 md:grid-cols-[1fr_190px_190px_auto] gap-3">
+          <div class="relative">
+            <i class="fas fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+            <input id="crm-search" type="search" value="${escapeHtml(crmSearch)}" placeholder="Rechercher un nom, email, organisation, secteur..."
+              class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();applyCRMContactFilters();}">
+          </div>
+          <select id="crm-type-filter" onchange="applyCRMContactFilters()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold">
+            <option value="all">Tous les types</option>
+            ${Object.entries(CRM_CONTACT_TYPE_LABELS).map(([value, label]) => `<option value="${value}" ${crmTypeFilter === value ? 'selected' : ''}>${label}</option>`).join('')}
+          </select>
+          <select id="crm-status-filter" onchange="applyCRMContactFilters()" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold">
+            <option value="all">Tous les statuts visibles</option>
+            ${Object.entries(CRM_CONTACT_STATUS_LABELS).map(([value, label]) => `<option value="${value}" ${crmStatusFilter === value ? 'selected' : ''}>${label}</option>`).join('')}
+          </select>
+          <button onclick="applyCRMContactFilters()" class="px-4 py-2.5 bg-emerald-900 hover:bg-emerald-800 text-yellow-400 text-xs font-bold rounded-xl">Filtrer</button>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[860px] text-left text-xs">
+            <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold">
+              <tr>
+                <th class="py-3.5 px-4">Contact</th>
+                <th class="py-3.5 px-4">Coordonnées</th>
+                <th class="py-3.5 px-4">Type / Statut</th>
+                <th class="py-3.5 px-4">Responsable</th>
+                <th class="py-3.5 px-4">Suivi</th>
+                <th class="py-3.5 px-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              ${contacts.length === 0 ? `
+                <tr><td colspan="6" class="py-14 text-center text-slate-400">
+                  <i class="fas fa-address-book text-3xl block mb-3 text-slate-300"></i>
+                  Aucun contact réel trouvé. Synchronisez les sources ou créez un contact.
+                </td></tr>
+              ` : contacts.map(contact => `
+                <tr class="hover:bg-slate-50/70 transition">
+                  <td class="py-3.5 px-4">
+                    <div class="font-bold text-slate-800">${escapeHtml(contact.full_name)}</div>
+                    <div class="text-[10px] text-slate-500">${escapeHtml(contact.organization || 'Organisation non renseignée')}</div>
+                    <div class="text-[10px] text-slate-400 mt-1">Source : ${escapeHtml(contact.source || 'manuel')}${contact.sector ? ` · ${escapeHtml(contact.sector)}` : ''}</div>
+                  </td>
+                  <td class="py-3.5 px-4">
+                    <div class="text-slate-700 break-all">${escapeHtml(contact.email)}</div>
+                    <div class="text-[10px] text-slate-500 mt-1">${escapeHtml(contact.phone || 'Téléphone non renseigné')}</div>
+                    <div class="text-[10px] text-slate-400">${escapeHtml(contact.location || contact.country || '')}</div>
+                  </td>
+                  <td class="py-3.5 px-4">
+                    <span class="badge-status badge-crm-${contact.status === 'archive' ? 'archive' : contact.status === 'actif' ? 'actif' : contact.status === 'inactif' ? 'inactif' : 'nouveau'}">${escapeHtml(CRM_CONTACT_STATUS_LABELS[contact.status] || contact.status)}</span>
+                    <div class="text-[10px] text-slate-500 mt-1.5">${escapeHtml(CRM_CONTACT_TYPE_LABELS[contact.type] || contact.type)}</div>
+                  </td>
+                  <td class="py-3.5 px-4 text-slate-700 font-semibold">${escapeHtml(contact.owner_name || 'Non assigné')}</td>
+                  <td class="py-3.5 px-4">
+                    <div class="text-slate-700"><strong>${Number(contact.open_opportunities_count || 0)}</strong> opportunité(s) ouverte(s)</div>
+                    <div class="text-[10px] ${Number(contact.open_tasks_count || 0) ? 'text-amber-700 font-bold' : 'text-slate-400'} mt-1">${Number(contact.open_tasks_count || 0)} tâche(s) à faire</div>
+                    <div class="text-[10px] text-slate-400 mt-1">Dernier contact : ${crmFormatDate(contact.last_contacted_at)}</div>
+                  </td>
+                  <td class="py-3.5 px-4">
+                    <div class="flex justify-end flex-wrap gap-1.5">
+                      <button onclick="openCRMContactDetail(${Number(contact.id)})" class="px-3 py-1.5 bg-yellow-400 hover:bg-yellow-500 text-emerald-950 rounded-xl font-bold">Voir</button>
+                      <button onclick="openCRMContactModal(${Number(contact.id)})" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold">Modifier</button>
+                      <button onclick="openCRMOpportunityModal(null, ${Number(contact.id)})" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl font-bold">+ Opportunité</button>
+                      <button onclick="openCRMActivityModal(${Number(contact.id)})" class="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 rounded-xl font-bold">+ Activité</button>
+                    </div>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function renderCRMPipeline(target) {
+  const query = new URLSearchParams();
+  if (crmSearch) query.set('search', crmSearch);
+  if (crmStageFilter !== 'all') query.set('stage', crmStageFilter);
+  const opportunities = await api(`/api/crm/opportunities?${query.toString()}`);
+  crmOpportunitiesCache = Array.isArray(opportunities) ? opportunities : [];
+  const stages = Object.keys(CRM_STAGE_LABELS);
+  const stageTotals = stages.map(stage => {
+    const rows = opportunities.filter(item => item.stage === stage);
+    return { stage, rows, amount: rows.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) };
+  });
+
+  target.innerHTML = `
+    <div class="space-y-4">
+      <div class="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center gap-3 justify-between">
+        <div>
+          <h4 class="text-sm font-bold text-slate-800">Pipeline des opportunités</h4>
+          <p class="text-[11px] text-slate-500">Faites défiler horizontalement sur mobile. Changez l'étape directement sur chaque carte.</p>
+        </div>
+        <div class="flex flex-col sm:flex-row gap-2">
+          <select onchange="crmStageFilter=this.value; renderCRMTab();" class="px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold">
+            <option value="all">Toutes les étapes</option>
+            ${stages.map(stage => `<option value="${stage}" ${crmStageFilter === stage ? 'selected' : ''}>${CRM_STAGE_LABELS[stage]}</option>`).join('')}
+          </select>
+          <button onclick="openCRMOpportunityModal()" class="px-4 py-2.5 bg-emerald-900 hover:bg-emerald-800 text-yellow-400 text-xs font-bold rounded-xl">
+            <i class="fas fa-plus mr-1"></i> Nouvelle opportunité
+          </button>
+        </div>
+      </div>
+
+      <div class="crm-pipeline-scroll overflow-x-auto pb-3 -mx-1 px-1">
+        <div class="flex gap-4 items-start min-w-max">
+          ${stageTotals.map(({ stage, rows, amount }) => `
+            <section class="w-[84vw] sm:w-[300px] shrink-0 bg-slate-100/80 border border-slate-200 rounded-3xl p-3">
+              <div class="flex items-center justify-between px-1 py-1">
+                <span class="badge-status badge-crm-${stage}">${CRM_STAGE_LABELS[stage]}</span>
+                <span class="text-[10px] font-bold text-slate-500">${rows.length} · ${crmFormatMoney(amount)}</span>
+              </div>
+              <div class="space-y-3 mt-3">
+                ${rows.length === 0 ? `<div class="text-center text-[11px] text-slate-400 py-8">Aucune opportunité</div>` : rows.map(item => `
+                  <article class="bg-white rounded-2xl border border-slate-200 shadow-xs p-4">
+                    <h5 class="font-bold text-xs text-slate-800 leading-snug">${escapeHtml(item.title)}</h5>
+                    <button onclick="openCRMContactDetail(${Number(item.contact_id)})" class="text-[11px] text-emerald-700 font-bold hover:underline mt-1 text-left">
+                      ${escapeHtml(item.contact_name)}${item.contact_organization ? ` · ${escapeHtml(item.contact_organization)}` : ''}
+                    </button>
+                    <div class="flex items-center justify-between mt-3 text-[11px]">
+                      <span class="font-black text-emerald-800">${crmFormatMoney(item.amount, item.currency)}</span>
+                      <span class="text-slate-400">${escapeHtml(CRM_OPPORTUNITY_TYPE_LABELS[item.type] || item.type)}</span>
+                    </div>
+                    <div class="mt-3">
+                      <div class="flex justify-between text-[9px] font-bold text-slate-400 uppercase"><span>Probabilité</span><span>${Number(item.probability || 0)}%</span></div>
+                      <div class="h-1.5 bg-slate-100 rounded-full mt-1 overflow-hidden"><div class="h-full bg-emerald-600 rounded-full" style="width:${Math.min(100, Math.max(0, Number(item.probability || 0)))}%"></div></div>
+                    </div>
+                    <div class="text-[10px] text-slate-400 mt-3">
+                      ${item.owner_name ? `Responsable : ${escapeHtml(item.owner_name)}` : 'Non assignée'}${item.expected_close_date ? ` · Clôture : ${crmFormatDate(item.expected_close_date)}` : ''}
+                    </div>
+                    <label class="block text-[9px] font-black uppercase tracking-widest text-slate-400 mt-4 mb-1">Étape</label>
+                    <select onchange="moveCRMOpportunity(${Number(item.id)}, this.value)" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-white">
+                      ${stages.map(option => `<option value="${option}" ${item.stage === option ? 'selected' : ''}>${CRM_STAGE_LABELS[option]}</option>`).join('')}
+                    </select>
+                    <div class="flex gap-1.5 mt-3">
+                      <button onclick="openCRMOpportunityModal(${Number(item.id)})" class="flex-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[11px] font-bold">Modifier</button>
+                      <button onclick="openCRMActivityModal(${Number(item.contact_id)}, ${Number(item.id)})" class="flex-1 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-800 rounded-xl text-[11px] font-bold">+ Activité</button>
+                      <button onclick="deleteCRMOpportunity(${Number(item.id)})" class="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl text-[11px] font-bold" title="Supprimer"><i class="fas fa-trash"></i></button>
+                    </div>
+                  </article>
+                `).join('')}
+              </div>
+            </section>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function renderCRMActivities(target) {
+  const activities = await api('/api/crm/activities');
+  const rows = Array.isArray(activities) ? activities : [];
+  const tasks = rows.filter(item => item.status === 'a_faire');
+  const timeline = rows.filter(item => item.status !== 'a_faire').slice(0, 30);
+
+  target.innerHTML = `
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <section class="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+        <div class="p-5 border-b border-slate-100 flex items-center justify-between gap-3">
+          <div>
+            <h4 class="text-sm font-bold text-slate-800">Tâches & relances à faire</h4>
+            <p class="text-[11px] text-slate-500">Priorisées par échéance, en retard en premier.</p>
+          </div>
+          <button onclick="openCRMActivityModal()" class="px-4 py-2.5 bg-emerald-900 hover:bg-emerald-800 text-yellow-400 text-xs font-bold rounded-xl shrink-0">+ Tâche / activité</button>
+        </div>
+        <div class="divide-y divide-slate-100">
+          ${tasks.length === 0 ? `<div class="p-10 text-center text-xs text-slate-400">Aucune tâche en attente.</div>` : tasks.map(item => `
+            <div class="p-4 flex items-start gap-3 ${crmIsOverdue(item) ? 'bg-red-50/70' : ''}">
+              <span class="w-9 h-9 rounded-xl ${crmIsOverdue(item) ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'} flex items-center justify-center shrink-0"><i class="fas fa-clock text-xs"></i></span>
+              <div class="flex-1 min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                  <strong class="text-xs text-slate-800">${escapeHtml(item.title)}</strong>
+                  <span class="badge-status ${crmIsOverdue(item) ? 'badge-crm-perdu' : 'badge-crm-contacte'}">${crmIsOverdue(item) ? 'En retard' : CRM_ACTIVITY_TYPE_LABELS[item.type] || item.type}</span>
+                </div>
+                <button onclick="openCRMContactDetail(${Number(item.contact_id)})" class="text-[11px] text-emerald-700 font-bold hover:underline mt-1">${escapeHtml(item.contact_name)}</button>
+                ${item.opportunity_title ? `<div class="text-[10px] text-slate-500 mt-0.5">${escapeHtml(item.opportunity_title)}</div>` : ''}
+                ${item.details ? `<p class="text-[11px] text-slate-500 mt-1 leading-relaxed">${escapeHtml(item.details)}</p>` : ''}
+                <div class="text-[10px] text-slate-400 mt-1">Échéance : ${crmFormatDate(item.due_at, true)}</div>
+              </div>
+              <button onclick="completeCRMActivity(${Number(item.id)})" class="px-3 py-2 bg-emerald-900 hover:bg-emerald-800 text-yellow-400 text-[11px] font-bold rounded-xl shrink-0">Terminer</button>
+            </div>
+          `).join('')}
+        </div>
+      </section>
+
+      <section class="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+        <div class="p-5 border-b border-slate-100">
+          <h4 class="text-sm font-bold text-slate-800">Historique récent</h4>
+          <p class="text-[11px] text-slate-500">Notes, appels, emails, réunions et changements de pipeline.</p>
+        </div>
+        <div class="divide-y divide-slate-100 max-h-[720px] overflow-y-auto">
+          ${timeline.length === 0 ? `<div class="p-10 text-center text-xs text-slate-400">Aucune activité enregistrée.</div>` : timeline.map(item => `
+            <div class="p-4 flex items-start gap-3">
+              <span class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                <i class="fas ${item.type === 'appel' ? 'fa-phone' : item.type === 'email' ? 'fa-envelope' : item.type === 'reunion' ? 'fa-users' : item.type === 'whatsapp' ? 'fa-comment' : 'fa-note-sticky'} text-xs"></i>
+              </span>
+              <div class="flex-1 min-w-0">
+                <strong class="text-xs text-slate-800">${escapeHtml(item.title)}</strong>
+                <div class="text-[10px] text-slate-400 mt-0.5">${crmFormatDate(item.created_at, true)} · ${escapeHtml(CRM_ACTIVITY_TYPE_LABELS[item.type] || item.type)}${item.creator_name ? ` · ${escapeHtml(item.creator_name)}` : ''}</div>
+                <button onclick="openCRMContactDetail(${Number(item.contact_id)})" class="text-[11px] text-emerald-700 font-bold hover:underline mt-1">${escapeHtml(item.contact_name)}</button>
+                ${item.details ? `<p class="text-[11px] text-slate-500 mt-1 leading-relaxed">${escapeHtml(item.details)}</p>` : ''}
+              </div>
+              <button onclick="deleteCRMActivity(${Number(item.id)})" class="text-red-500 hover:text-red-700 text-xs shrink-0" title="Supprimer"><i class="fas fa-trash"></i></button>
+            </div>
+          `).join('')}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+async function syncCRMSources() {
+  try {
+    const result = await api('/api/crm/sync-sources', { method: 'POST', body: {} });
+    showToast(`Synchronisation CRM terminée : ${result.contacts_created} contact(s) créé(s), ${result.opportunities_created} opportunité(s) créée(s).`);
+    renderView('crm');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function exportCRMExcel() {
+  try {
+    const response = await api('/api/crm/export/excel');
+    if (!response || typeof response.blob !== 'function') throw new Error('Export CRM indisponible.');
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'CRM_PKGlobal.xlsx';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast('Export CRM Excel téléchargé.');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function openCRMContactModal(contactId = null) {
+  let contact = null;
+  if (contactId) contact = await api(`/api/crm/contacts/${Number(contactId)}`);
+  openModal(contact ? 'Modifier le contact CRM' : 'Nouveau contact CRM', `
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+      <div><label class="block font-bold text-slate-700 mb-1">Nom complet *</label><input id="crm-contact-name" type="text" value="${escapeHtml(contact?.full_name || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+      <div><label class="block font-bold text-slate-700 mb-1">Organisation</label><input id="crm-contact-organization" type="text" value="${escapeHtml(contact?.organization || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+      <div><label class="block font-bold text-slate-700 mb-1">Email *</label><input id="crm-contact-email" type="email" value="${escapeHtml(contact?.email || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+      <div><label class="block font-bold text-slate-700 mb-1">Téléphone</label><input id="crm-contact-phone" type="tel" value="${escapeHtml(contact?.phone || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+      <div><label class="block font-bold text-slate-700 mb-1">Type</label><select id="crm-contact-type" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">${Object.entries(CRM_CONTACT_TYPE_LABELS).map(([value, label]) => `<option value="${value}" ${contact?.type === value ? 'selected' : ''}>${label}</option>`).join('')}</select></div>
+      <div><label class="block font-bold text-slate-700 mb-1">Statut</label><select id="crm-contact-status" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">${Object.entries(CRM_CONTACT_STATUS_LABELS).map(([value, label]) => `<option value="${value}" ${contact?.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></div>
+      <div><label class="block font-bold text-slate-700 mb-1">Pays</label><input id="crm-contact-country" type="text" value="${escapeHtml(contact?.country || 'RDC')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+      <div><label class="block font-bold text-slate-700 mb-1">Ville / Localisation</label><input id="crm-contact-location" type="text" value="${escapeHtml(contact?.location || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+      <div><label class="block font-bold text-slate-700 mb-1">Secteur</label><input id="crm-contact-sector" type="text" value="${escapeHtml(contact?.sector || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+      <div><label class="block font-bold text-slate-700 mb-1">Responsable</label><select id="crm-contact-owner" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">${crmOwnerOptions(contact?.owner_id || currentUser?.id || '')}</select></div>
+      <div class="sm:col-span-2"><label class="block font-bold text-slate-700 mb-1">Tags (séparés par des virgules)</label><input id="crm-contact-tags" type="text" value="${escapeHtml(contact?.tags || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+      <div class="sm:col-span-2"><label class="block font-bold text-slate-700 mb-1">Notes internes</label><textarea id="crm-contact-notes" rows="4" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">${escapeHtml(contact?.notes || '')}</textarea></div>
+    </div>
+  `, async () => {
+    const payload = {
+      full_name: document.getElementById('crm-contact-name').value,
+      organization: document.getElementById('crm-contact-organization').value,
+      email: document.getElementById('crm-contact-email').value,
+      phone: document.getElementById('crm-contact-phone').value,
+      type: document.getElementById('crm-contact-type').value,
+      status: document.getElementById('crm-contact-status').value,
+      country: document.getElementById('crm-contact-country').value,
+      location: document.getElementById('crm-contact-location').value,
+      sector: document.getElementById('crm-contact-sector').value,
+      owner_id: document.getElementById('crm-contact-owner').value || null,
+      tags: document.getElementById('crm-contact-tags').value,
+      notes: document.getElementById('crm-contact-notes').value,
+      source: contact?.source || 'manuel'
+    };
+    if (contact) await api(`/api/crm/contacts/${Number(contact.id)}`, { method: 'PUT', body: payload });
+    else await api('/api/crm/contacts', { method: 'POST', body: payload });
+    showToast(contact ? 'Contact CRM mis à jour.' : 'Contact CRM créé.');
+    renderView('crm');
+  });
+}
+
+async function openCRMContactDetail(contactId) {
+  const contact = await api(`/api/crm/contacts/${Number(contactId)}`);
+  if (!contact) return;
+  crmOpportunitiesCache = [...(contact.opportunities || []), ...crmOpportunitiesCache.filter(item => !(contact.opportunities || []).some(owned => owned.id === item.id))];
+  openModal(`Fiche CRM — ${escapeHtml(contact.full_name)}`, `
+    <div class="space-y-5 text-xs">
+      <div class="flex flex-wrap gap-2">
+        <span class="badge-status badge-crm-${contact.status === 'archive' ? 'archive' : contact.status === 'actif' ? 'actif' : contact.status === 'inactif' ? 'inactif' : 'nouveau'}">${escapeHtml(CRM_CONTACT_STATUS_LABELS[contact.status] || contact.status)}</span>
+        <span class="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 font-bold">${escapeHtml(CRM_CONTACT_TYPE_LABELS[contact.type] || contact.type)}</span>
+        <span class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 font-bold">Source : ${escapeHtml(contact.source || 'manuel')}</span>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 border border-slate-200 rounded-2xl p-4">
+        <div><span class="text-slate-400 font-bold block">Organisation</span>${escapeHtml(contact.organization || '—')}</div>
+        <div><span class="text-slate-400 font-bold block">Responsable</span>${escapeHtml(contact.owner_name || 'Non assigné')}</div>
+        <div><span class="text-slate-400 font-bold block">Email</span><a class="text-emerald-700 font-bold break-all" href="mailto:${escapeHtml(contact.email)}">${escapeHtml(contact.email)}</a></div>
+        <div><span class="text-slate-400 font-bold block">Téléphone</span>${contact.phone ? `<a class="text-emerald-700 font-bold" href="tel:${escapeHtml(contact.phone)}">${escapeHtml(contact.phone)}</a>` : '—'}</div>
+        <div><span class="text-slate-400 font-bold block">Secteur</span>${escapeHtml(contact.sector || '—')}</div>
+        <div><span class="text-slate-400 font-bold block">Localisation</span>${escapeHtml([contact.location, contact.country].filter(Boolean).join(', ') || '—')}</div>
+        <div><span class="text-slate-400 font-bold block">Dernier contact</span>${crmFormatDate(contact.last_contacted_at, true)}</div>
+        <div><span class="text-slate-400 font-bold block">Créé le</span>${crmFormatDate(contact.created_at, true)}</div>
+      </div>
+      ${contact.tags ? `<div><strong class="text-slate-700">Tags :</strong> ${escapeHtml(contact.tags)}</div>` : ''}
+      ${contact.notes ? `<div class="bg-amber-50 border border-amber-100 rounded-2xl p-4"><strong class="text-slate-700 block mb-1">Notes internes</strong><p class="leading-relaxed text-slate-600">${escapeHtml(contact.notes)}</p></div>` : ''}
+      <div class="flex flex-wrap gap-2">
+        <button onclick="openCRMContactModal(${Number(contact.id)})" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold">Modifier</button>
+        <button onclick="openCRMOpportunityModal(null, ${Number(contact.id)})" class="px-4 py-2 bg-emerald-900 text-yellow-400 rounded-xl font-bold">+ Opportunité</button>
+        <button onclick="openCRMActivityModal(${Number(contact.id)})" class="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-800 rounded-xl font-bold">+ Activité / relance</button>
+        ${contact.status !== 'archive' ? `<button onclick="archiveCRMContact(${Number(contact.id)})" class="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl font-bold">Archiver</button>` : ''}
+      </div>
+      <div>
+        <h4 class="font-bold text-slate-800 mb-3">Opportunités (${(contact.opportunities || []).length})</h4>
+        <div class="space-y-2">
+          ${(contact.opportunities || []).length === 0 ? '<p class="text-slate-400">Aucune opportunité liée.</p>' : contact.opportunities.map(item => `
+            <div class="border border-slate-200 rounded-2xl p-3 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+              <div><strong class="text-slate-800">${escapeHtml(item.title)}</strong><div class="text-[10px] text-slate-400 mt-1">${crmFormatMoney(item.amount, item.currency)} · ${Number(item.probability || 0)}%</div></div>
+              <div class="flex items-center gap-2"><span class="badge-status badge-crm-${item.stage}">${CRM_STAGE_LABELS[item.stage] || item.stage}</span><button onclick="openCRMOpportunityModal(${Number(item.id)})" class="px-3 py-1.5 bg-slate-100 rounded-xl font-bold">Modifier</button></div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div>
+        <h4 class="font-bold text-slate-800 mb-3">Historique & tâches (${(contact.activities || []).length})</h4>
+        <div class="space-y-2 max-h-72 overflow-y-auto pr-1">
+          ${(contact.activities || []).length === 0 ? '<p class="text-slate-400">Aucune activité enregistrée.</p>' : contact.activities.map(item => `
+            <div class="border border-slate-100 bg-slate-50 rounded-2xl p-3">
+              <div class="flex items-center justify-between gap-2"><strong class="text-slate-800">${escapeHtml(item.title)}</strong><span class="text-[9px] font-bold ${crmIsOverdue(item) ? 'text-red-700' : 'text-slate-400'}">${crmIsOverdue(item) ? 'EN RETARD' : escapeHtml(CRM_ACTIVITY_TYPE_LABELS[item.type] || item.type)}</span></div>
+              ${item.details ? `<p class="text-slate-500 mt-1 leading-relaxed">${escapeHtml(item.details)}</p>` : ''}
+              <div class="text-[10px] text-slate-400 mt-1">${crmFormatDate(item.created_at, true)}${item.due_at ? ` · Échéance ${crmFormatDate(item.due_at, true)}` : ''}${item.status === 'a_faire' ? ` · <button onclick="completeCRMActivity(${Number(item.id)}, ${Number(contact.id)})" class="text-emerald-700 font-black hover:underline">Marquer terminée</button>` : ''}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `);
+}
+
+async function archiveCRMContact(contactId) {
+  if (!confirm('Archiver ce contact CRM ? Il ne sera plus affiché par défaut, sans supprimer son historique.')) return;
+  const contact = await api(`/api/crm/contacts/${Number(contactId)}`);
+  await api(`/api/crm/contacts/${Number(contactId)}`, { method: 'PUT', body: { ...contact, status: 'archive' } });
+  closeModal();
+  showToast('Contact CRM archivé.');
+  renderView('crm');
+}
+
+async function openCRMOpportunityModal(opportunityId = null, contactId = null) {
+  if (!crmContactsCache.length) crmContactsCache = await api('/api/crm/contacts?status=all');
+  let opportunity = null;
+  if (opportunityId) {
+    opportunity = crmOpportunitiesCache.find(item => String(item.id) === String(opportunityId));
+    if (!opportunity) {
+      const all = await api('/api/crm/opportunities');
+      crmOpportunitiesCache = Array.isArray(all) ? all : [];
+      opportunity = crmOpportunitiesCache.find(item => String(item.id) === String(opportunityId));
+    }
+  }
+  if (!crmContactsCache.some(contact => contact.status !== 'archive')) {
+    showToast('Créez ou synchronisez d’abord un contact CRM.', 'error');
+    return;
+  }
+  openModal(opportunity ? 'Modifier l’opportunité CRM' : 'Nouvelle opportunité CRM', `
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+      <div class="sm:col-span-2"><label class="block font-bold text-slate-700 mb-1">Contact *</label><select id="crm-opp-contact" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">${crmContactOptions(opportunity?.contact_id || contactId || '')}</select></div>
+      <div class="sm:col-span-2"><label class="block font-bold text-slate-700 mb-1">Titre *</label><input id="crm-opp-title" type="text" value="${escapeHtml(opportunity?.title || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+      <div><label class="block font-bold text-slate-700 mb-1">Type</label><select id="crm-opp-type" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">${Object.entries(CRM_OPPORTUNITY_TYPE_LABELS).map(([value, label]) => `<option value="${value}" ${opportunity?.type === value ? 'selected' : ''}>${label}</option>`).join('')}</select></div>
+      <div><label class="block font-bold text-slate-700 mb-1">Étape du pipeline</label><select id="crm-opp-stage" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">${Object.entries(CRM_STAGE_LABELS).map(([value, label]) => `<option value="${value}" ${opportunity?.stage === value ? 'selected' : ''}>${label}</option>`).join('')}</select></div>
+      <div><label class="block font-bold text-slate-700 mb-1">Montant</label><input id="crm-opp-amount" type="number" min="0" step="any" value="${Number(opportunity?.amount || 0)}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+      <div><label class="block font-bold text-slate-700 mb-1">Devise</label><select id="crm-opp-currency" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">${['USD', 'CDF', 'EUR'].map(value => `<option value="${value}" ${opportunity?.currency === value ? 'selected' : ''}>${value}</option>`).join('')}</select></div>
+      <div><label class="block font-bold text-slate-700 mb-1">Probabilité (%)</label><input id="crm-opp-probability" type="number" min="0" max="100" value="${Number(opportunity?.probability ?? 10)}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+      <div><label class="block font-bold text-slate-700 mb-1">Clôture prévue</label><input id="crm-opp-close" type="date" value="${escapeHtml(opportunity?.expected_close_date ? String(opportunity.expected_close_date).slice(0, 10) : '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+      <div class="sm:col-span-2"><label class="block font-bold text-slate-700 mb-1">Responsable</label><select id="crm-opp-owner" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">${crmOwnerOptions(opportunity?.owner_id || currentUser?.id || '')}</select></div>
+      <div class="sm:col-span-2"><label class="block font-bold text-slate-700 mb-1">Description / prochaines étapes</label><textarea id="crm-opp-description" rows="4" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">${escapeHtml(opportunity?.description || '')}</textarea></div>
+    </div>
+  `, async () => {
+    const payload = {
+      contact_id: document.getElementById('crm-opp-contact').value,
+      title: document.getElementById('crm-opp-title').value,
+      type: document.getElementById('crm-opp-type').value,
+      stage: document.getElementById('crm-opp-stage').value,
+      amount: document.getElementById('crm-opp-amount').value,
+      currency: document.getElementById('crm-opp-currency').value,
+      probability: document.getElementById('crm-opp-probability').value,
+      expected_close_date: document.getElementById('crm-opp-close').value || null,
+      owner_id: document.getElementById('crm-opp-owner').value || null,
+      description: document.getElementById('crm-opp-description').value
+    };
+    if (opportunity) await api(`/api/crm/opportunities/${Number(opportunity.id)}`, { method: 'PUT', body: payload });
+    else await api('/api/crm/opportunities', { method: 'POST', body: payload });
+    showToast(opportunity ? 'Opportunité CRM mise à jour.' : 'Opportunité CRM créée.');
+    crmActiveTab = 'pipeline';
+    renderView('crm');
+  });
+}
+
+async function moveCRMOpportunity(id, stage) {
+  try {
+    await api(`/api/crm/opportunities/${Number(id)}/stage`, { method: 'PUT', body: { stage } });
+    showToast(`Opportunité déplacée vers « ${CRM_STAGE_LABELS[stage] || stage} ».`);
+    renderCRMTab();
+  } catch (err) {
+    showToast(err.message, 'error');
+    renderCRMTab();
+  }
+}
+
+async function deleteCRMOpportunity(id) {
+  if (!confirm('Supprimer définitivement cette opportunité CRM ?')) return;
+  try {
+    await api(`/api/crm/opportunities/${Number(id)}`, { method: 'DELETE' });
+    showToast('Opportunité CRM supprimée.');
+    renderCRMTab();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function crmActivityContactChanged(contactId) {
+  const select = document.getElementById('crm-activity-opportunity');
+  if (!select) return;
+  select.innerHTML = '<option value="">Aucune opportunité liée</option>';
+  if (!contactId) return;
+  const detail = await api(`/api/crm/contacts/${Number(contactId)}`);
+  (detail.opportunities || []).forEach(item => {
+    const option = document.createElement('option');
+    option.value = item.id;
+    option.textContent = item.title;
+    select.appendChild(option);
+  });
+}
+
+async function openCRMActivityModal(contactId = null, opportunityId = null) {
+  if (!crmContactsCache.length) crmContactsCache = await api('/api/crm/contacts?status=all');
+  if (!crmContactsCache.some(contact => contact.status !== 'archive')) {
+    showToast('Créez ou synchronisez d’abord un contact CRM.', 'error');
+    return;
+  }
+  openModal('Nouvelle activité / relance CRM', `
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+      <div><label class="block font-bold text-slate-700 mb-1">Contact *</label><select id="crm-activity-contact" onchange="crmActivityContactChanged(this.value)" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">${crmContactOptions(contactId || '')}</select></div>
+      <div><label class="block font-bold text-slate-700 mb-1">Opportunité liée</label><select id="crm-activity-opportunity" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"><option value="">Aucune opportunité liée</option></select></div>
+      <div><label class="block font-bold text-slate-700 mb-1">Type</label><select id="crm-activity-type" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">${Object.entries(CRM_ACTIVITY_TYPE_LABELS).map(([value, label]) => `<option value="${value}" ${value === 'tache' ? 'selected' : ''}>${label}</option>`).join('')}</select></div>
+      <div><label class="block font-bold text-slate-700 mb-1">Statut</label><select id="crm-activity-status" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"><option value="a_faire" selected>À faire / relance</option><option value="terminee">Terminée (historique)</option><option value="annulee">Annulée</option></select></div>
+      <div class="sm:col-span-2"><label class="block font-bold text-slate-700 mb-1">Titre *</label><input id="crm-activity-title" type="text" placeholder="Ex. Relancer le prospect par téléphone" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+      <div><label class="block font-bold text-slate-700 mb-1">Échéance</label><input id="crm-activity-due" type="datetime-local" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+      <div class="flex items-end"><p class="text-[10px] text-slate-400 leading-relaxed">Les tâches en retard apparaissent en rouge et alimentent le badge CRM.</p></div>
+      <div class="sm:col-span-2"><label class="block font-bold text-slate-700 mb-1">Détails</label><textarea id="crm-activity-details" rows="4" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></textarea></div>
+    </div>
+  `, async () => {
+    await api('/api/crm/activities', {
+      method: 'POST',
+      body: {
+        contact_id: document.getElementById('crm-activity-contact').value,
+        opportunity_id: document.getElementById('crm-activity-opportunity').value || null,
+        type: document.getElementById('crm-activity-type').value,
+        status: document.getElementById('crm-activity-status').value,
+        title: document.getElementById('crm-activity-title').value,
+        due_at: document.getElementById('crm-activity-due').value || null,
+        details: document.getElementById('crm-activity-details').value
+      }
+    });
+    showToast('Activité CRM enregistrée.');
+    crmActiveTab = 'activities';
+    renderView('crm');
+  });
+
+  const initialContactId = contactId || document.getElementById('crm-activity-contact')?.value;
+  await crmActivityContactChanged(initialContactId);
+  if (opportunityId) {
+    const select = document.getElementById('crm-activity-opportunity');
+    if (select) select.value = String(opportunityId);
+  }
+}
+
+async function completeCRMActivity(id, contactId = null) {
+  try {
+    await api(`/api/crm/activities/${Number(id)}/complete`, { method: 'PUT', body: {} });
+    showToast('Tâche CRM marquée terminée.');
+    if (contactId) await openCRMContactDetail(contactId);
+    else renderView('crm');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function deleteCRMActivity(id) {
+  if (!confirm('Supprimer cette activité CRM ?')) return;
+  try {
+    await api(`/api/crm/activities/${Number(id)}`, { method: 'DELETE' });
+    showToast('Activité CRM supprimée.');
+    renderCRMTab();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
 }
 
 // -------------------------------------------------------------
@@ -3008,7 +3769,7 @@ async function renderSupabaseView(container) {
           <span class="px-3 py-1 bg-yellow-400 text-emerald-950 text-[10px] font-black uppercase tracking-widest rounded-full">BaaS PostgreSQL</span>
           <h2 class="text-2xl font-black mt-3 mb-2 text-white">Architecture & Backend Supabase</h2>
           <p class="text-emerald-100 text-xs leading-relaxed">
-            La plateforme PK GLOBAL PARTNERS est conçue pour être <strong>100% compatible avec Supabase</strong>. Vous disposez ici du schéma PostgreSQL complet, du script de migration des données et du testeur de connexion Cloud.
+            La plateforme PK GLOBAL PARTNERS dispose d'un mode Supabase (connexion, dashboard et CRM) et d'un mode Node/SQLite complet. Vous trouverez ici le schéma PostgreSQL, les accès administrateur, la migration CRM sans données et le testeur de connexion Cloud. Les deux modes utilisent des comptes et des données distincts.
           </p>
         </div>
       </div>
@@ -3027,7 +3788,7 @@ async function renderSupabaseView(container) {
               </span>
             </div>
             <p class="text-xs text-slate-500 mt-0.5">
-              ${status.configured ? `Projet Supabase actif : ${status.url}` : 'Le système fonctionne sur la base relationnelle locale et peut être basculé sur Supabase en 1 clic.'}
+              ${status.configured ? `Projet Supabase actif : ${status.url}` : 'Le système fonctionne sur la base relationnelle locale. Supabase est un mode distinct : appliquez les SQL ci-dessous après sauvegarde et revue RLS.'}
             </p>
           </div>
         </div>
@@ -3036,8 +3797,14 @@ async function renderSupabaseView(container) {
           <a href="/api/supabase/schema" class="px-4 py-2 bg-emerald-900 hover:bg-emerald-800 text-yellow-400 text-xs font-bold rounded-xl shadow flex items-center gap-2 transition">
             <i class="fas fa-file-code"></i> Télécharger Schema SQL
           </a>
-          <a href="/api/supabase/seed" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-2 transition">
-            <i class="fas fa-download"></i> Données (Seed SQL)
+          <a href="/api/supabase/admin-access" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-2 transition">
+            <i class="fas fa-user-shield"></i> Accès Admin SQL
+          </a>
+          <a href="/api/supabase/crm" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl flex items-center gap-2 transition">
+            <i class="fas fa-address-book"></i> Migration CRM SQL
+          </a>
+          <a href="/api/supabase/seed" title="Fichier fictif de démonstration : local uniquement, jamais en production" class="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold rounded-xl flex items-center gap-2 transition">
+            <i class="fas fa-triangle-exclamation"></i> Données DÉMO (local uniquement)
           </a>
         </div>
       </div>
@@ -3061,7 +3828,7 @@ async function renderSupabaseView(container) {
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-slate-700 mb-1">API Key (Anon Public ou Service Role)</label>
+            <label class="block text-xs font-bold text-slate-700 mb-1">API Key (Anon / Publishable uniquement — jamais Service Role)</label>
             <input type="password" id="supabase-key" value="sb_publishable_1clRgc8vKrinbm0VM7OR2g_BUnDZVV4" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-mono">
           </div>
 
@@ -3076,7 +3843,7 @@ async function renderSupabaseView(container) {
         <div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
           <h4 class="text-sm font-bold text-slate-800 flex items-center gap-2">
             <i class="fas fa-list-check text-yellow-500"></i>
-            <span>Procédure de Mise en Route Supabase en 3 Étapes</span>
+            <span>Procédure de Mise en Route Supabase & CRM</span>
           </h4>
 
           <div class="space-y-3 text-xs text-slate-600">
@@ -3086,13 +3853,18 @@ async function renderSupabaseView(container) {
             </div>
 
             <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
-              <strong class="text-slate-800 block mb-0.5">Étape 2 : Exécuter le Schéma SQL</strong>
-              <span>Téléchargez le fichier <a href="/api/supabase/schema" class="text-emerald-700 font-bold underline">schema_supabase_pkglobal.sql</a> et collez son contenu dans le <strong>SQL Editor</strong> de Supabase pour créer instantanément toutes les tables, relations et politiques de sécurité RLS.</span>
+              <strong class="text-slate-800 block mb-0.5">Étape 2 : Schéma, accès admin et profil</strong>
+              <span>Après sauvegarde et revue RLS, exécutez le <a href="/api/supabase/schema" class="text-emerald-700 font-bold underline">Schéma SQL</a> uniquement sur un projet neuf ou validé, puis <a href="/api/supabase/admin-access" class="text-emerald-700 font-bold underline">Accès Admin SQL</a>. Créez ensuite le profil actif superadmin/admin décrit dans le README.</span>
             </div>
 
             <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
-              <strong class="text-slate-800 block mb-0.5">Étape 3 : Importer les Données Démo</strong>
-              <span>Téléchargez et exécutez <a href="/api/supabase/seed" class="text-emerald-700 font-bold underline">seed_data_supabase_pkglobal.sql</a> pour importer les 3 filiales, les investisseurs, les candidatures et les pôles d'expertise.</span>
+              <strong class="text-slate-800 block mb-0.5">Étape 3 : Installer le CRM Supabase</strong>
+              <span>Exécutez <a href="/api/supabase/crm" class="text-emerald-700 font-bold underline">crm_supabase_pkglobal.sql</a> dans le SQL Editor. Migration idempotente, réservée aux administrateurs actifs et sans aucune donnée fictive. Dans le CRM, cliquez ensuite sur <strong>Synchroniser les sources</strong>.</span>
+            </div>
+
+            <div class="p-3 bg-red-50 rounded-2xl border border-red-100">
+              <strong class="text-red-800 block mb-0.5">Données de démonstration : local uniquement</strong>
+              <span>Le fichier Seed contient des appels et dossiers fictifs. Ne l'exécutez jamais en production. Les appels réels se créent en brouillon puis se publient depuis l'espace admin.</span>
             </div>
           </div>
         </div>

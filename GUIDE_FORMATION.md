@@ -9,9 +9,9 @@
 À l'issue de cette session de formation, chaque participant sera capable de :
 1. Se connecter et naviguer dans l'espace administrateur selon son rôle.
 2. Actualiser les contenus éditoriaux et publier des actualités.
-3. Créer un appel à projets, évaluer les candidatures et notifier les porteurs de projets.
-4. Gérer les investisseurs et le pipeline des opportunités de financement.
-5. Traiter les demandes commerciales entrantes et répondre aux clients.
+3. Créer un appel à projets réel en brouillon, le publier, évaluer les candidatures et notifier les porteurs de projets.
+4. Utiliser le CRM : synchroniser les sources, suivre les contacts, déplacer les opportunités dans le pipeline et traiter les relances.
+5. Gérer les investisseurs, traiter les demandes commerciales entrantes et répondre aux clients.
 6. Mettre à jour les informations, produits et réalisations de sa filiale.
 7. Télécharger les rapports PDF et exporter les données au format Excel.
 8. Exécuter une sauvegarde complète des données.
@@ -38,7 +38,7 @@
 ---
 
 ### Module C : Workflow Appels à Projets & Candidatures (Durée : 1 h)
-- **Atelier pratique 1 :** Lancement d'un appel à projets (paramétrage des critères d'éligibilité, budget et date limite).
+- **Atelier pratique 1 :** Création d'un appel réel en **Brouillon**, vérification des critères, du budget et de la date limite, puis publication en **Ouvert**. La page publique n'affiche jamais un brouillon ni d'appel fictif.
 - **Atelier pratique 2 :** Réception et revue d'une candidature soumise via le site web.
 - **Atelier pratique 3 :** Grille d'évaluation du comité : notation sur 5 étoiles et rédaction de l'avis de sélection.
 - **Atelier pratique 4 :** Envoi d'un email de notification automatique au candidat (sélection ou rejet).
@@ -46,10 +46,11 @@
 
 ---
 
-### Module D : Gestion des Investisseurs & Demandes Commerciales (Durée : 45 min)
+### Module D : CRM, Investisseurs & Demandes Commerciales (Durée : 1 h)
 - **Atelier pratique 1 :** Enregistrement d'un nouvel investisseur (fonds ou business angel) et validation du compte.
 - **Atelier pratique 2 :** Association d'un projet candidat à un investisseur et suivi des étapes de négociation (*Due Diligence*, *Term Sheet*).
-- **Atelier pratique 3 :** Traitement d'une demande commerciale reçue du site web, affectation à un collaborateur et envoi de la réponse officielle.
+- **Atelier pratique 3 :** Synchronisation CRM des demandes, investisseurs et candidatures ; ouverture d'une fiche contact ; déplacement d'une opportunité dans le pipeline ; création puis clôture d'une relance.
+- **Atelier pratique 4 :** Traitement d'une demande commerciale reçue du site web, affectation à un collaborateur et envoi de la réponse officielle.
 
 ---
 
@@ -79,7 +80,20 @@
    - Laissez la case *Marquer comme résolu* cochée.
    - Cliquez sur **Envoyer la Réponse**. Le prospect reçoit automatiquement un email horodaté.
 
-### Fiche 3 : Effectuer la sauvegarde hebdomadaire
+### Fiche 3 : Publier un appel à projets réel
+1. Rendez-vous dans **Appels à Projets** (`#/calls`) en mode Node, puis cliquez sur **Créer un appel**.
+2. Saisissez uniquement les informations officielles validées et laissez le statut **Brouillon** pendant la relecture.
+3. Passez le statut à **Ouvert** pour le publier. Vérifiez la page publique : seuls les appels `open`/`closed` de la base y apparaissent.
+4. À la fin de la période, passez l'appel à **Clôturé**. Un appel avec candidatures ne doit pas être supprimé.
+
+### Fiche 4 : Travailler dans le CRM
+1. Ouvrez **CRM — Contacts & Pipeline** (`#/crm`).
+2. Cliquez sur **Synchroniser les sources** si l'indicateur signale des enregistrements non synchronisés (Node) ou pour importer les sources Supabase existantes.
+3. Dans **Contacts**, ouvrez la fiche, vérifiez les coordonnées, le responsable et l'historique.
+4. Dans **Pipeline**, déplacez l'opportunité à l'étape réelle (qualification, réunion, proposition, négociation, gagné ou perdu).
+5. Dans **Activités & tâches**, créez la relance avec une échéance, puis marquez-la terminée après l'action.
+
+### Fiche 5 : Effectuer la sauvegarde hebdomadaire
 1. Rendez-vous dans **Sauvegardes & Sécurité** (`#/backups`).
 2. Cliquez sur le bouton **Créer une Sauvegarde Maintenant**.
 3. Le fichier horodaté `backup_pkglobal_AAAA-MM-JJ....sqlite` est créé instantanément et s'affiche dans la liste des archives téléchargeables.
@@ -97,5 +111,11 @@
 **Q3 : Les exports Excel sont-ils compatibles avec Microsoft Excel et Google Sheets ?**
 *R :* Oui, tous les fichiers sont générés au format officiel `.xlsx` avec formatage professionnel des colonnes et en-têtes PK Global Partners.
 
-**Q4 : Peut-on ajouter une 4ème ou 5ème filiale à l'avenir ?**
+**Q4 : Pourquoi la page Appels à projets peut-elle être vide ?**
+*R :* C'est le comportement correct si aucun appel réel n'est publié. Au premier démarrage réel, les anciens appels de démonstration connus sont conservés en brouillon dans l'admin. Créez ou relisez un appel, puis passez-le de **Brouillon** à **Ouvert**. Aucun exemple fictif n'est affiché.
+
+**Q5 : Pourquoi le CRM Supabase affiche-t-il un message de migration ?**
+*R :* Les tables CRM ne sont pas encore installées dans le projet. Après sauvegarde et revue RLS, exécutez `supabase/crm.sql` dans le SQL Editor, puis réessayez. Aucune donnée fictive n'est affichée en attendant.
+
+**Q6 : Peut-on ajouter une 4ème ou 5ème filiale à l'avenir ?**
 *R :* Oui, le Super Administrateur peut créer une nouvelle filiale d'un simple clic dans le module *Filiales* ; elle disposera immédiatement de son catalogue de produits, de ses réalisations et pourra se voir attribuer son propre responsable.

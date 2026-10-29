@@ -154,7 +154,7 @@
     <section class="hero-gradient min-h-[60vh] flex items-center justify-center pt-24 pb-12 px-6">
         <div class="max-w-7xl mx-auto w-full text-center">
             <p class="inline-flex items-center justify-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 text-yellow-300 text-[11px] sm:text-xs font-bold uppercase tracking-[0.12em] sm:tracking-[0.2em] px-4 sm:px-5 py-2.5 rounded-full mb-8 max-w-full text-center">
-                <i class="fas fa-bullhorn"></i> <span id="open-calls-count">2</span>&nbsp;appel(s) ouvert(s) actuellement
+                <i class="fas fa-bullhorn"></i> <span id="open-calls-count">—</span>&nbsp;appel(s) officiel(s) ouvert(s)
             </p>
             <h1 class="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white leading-[1.1] mb-8">
                 Appels à Projets
@@ -202,9 +202,9 @@
     <!-- APPELS À PROJETS EN COURS -->
     <section id="appels" class="py-24 px-6 md:px-12 bg-emerald-50">
         <div class="max-w-7xl mx-auto">
-            <h2 class="text-4xl font-extrabold text-emerald-950 mb-6 text-center">Nos appels à projets</h2>
+            <h2 class="text-4xl font-extrabold text-emerald-950 mb-6 text-center">Nos appels à projets officiels</h2>
             <p class="text-lg text-gray-600 max-w-3xl mx-auto text-center mb-12">
-                Consultez les conditions d'éligibilité et les dates limites de chaque appel, puis déposez votre dossier en ligne.
+                Cette liste est alimentée en temps réel par les appels publiés depuis l’espace d’administration. Consultez les conditions d’éligibilité et les dates limites, puis déposez votre dossier en ligne.
             </p>
 
             <div class="flex flex-wrap justify-center gap-3 mb-12" role="group" aria-label="Filtrer les appels à projets">
@@ -216,7 +216,12 @@
             <div id="calls-grid" class="space-y-6" aria-live="polite">
                 <p class="text-center text-gray-500 text-sm py-8"><i class="fas fa-spinner fa-spin mr-2"></i> Chargement des appels à projets…</p>
             </div>
-            <p id="calls-empty" class="hidden text-center text-gray-500 py-8">Aucun appel à projets dans cette catégorie pour le moment. Revenez bientôt ou déposez une candidature spontanée ci-dessous.</p>
+            <p id="calls-empty" class="hidden text-center text-gray-500 py-8">Aucun appel à projets officiel n’est publié pour le moment. Vous pouvez déposer une candidature spontanée ci-dessous.</p>
+            <div id="calls-error" class="hidden max-w-2xl mx-auto text-center bg-red-50 border border-red-200 text-red-800 rounded-2xl p-6" role="alert">
+                <p class="font-bold mb-2">Impossible de charger les appels officiels.</p>
+                <p class="text-sm mb-4">Aucune annonce de remplacement n’est affichée. Vérifiez votre connexion, réessayez, ou contactez <a class="font-bold underline break-all" href="mailto:info@pkglobalpartners.com">info@pkglobalpartners.com</a>.</p>
+                <button type="button" id="retry-calls" class="btn-gold px-6 py-3 rounded-xl font-bold text-sm">Réessayer</button>
+            </div>
 
             <noscript>
                 <p class="text-center text-gray-500 py-8">Activez JavaScript pour consulter la liste des appels à projets, ou contactez-nous à <a class="font-bold text-emerald-700 underline" href="mailto:info@pkglobalpartners.com">info@pkglobalpartners.com</a>.</p>
@@ -274,11 +279,10 @@
             <form id="candidature-form" class="bg-emerald-50 p-6 sm:p-8 md:p-12 rounded-3xl border border-emerald-200" enctype="multipart/form-data" novalidate>
                 <div class="mb-8">
                     <label for="call_id" class="block text-sm font-bold text-emerald-950 mb-3">Appel à projets concerné</label>
-                    <select id="call_id" name="call_id" class="w-full px-6 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20">
-                        <option value="">Candidature spontanée (hors appel en cours)</option>
-                        <option value="1">Appel à Projets 2026 : AgriTech &amp; Transformation Agroalimentaire RDC</option>
-                        <option value="2">Fonds Jeunes Entrepreneurs : Logistique du Dernier Kilomètre</option>
+                    <select id="call_id" name="call_id" disabled class="w-full px-6 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20">
+                        <option value="">Chargement des appels officiels…</option>
                     </select>
+                    <p class="text-xs text-gray-500 mt-2">Seuls les appels réels publiés par l’administration apparaissent ici. La candidature spontanée reste possible.</p>
                 </div>
 
                 <div class="grid md:grid-cols-2 gap-8 mb-8">
@@ -306,16 +310,8 @@
                 <div class="grid md:grid-cols-2 gap-8 mb-8">
                     <div>
                         <label for="sector" class="block text-sm font-bold text-emerald-950 mb-3">Secteur d'activité *</label>
-                        <select id="sector" name="sector" required class="w-full px-6 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20">
-                            <option value="">Sélectionner un secteur</option>
-                            <option value="Agroalimentaire &amp; Chaîne de valeur">Agroalimentaire &amp; Chaîne de valeur</option>
-                            <option value="Transport &amp; Logistique Verte">Transport &amp; Logistique Verte</option>
-                            <option value="Énergie Renouvelable">Énergie Renouvelable</option>
-                            <option value="Mobilité">Mobilité</option>
-                            <option value="Technologie &amp; Digital">Technologie &amp; Digital</option>
-                            <option value="Distribution &amp; Commerce">Distribution &amp; Commerce</option>
-                            <option value="Autre">Autre</option>
-                        </select>
+                        <input type="text" id="sector" name="sector" required list="sector-suggestions" class="w-full px-6 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20" placeholder="Ex : Agroalimentaire">
+                        <datalist id="sector-suggestions"></datalist>
                     </div>
                     <div>
                         <label for="location" class="block text-sm font-bold text-emerald-950 mb-3">Localisation du projet *</label>
@@ -418,44 +414,13 @@
             else { nav.classList.remove('nav-scrolled'); }
         });
 
-        // --- Appels à projets : données de secours (affichées si l'API Node.js
-        // n'est pas disponible, p. ex. hébergement statique). Dès que /api/calls
-        // répond, la liste et le menu déroulant du formulaire sont synchronisés
-        // avec les appels publiés depuis l'espace d'administration.
-        const FALLBACK_CALLS = [
-            {
-                id: 1,
-                title: "Appel à Projets 2026 : AgriTech & Transformation Agroalimentaire RDC",
-                description: "Sélection et financement de 5 projets innovants dans la transformation locale des matières premières agricoles, la chaîne du froid et la distribution.",
-                target_sector: "Agroalimentaire & Chaîne de valeur",
-                budget_indicatif: "Jusqu'à 150 000 USD par lauréat",
-                eligibility: "Entreprises enregistrées en RDC, existence minimum de 1 an, impact social mesurable auprès des producteurs locaux.",
-                deadline: "2026-12-15 23:59:59",
-                status: "open"
-            },
-            {
-                id: 2,
-                title: "Fonds Jeunes Entrepreneurs : Logistique du Dernier Kilomètre",
-                description: "Soutien à la création de micro-hubs logistiques et flottes écologiques pour approvisionner les métropoles de Kinshasa et Goma.",
-                target_sector: "Transport & Logistique Verte",
-                budget_indicatif: "50 000 USD par projet",
-                eligibility: "Équipes de jeunes entrepreneurs (18-35 ans), prototype ou service fonctionnel déjà testé.",
-                deadline: "2026-11-30 23:59:59",
-                status: "open"
-            },
-            {
-                id: 3,
-                title: "Édition Clôturée 2025 : Énergies Renouvelables et Pompage Solaire",
-                description: "Programme d'accès à l'énergie pour les exploitations agricoles rurales.",
-                target_sector: "Énergie Renouvelable",
-                budget_indicatif: "100 000 USD",
-                eligibility: "Startups et PME d'électrification rurale",
-                deadline: "2025-12-31 23:59:59",
-                status: "closed"
-            }
-        ];
-
-        let currentCalls = FALLBACK_CALLS;
+        // --- Appels à projets : données réelles uniquement ---
+        // La liste provient exclusivement de GET /api/public/calls, qui ne
+        // retourne que les appels ouverts ou clôturés publiés dans l'admin.
+        // Aucun appel de démonstration ou de secours n'est affiché.
+        let currentCalls = [];
+        let callsLoaded = false;
+        let callsLoadFailed = false;
         let currentFilter = 'all';
 
         function parseDeadline(value) {
@@ -594,7 +559,12 @@
                 });
 
             visible.forEach((call) => grid.appendChild(buildCallCard(call)));
-            empty.classList.toggle('hidden', visible.length > 0);
+            if (visible.length === 0 && callsLoaded) {
+                empty.textContent = currentCalls.length === 0
+                    ? 'Aucun appel à projets officiel n’est publié pour le moment. Vous pouvez déposer une candidature spontanée ci-dessous.'
+                    : 'Aucun appel à projets officiel dans cette catégorie pour le moment.';
+            }
+            empty.classList.toggle('hidden', visible.length > 0 || !callsLoaded);
 
             const openCount = currentCalls.filter(isOpen).length;
             document.getElementById('open-calls-count').textContent = openCount;
@@ -610,21 +580,37 @@
             spontaneous.textContent = 'Candidature spontanée (hors appel en cours)';
             select.appendChild(spontaneous);
 
-            currentCalls.filter(isOpen).forEach((call) => {
+            const openCalls = currentCalls.filter(isOpen);
+            openCalls.forEach((call) => {
                 const option = document.createElement('option');
                 option.value = call.id;
                 option.textContent = call.title;
                 select.appendChild(option);
             });
+            select.disabled = !callsLoaded && !callsLoadFailed;
 
             if (previousValue && select.querySelector('option[value="' + previousValue + '"]')) {
                 select.value = previousValue;
             }
+
+            const suggestions = document.getElementById('sector-suggestions');
+            if (suggestions) {
+                suggestions.replaceChildren();
+                [...new Set(openCalls.map((call) => call.target_sector).filter(Boolean))].forEach((sector) => {
+                    const option = document.createElement('option');
+                    option.value = sector;
+                    suggestions.appendChild(option);
+                });
+            }
         }
 
         function selectCall(callId) {
+            const call = currentCalls.find((item) => String(item.id) === String(callId));
+            if (!call || !isOpen(call)) return;
             const select = document.getElementById('call_id');
             select.value = String(callId);
+            const sectorInput = document.getElementById('sector');
+            if (sectorInput && call.target_sector) sectorInput.value = call.target_sector;
             document.getElementById('candidature').scrollIntoView({ behavior: 'smooth' });
             const nameInput = document.getElementById('candidate_name');
             if (nameInput) setTimeout(() => nameInput.focus({ preventScroll: true }), 600);
@@ -639,24 +625,47 @@
             });
         });
 
-        renderCalls();
-        syncCallSelect();
+        async function loadCalls() {
+            const grid = document.getElementById('calls-grid');
+            const empty = document.getElementById('calls-empty');
+            const errorBox = document.getElementById('calls-error');
+            callsLoaded = false;
+            callsLoadFailed = false;
+            errorBox.classList.add('hidden');
+            empty.classList.add('hidden');
+            grid.replaceChildren();
+            const loading = document.createElement('p');
+            loading.className = 'text-center text-gray-500 text-sm py-8';
+            loading.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Chargement des appels officiels…';
+            grid.appendChild(loading);
+            syncCallSelect();
 
-        fetch('/api/calls')
-            .then((response) => {
+            try {
+                const response = await fetch('/api/public/calls', {
+                    headers: { 'Accept': 'application/json' },
+                    cache: 'no-store'
+                });
                 if (!response.ok) throw new Error('API indisponible');
-                return response.json();
-            })
-            .then((calls) => {
-                if (Array.isArray(calls)) {
-                    currentCalls = calls;
-                    renderCalls();
-                    syncCallSelect();
-                }
-            })
-            .catch(() => {
-                // Hébergement statique sans API : on conserve les appels de secours.
-            });
+                const calls = await response.json();
+                if (!Array.isArray(calls)) throw new Error('Réponse API invalide');
+                currentCalls = calls;
+                callsLoaded = true;
+                renderCalls();
+                syncCallSelect();
+            } catch (error) {
+                currentCalls = [];
+                callsLoaded = false;
+                callsLoadFailed = true;
+                grid.replaceChildren();
+                document.getElementById('open-calls-count').textContent = '0';
+                empty.classList.add('hidden');
+                errorBox.classList.remove('hidden');
+                syncCallSelect();
+            }
+        }
+
+        document.getElementById('retry-calls').addEventListener('click', loadCalls);
+        loadCalls();
 
         // --- Soumission de la candidature vers l'API existante ---
         const form = document.getElementById('candidature-form');

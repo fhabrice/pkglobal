@@ -101,3 +101,166 @@ test('keeps login disabled if the Supabase library is missing', async () => {
   await window.SupabaseAdmin.start({ getElementById: id => nodes[id] }, null);
   assert.match(nodes['login-error-text'].textContent, /client Supabase est indisponible/);
 });
+
+function fakeCrmClient({ tables = {}, missingCrm = false } = {}) {
+  const client = {
+    tables: {
+      profiles: [], crm_contacts: [], crm_opportunities: [], crm_activities: [],
+      inquiries: [], investors: [], investor_interests: [], candidatures: [], call_for_projects: [],
+      ...tables
+    },
+    auth: {},
+    from(table) { return new FakeCrmQuery(client, table, missingCrm); }
+  };
+  return client;
+}
+
+class FakeCrmQuery {
+  constructor(client, table, missingCrm) {
+    this.client = client;
+    this.table = table;
+    this.missingCrm = missingCrm;
+    this.operation = 'select';
+    this.payload = null;
+    this.filters = [];
+    this.singleMode = false;
+    this.countMode = false;
+    this.orderField = null;
+    this.orderAscending = true;
+  }
+  select(columns, options) {
+    if (options?.count === 'exact') this.countMode = true;
+    return this;
+  }
+  insert(payload) { this.operation = 'insert'; this.payload = payload; return this; }
+  update(payload) { this.operation = 'update'; this.payload = payload; return this; }
+  delete() { this.operation = 'delete'; return this; }
+  eq(field, value) { this.filters.push(row => String(row[field]) === String(value)); return this; }
+  neq(field, value) { this.filters.push(row => String(row[field]) !== String(value)); return this; }
+  in(field, values) { this.filters.push(row => values.map(String).includes(String(row[field]))); return this; }
+  ilike(field, pattern) {
+    const term = String(pattern).replace(/%/g, '').toLowerCase();
+    this.filters.push(row => String(row[field] || '').toLowerCase().includes(term));
+    return this;
+  }
+  or(expression) {
+    const checks = String(expression).split(',').map(part => {
+      const [field, , pattern] = part.split('.');
+      const term = String(pattern || '').replace(/%/g, '').toLowerCase();
+      return row => String(row[field] || '').toLowerCase().includes(term);
+    });
+    this.filters.push(row => checks.some(check => check(row)));
+    return this;
+  }
+  order(field, options = {}) { this.orderField = field; this.orderAscending = options.ascending !== false; return this; }
+  single() { this.singleMode = true; return this; }
+  maybeSingle() { this.singleMode = true; return this; }
+  filteredRows() {
+    const rows = this.client.tables[this.table] || (this.client.tables[this.table] = []);
+    let result = rows.filter(row => this.filters.every(filter => filter(row)));
+    if (this.orderField) {
+      result = [...result].sort((a, b) => {
+        const comparison = String(a[this.orderField] ?? '').localeCompare(String(b[this.orderField] ?? ''));
+        return this.orderAscending ? comparison : -comparison;
+      });
+    }
+    return result;
+  }
+  execute() {
+    if (this.missingCrm && this.table.startsWith('crm_')) {
+      return { data: null, error: { code: 'PGRST205', message: `Could not find table ${this.table} in schema cache` } };
+    }
+    const rows = this.client.tables[this.table] || (this.client.tables[this.table] = []);
+    if (this.countMode) return { data: null, count: rows.length, error: null };
+    if (this.operation === 'insert') {
+      const id = rows.reduce((max, row) => Math.max(max, Number(row.id) || 0), 0) + 1;
+      const row = { ...this.payload, id, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+      rows.push(row);
+      return { data: this.singleMode ? row : [row], error: null };
+    }
+    const matches = this.filteredRows();
+    if (this.operation === 'update') {
+      matches.forEach(row => Object.assign(row, this.payload, { updated_at: new Date().toISOString() }));
+      return { data: this.singleMode ? (matches[0] || null) : matches, error: null };
+    }
+    if (this.operation === 'delete') {
+      const deleted = matches[0] || null;
+      this.client.tables[this.table] = rows.filter(row => !matches.includes(row));
+      return { data: this.singleMode ? deleted : matches, error: null };
+    }
+    const data = matches.map(row => ({ ...row }));
+    return { data: this.singleMode ? (data[0] || null) : data, error: null };
+  }
+  then(resolve, reject) { return Promise.resolve().then(() => this.execute()).then(resolve, reject); }
+  catch(reject) { return this.then(null, reject); }
+}
+
+test('Supabase CRM CRUD manages contacts, pipeline stages and activities', async () => {
+  const client = fakeCrmClient();
+  const portal = createPortal(client);
+  const contact = await portal.saveCrmContact({
+    full_name: 'Client Test', organization: 'Test SARL', email: 'Client@Test.cd',
+    type: 'prospect', status: 'nouveau', owner_id: 'u1'
+  });
+  assert.equal(contact.email, 'client@test.cd');
+  const opportunity = await portal.saveCrmOpportunity({
+    contact_id: contact.id, title: 'Deal test', stage: 'nouveau', amount: 10000, probability: 15, owner_id: 'u1'
+  });
+  const moved = await portal.moveCrmOpportunity(opportunity.id, 'qualification');
+  assert.equal(moved.stage, 'qualification');
+  const activity = await portal.saveCrmActivity({
+    contact_id: contact.id, opportunity_id: opportunity.id, type: 'tache', status: 'a_faire', title: 'Relancer'
+  });
+  const completed = await portal.completeCrmActivity(activity.id);
+  assert.equal(completed.status, 'terminee');
+  const detail = await portal.getCrmContact(contact.id);
+  assert.equal(detail.opportunities.length, 1);
+  assert.equal(detail.activities.length, 1);
+  const overview = await portal.crmOverview();
+  assert.equal(overview.contacts_total, 1);
+  assert.equal(overview.opportunities_open, 1);
+  assert.equal(overview.pipeline_value, 10000);
+});
+
+test('Supabase CRM source synchronization is idempotent', async () => {
+  const client = fakeCrmClient({
+    tables: {
+      inquiries: [{ id: 1, name: 'Prospect Un', email: 'prospect@test.cd', subject: 'Demande test', service_requested: 'Conseil', message: 'Bonjour', status: 'nouveau' }],
+      investors: [{ id: 2, name: 'Investisseur Test', organization: 'Capital Test', email: 'investor@test.cd', country: 'RDC', investor_type: 'Fonds', status: 'valide' }],
+      investor_interests: [{ id: 3, investor_id: 2, project_title: 'Projet investisseur', amount_intended: 50000, stage: 'Due Diligence' }],
+      candidatures: [{ id: 4, call_id: 5, candidate_name: 'Porteur Test', candidate_email: 'candidate@test.cd', project_title: 'Projet candidature', sector: 'Agro', location: 'Goma', funding_requested: 20000, currency: 'USD', summary: 'Résumé', status: 'recu' }],
+      call_for_projects: [{ id: 5, title: 'Appel officiel test' }]
+    }
+  });
+  const portal = createPortal(client);
+  const first = await portal.syncCrmSources('u1');
+  assert.equal(first.contacts_created, 3);
+  assert.equal(first.opportunities_created, 3);
+  const second = await portal.syncCrmSources('u1');
+  assert.equal(second.contacts_created, 0);
+  assert.equal(second.opportunities_created, 0);
+  assert.equal(client.tables.crm_contacts.length, 3);
+  assert.equal(client.tables.crm_opportunities.length, 3);
+});
+
+test('Supabase CRM explains the missing migration instead of inventing data', async () => {
+  const portal = createPortal(fakeCrmClient({ missingCrm: true }));
+  await assert.rejects(portal.listCrmContacts(), /supabase\/crm\.sql/);
+});
+
+test('CRM Supabase files and real calls page contain no fictional fallback', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const root = path.join(__dirname, '..');
+  const migration = fs.readFileSync(path.join(root, 'supabase/crm.sql'), 'utf8');
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.crm_contacts/);
+  assert.match(migration, /is_pk_admin/);
+  assert.doesNotMatch(migration, /INSERT INTO public\.crm_/i);
+  const schema = fs.readFileSync(path.join(root, 'supabase/schema.sql'), 'utf8');
+  assert.doesNotMatch(schema, /Appel à Projets 2026 : AgriTech & Transformation RDC/);
+  const callsPage = fs.readFileSync(path.join(root, 'appels-a-projets.html'), 'utf8');
+  assert.match(callsPage, /\/api\/public\/calls/);
+  assert.doesNotMatch(callsPage, /FALLBACK_CALLS|Fonds Jeunes Entrepreneurs/);
+  const adminPage = fs.readFileSync(path.join(root, 'public/admin/index.html'), 'utf8');
+  assert.match(adminPage, /data-route="crm"/);
+});

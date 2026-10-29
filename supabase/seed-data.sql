@@ -1,4 +1,7 @@
 -- PK GLOBAL PARTNERS - DONNÉES DE DÉMONSTRATION COMPLÈTES POUR SUPABASE
+-- ATTENTION : fichier de démonstration uniquement. Ne jamais l'appliquer à
+-- une base de production : il contient notamment des appels, candidatures et
+-- demandes fictifs. En production, les appels doivent être créés dans l'admin.
 
 -- 1. FILIALES
 INSERT INTO public.filiales (id, code, name, slogan, description, sector, logo_url, cover_image_url, phone, email, locations) VALUES (1, 'frivia', 'FRIVIA', 'Tout simplement délicieux', 'FRIVIA est une chaîne moderne de restauration rapide spécialisée dans les menus Frites & Viande, combinant rapidité, goût, hygiène et accessibilité avec des standards internationaux adaptés aux réalités locales.', 'Restauration rapide & Fast-food', '/logo.svg', 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80', '+243 814 119 635', 'frivia@pkglobalpartners.com', 'Kinshasa & Goma, RDC') ON CONFLICT (id) DO NOTHING;
