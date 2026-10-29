@@ -56,10 +56,11 @@ Ce module permet d'éditer dynamiquement les pages du site web sans toucher au c
 ---
 
 ### Module 3 : Appels à Projets & Candidatures (`#/calls` et `#/candidatures`)
-Ce module gère le processus d'incubation et d'accélération d'entreprises :
+Ce module gère le processus d'incubation et d'accélération d'entreprises. Il est disponible dans le menu de gauche (**Appels à projets**) en mode Node comme en mode Supabase :
 1. **Création d'un Appel à Projets :**
    - Cliquez sur **Créer un Appel à Projets**.
    - Définissez l'intitulé (ex: *Fonds AgriTech 2026*), le secteur ciblé, l'enveloppe budgétaire indicative et la date limite de clôture.
+   - **Publication :** choisissez le statut **Ouvert** pour afficher immédiatement l'appel sur la page publique « Appels à projets » du site. Le statut **Brouillon** reste invisible du public ; **Clôturé** reste affiché comme terminé. Les boutons **Publier / Dépublier / Clôturer** de chaque carte permettent de changer ce statut à tout moment.
 2. **Suivi des Candidatures :**
    - Filtrez les dossiers par statut : *Tous*, *Reçu*, *En évaluation*, *Retenu*, *Rejeté*.
    - Cliquez sur l'icône **Œil** pour afficher la fiche détaillée du candidat et télécharger son business plan joint.
@@ -72,6 +73,17 @@ Ce module gère le processus d'incubation et d'accélération d'entreprises :
    - Choisissez un modèle de message rapide (*Accusé de réception*, *Convocation entretien*, *Projet retenu*, *Projet non retenu*).
    - Si le serveur SMTP est configuré, l'email est envoyé au candidat et son état est archivé. L'interface indique explicitement si l'envoi a réussi ou si le SMTP n'est pas configuré.
 5. **Export Excel :** Cliquez sur le bouton vert **Exporter en Excel (.xlsx)** pour obtenir le fichier complet des candidatures.
+
+---
+
+### Module 3 bis : Médiathèque — Images du Site (`#/media`)
+Ce module (menu de gauche : **Médiathèque — Images**, mode Node comme Supabase) permet de **poster, modifier et supprimer les images du site** sans toucher au code :
+1. **Ajouter une image :** téléversez un fichier (JPG, PNG, WEBP ou GIF, 8 Mo max) ou collez son URL, puis renseignez un titre.
+2. **Section « Galerie » :** les images actives de cette section s'ajoutent automatiquement à la galerie « Réalisations sur le Terrain » de la page d'accueil.
+3. **Emplacement :** indiquez un emplacement connu pour remplacer une image précise du site — `accueil-hero` et `accueil-presentation` (page d'accueil), `galerie-1` à `galerie-5` (les cinq visuels de la galerie). Laissez l'emplacement vide pour simplement enrichir la galerie.
+4. **Modifier :** changez le titre, la section, l'emplacement, l'ordre d'affichage ou remplacez le fichier ; **Masquer/Publier** retire ou rétablit l'image sur le site ; **Supprimer** efface aussi le fichier téléversé.
+
+> En mode Supabase, le CRM (**CRM — Contacts & Pipeline**), les **Appels à projets** et la **Médiathèque** apparaissent dans le menu de gauche et sous forme de cartes sur le tableau de bord, avec leur état d'installation. Si une carte indique « À installer », exécutez la migration SQL indiquée (`supabase/crm.sql` ou `supabase/admin-modules.sql`) dans le SQL Editor du projet Supabase, puis rechargez la page.
 
 ---
 

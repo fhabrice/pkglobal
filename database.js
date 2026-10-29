@@ -285,6 +285,22 @@ function initializeDatabase() {
       status TEXT DEFAULT 'sent',
       sent_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS site_media (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      alt_text TEXT,
+      image_url TEXT NOT NULL,
+      storage_path TEXT,
+      section TEXT NOT NULL DEFAULT 'galerie' CHECK(section IN ('galerie', 'hero', 'filiales', 'general')),
+      placement TEXT,
+      link_url TEXT,
+      active INTEGER DEFAULT 1,
+      display_order INTEGER DEFAULT 0,
+      created_by INTEGER NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 
   secureSeededDemoAccounts();

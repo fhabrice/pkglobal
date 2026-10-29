@@ -79,6 +79,9 @@
     // Apply CMS-managed public content without injecting administrator text as HTML.
     syncManagedPublicContent();
 
+    // Apply admin-managed images (médiathèque) to placements and gallery.
+    syncManagedMedia();
+
     // 3. Intercept Contact Form if present
     const contactForm = document.getElementById('contact-form') || document.querySelector('form[action*="contact"]');
     if (contactForm) {
@@ -292,6 +295,115 @@
     } catch (error) {
       console.warn('Unable to load CMS-managed public content:', error);
     }
+  }
+
+  // Images gérées depuis l'espace admin (médiathèque).
+  // Source : GET /api/public/media (Node) ou table Supabase « site_media »
+  // (hébergement statique) — uniquement les images actives publiées en admin.
+  const SUPABASE_URL = 'https://vumerporrumovowyonfj.supabase.co';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_1clRgc8vKrinbm0VM7OR2g_BUnDZVV4';
+
+  function safeImageUrl(rawUrl) {
+    try {
+      const url = new URL(String(rawUrl || ''), window.location.origin);
+      return (url.protocol === 'http:' || url.protocol === 'https:') ? url.href : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async function syncManagedMedia() {
+    let media = null;
+    try {
+      const response = await fetch('/api/public/media', { headers: { Accept: 'application/json' }, cache: 'no-store' });
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data)) media = data;
+      }
+    } catch (_) {}
+    if (!media) {
+      try {
+        const query = 'select=id,title,alt_text,image_url,section,placement,link_url,display_order,created_at'
+          + '&active=is.true&order=display_order.asc,created_at.desc';
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/site_media?${query}`, {
+          headers: {
+            apikey: SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+            Accept: 'application/json'
+          },
+          cache: 'no-store'
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data)) media = data;
+        }
+      } catch (_) {}
+    }
+    if (!media || !media.length) return;
+
+    const activeMedia = media.filter((item) => item && item.active !== false && item.active !== 0 && safeImageUrl(item.image_url));
+    applyMediaPlacements(activeMedia);
+    renderMediaGallery(activeMedia);
+  }
+
+  function applyMediaPlacements(media) {
+    document.querySelectorAll('[data-media-slot]').forEach((element) => {
+      const slot = element.getAttribute('data-media-slot');
+      if (!slot) return;
+      const item = media.find((media2) => media2.placement === slot);
+      if (!item) return;
+      const imageUrl = safeImageUrl(item.image_url);
+      if (!imageUrl) return;
+      if (element.tagName === 'IMG') {
+        element.setAttribute('src', imageUrl);
+        element.setAttribute('alt', item.alt_text || item.title || element.getAttribute('alt') || '');
+      } else {
+        element.style.backgroundImage = `url("${imageUrl}")`;
+      }
+    });
+  }
+
+  function renderMediaGallery(media) {
+    const grid = document.getElementById('media-gallery-grid');
+    if (!grid) return;
+    media
+      .filter((item) => item.section === 'galerie' && !item.placement)
+      .forEach((item) => {
+        const imageUrl = safeImageUrl(item.image_url);
+        if (!imageUrl) return;
+        const card = document.createElement('div');
+        card.className = 'gallery-item h-80 group';
+
+        const linkUrl = item.link_url ? safeImageUrl(item.link_url) : null;
+        const wrapper = linkUrl ? document.createElement('a') : document.createElement('div');
+        if (linkUrl) {
+          wrapper.setAttribute('href', linkUrl);
+          wrapper.setAttribute('target', '_blank');
+          wrapper.setAttribute('rel', 'noopener');
+        }
+        wrapper.className = 'block w-full h-full relative';
+
+        const image = document.createElement('img');
+        image.src = imageUrl;
+        image.alt = item.alt_text || item.title || 'Image PK Global Partners';
+        image.loading = 'lazy';
+        image.className = 'w-full h-full object-cover';
+        wrapper.appendChild(image);
+
+        const overlay = document.createElement('div');
+        overlay.className = 'gallery-overlay';
+        const eyebrow = document.createElement('span');
+        eyebrow.className = 'text-yellow-400 text-xs font-bold uppercase tracking-widest mb-1';
+        eyebrow.textContent = 'PK Global';
+        const caption = document.createElement('h4');
+        caption.className = 'text-white font-bold text-lg';
+        caption.textContent = item.title || '';
+        overlay.append(eyebrow, caption);
+        wrapper.appendChild(overlay);
+
+        card.appendChild(wrapper);
+        grid.appendChild(card);
+      });
   }
 
   function renderPublicServices(services) {

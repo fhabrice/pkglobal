@@ -238,6 +238,24 @@ CREATE TABLE IF NOT EXISTS public.email_logs (
     sent_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- 19. MÉDIATHÈQUE (IMAGES GÉRÉES DEPUIS LE DASHBOARD ADMIN)
+-- RLS détaillée et bucket de stockage : voir supabase/admin-modules.sql
+CREATE TABLE IF NOT EXISTS public.site_media (
+    id BIGSERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    alt_text TEXT,
+    image_url TEXT NOT NULL,
+    storage_path TEXT,
+    section TEXT NOT NULL DEFAULT 'galerie' CHECK (section IN ('galerie', 'hero', 'filiales', 'general')),
+    placement TEXT,
+    link_url TEXT,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    display_order INT NOT NULL DEFAULT 0,
+    created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- ========================================================================
 -- SÉCURITÉ ROW LEVEL SECURITY (RLS) & POLITIQUES D'ACCÈS
 -- ========================================================================
@@ -258,6 +276,7 @@ ALTER TABLE public.visitor_stats ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.email_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.site_media ENABLE ROW LEVEL SECURITY;
 
 -- Politiques de lecture publique (pour le site web vitrine)
 CREATE POLICY "Public read filiales" ON public.filiales FOR SELECT USING (true);
@@ -265,6 +284,7 @@ CREATE POLICY "Public read services" ON public.services_poles FOR SELECT USING (
 CREATE POLICY "Public read news" ON public.news FOR SELECT USING (status = 'published');
 CREATE POLICY "Public read calls" ON public.call_for_projects FOR SELECT USING (status IN ('open', 'closed'));
 CREATE POLICY "Public read content" ON public.site_content FOR SELECT USING (true);
+CREATE POLICY "Public read active media" ON public.site_media FOR SELECT USING (active = true);
 CREATE POLICY "Public read products" ON public.filiale_products FOR SELECT USING (true);
 CREATE POLICY "Public read projects" ON public.filiale_projects FOR SELECT USING (true);
 
@@ -289,6 +309,14 @@ CREATE POLICY "Admins full access investors" ON public.investors FOR ALL USING (
 
 CREATE POLICY "Admins full access inquiries" ON public.inquiries FOR ALL USING (
     EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('superadmin', 'admin'))
+);
+
+CREATE POLICY "Admins full access calls" ON public.call_for_projects FOR ALL USING (
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND active = true AND role IN ('superadmin', 'admin'))
+);
+
+CREATE POLICY "Admins full access media" ON public.site_media FOR ALL USING (
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND active = true AND role IN ('superadmin', 'admin'))
 );
 
 -- Politiques Responsable de filiale (Accès strictement cloisonné)
@@ -332,3 +360,5 @@ ON CONFLICT DO NOTHING;
 -- Aucun appel à projets n'est seedé : la page publique doit afficher uniquement
 -- les appels réels créés et publiés par l'équipe dans l'espace d'administration.
 -- Module CRM : exécutez ensuite supabase/crm.sql (migration idempotente, sans données).
+-- Appels à projets (droits admin) + médiathèque/stockage images :
+-- exécutez supabase/admin-modules.sql (migration idempotente, sans données).

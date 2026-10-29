@@ -509,6 +509,12 @@ async function renderView(route) {
         await renderCallsView(container);
         break;
 
+      case 'media':
+        titleEl.textContent = 'Médiathèque — Images du site';
+        subEl.textContent = 'Ajouter, modifier ou supprimer les images affichées sur le site public';
+        await renderMediaView(container);
+        break;
+
       case 'candidatures':
         titleEl.textContent = 'Candidatures & Projets soumis';
         subEl.textContent = 'Évaluation, notation, téléchargement des dossiers et notifications';
@@ -1446,6 +1452,260 @@ async function deleteCall(id) {
     renderView('calls');
   } catch (err) {
     showToast(err.message, 'error');
+  }
+}
+
+// -------------------------------------------------------------
+// MODULE 2 BIS: MÉDIATHÈQUE — IMAGES DU SITE
+// -------------------------------------------------------------
+
+const MEDIA_SECTION_LABELS_NODE = {
+  galerie: 'Galerie (accueil)',
+  hero: 'Image principale (hero)',
+  filiales: 'Filiales',
+  general: 'Général'
+};
+const MEDIA_PLACEMENTS_NODE = ['accueil-hero', 'accueil-presentation', 'galerie-1', 'galerie-2', 'galerie-3', 'galerie-4', 'galerie-5'];
+let mediaCache = [];
+
+async function renderMediaView(container) {
+  mediaCache = await api('/api/media') || [];
+
+  container.innerHTML = `
+    <div class="space-y-6">
+      <div class="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white p-6 rounded-3xl shadow-xl">
+        <h3 class="text-lg font-black">Images du site</h3>
+        <p class="text-emerald-100/85 text-xs mt-1 max-w-3xl">Téléversez une image ou indiquez son URL. Les images <strong>actives</strong> de la section <strong>« Galerie »</strong> s’ajoutent à la galerie de la page d’accueil. Une image portant un <strong>emplacement</strong> connu (ex. <code>accueil-hero</code>, <code>galerie-1</code>) remplace l’image par défaut de cet emplacement sur le site.</p>
+      </div>
+
+      <div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs">
+        <h4 class="text-sm font-extrabold text-slate-800 mb-4"><i class="fas fa-cloud-arrow-up text-emerald-700 mr-2"></i>Ajouter une image</h4>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+          <div>
+            <label class="block font-bold mb-1">Fichier image (JPG, PNG, WEBP, GIF — 8 Mo max)</label>
+            <input type="file" id="media-file" accept="image/jpeg,image/png,image/webp,image/gif" onchange="mediaFileChosen(this)" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white">
+          </div>
+          <div>
+            <label class="block font-bold mb-1">… ou URL de l’image</label>
+            <input type="url" id="media-url" placeholder="https://exemple.com/image.jpg" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">
+          </div>
+          <div>
+            <label class="block font-bold mb-1">Titre *</label>
+            <input type="text" id="media-title" placeholder="Ex. Flotte ELVO à Goma" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">
+          </div>
+          <div>
+            <label class="block font-bold mb-1">Texte alternatif (accessibilité)</label>
+            <input type="text" id="media-alt" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">
+          </div>
+          <div>
+            <label class="block font-bold mb-1">Section du site</label>
+            <select id="media-section" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">
+              ${Object.entries(MEDIA_SECTION_LABELS_NODE).map(([value, label]) => `<option value="${value}" ${value === 'galerie' ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label class="block font-bold mb-1">Emplacement (optionnel)</label>
+            <input type="text" id="media-placement" list="media-placements" placeholder="Ex. accueil-hero ou galerie-1" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">
+            <datalist id="media-placements">${MEDIA_PLACEMENTS_NODE.map(value => `<option value="${value}"></option>`).join('')}</datalist>
+          </div>
+          <div>
+            <label class="block font-bold mb-1">Lien au clic (optionnel)</label>
+            <input type="url" id="media-link" placeholder="https://…" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-bold mb-1">Ordre d’affichage</label>
+              <input type="number" id="media-order" value="0" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">
+            </div>
+            <div>
+              <label class="block font-bold mb-1">Visibilité</label>
+              <select id="media-active" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"><option value="1" selected>Publiée sur le site</option><option value="0">Masquée</option></select>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 flex justify-end">
+          <button onclick="createMedia()" class="px-5 py-2.5 bg-emerald-900 hover:bg-emerald-800 text-yellow-400 text-xs font-bold rounded-xl shadow flex items-center gap-2"><i class="fas fa-plus"></i> Ajouter l’image</button>
+        </div>
+      </div>
+
+      ${mediaCache.length === 0 ? `
+        <div class="bg-white border border-dashed border-slate-300 rounded-3xl p-10 text-center">
+          <i class="fas fa-images text-3xl text-slate-300 mb-3"></i>
+          <p class="text-sm font-bold text-slate-700">Aucune image dans la médiathèque</p>
+          <p class="text-xs text-slate-500 mt-1">Ajoutez votre première image ci-dessus : elle apparaîtra sur le site selon sa section et son emplacement.</p>
+        </div>` : `
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          ${mediaCache.map(item => `
+            <div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col">
+              <div class="relative h-44 bg-slate-100">
+                <img src="${escapeHtml(item.image_url)}" alt="${escapeHtml(item.alt_text || item.title)}" class="w-full h-full object-cover" loading="lazy">
+                <span class="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${item.active ? 'bg-emerald-600 text-white' : 'bg-slate-600 text-white'}">${item.active ? 'Publiée' : 'Masquée'}</span>
+              </div>
+              <div class="p-4 flex-1 flex flex-col gap-2">
+                <strong class="text-sm text-slate-800">${escapeHtml(item.title)}</strong>
+                <div class="text-[11px] text-slate-500 space-y-0.5">
+                  <div>Section : <strong>${escapeHtml(MEDIA_SECTION_LABELS_NODE[item.section] || item.section)}</strong>${item.placement ? ` · Emplacement : <code>${escapeHtml(item.placement)}</code>` : ''}</div>
+                  <div>Ordre : ${Number(item.display_order || 0)} · Ajoutée le ${item.created_at ? new Date(String(item.created_at).replace(' ', 'T')).toLocaleDateString('fr-FR') : '—'}</div>
+                  <div class="truncate" title="${escapeHtml(item.image_url)}">${escapeHtml(item.image_url)}</div>
+                </div>
+                <div class="flex flex-wrap gap-2 pt-2 mt-auto border-t border-slate-100">
+                  <button onclick="openMediaModal(${Number(item.id)})" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl">Modifier</button>
+                  <button onclick="toggleMedia(${Number(item.id)})" class="px-3 py-1.5 ${item.active ? 'bg-amber-50 hover:bg-amber-100 text-amber-700' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800'} text-xs font-semibold rounded-xl">${item.active ? 'Masquer' : 'Publier'}</button>
+                  <button onclick="copyMediaUrl(${Number(item.id)})" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl">Copier l’URL</button>
+                  <button onclick="deleteMedia(${Number(item.id)})" class="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold rounded-xl">Supprimer</button>
+                </div>
+              </div>
+            </div>`).join('')}
+        </div>`}
+    </div>
+  `;
+}
+
+function mediaFileChosen(input) {
+  const titleInput = document.getElementById('media-title');
+  if (input.files && input.files[0] && titleInput && !titleInput.value) {
+    titleInput.value = String(input.files[0].name || '').replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
+  }
+}
+
+async function createMedia() {
+  try {
+    const fileInput = document.getElementById('media-file');
+    const file = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+    const fields = {
+      title: document.getElementById('media-title').value,
+      alt_text: document.getElementById('media-alt').value,
+      section: document.getElementById('media-section').value,
+      placement: document.getElementById('media-placement').value,
+      link_url: document.getElementById('media-link').value,
+      display_order: document.getElementById('media-order').value,
+      active: document.getElementById('media-active').value === '1'
+    };
+    if (!fields.title.trim()) throw new Error('Titre de l’image requis.');
+    if (file) {
+      const formData = new FormData();
+      formData.append('image', file);
+      Object.entries(fields).forEach(([key, value]) => formData.append(key, key === 'active' ? (value ? '1' : '0') : value));
+      await api('/api/media/upload', { method: 'POST', body: formData });
+    } else {
+      const imageUrl = document.getElementById('media-url').value.trim();
+      if (!imageUrl) throw new Error('Choisissez un fichier image ou indiquez une URL d’image.');
+      await api('/api/media', { method: 'POST', body: { ...fields, image_url: imageUrl } });
+    }
+    showToast('Image ajoutée à la médiathèque.');
+    renderView('media');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function openMediaModal(id) {
+  const item = mediaCache.find(media => Number(media.id) === Number(id));
+  if (!item) { showToast('Image introuvable. Rechargez la médiathèque.', 'error'); return; }
+  openModal('Modifier l’image', `
+    <div class="space-y-4 text-xs">
+      <div class="rounded-2xl overflow-hidden border border-slate-200"><img src="${escapeHtml(item.image_url)}" alt="${escapeHtml(item.alt_text || item.title)}" class="w-full h-44 object-cover"></div>
+      <div>
+        <label class="block font-bold mb-1">Remplacer par un nouveau fichier (optionnel)</label>
+        <input type="file" id="media-edit-file" accept="image/jpeg,image/png,image/webp,image/gif" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white">
+      </div>
+      <div>
+        <label class="block font-bold mb-1">URL de l’image *</label>
+        <input type="url" id="media-edit-url" value="${escapeHtml(item.image_url)}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">
+      </div>
+      <div>
+        <label class="block font-bold mb-1">Titre *</label>
+        <input type="text" id="media-edit-title" value="${escapeHtml(item.title)}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">
+      </div>
+      <div>
+        <label class="block font-bold mb-1">Texte alternatif</label>
+        <input type="text" id="media-edit-alt" value="${escapeHtml(item.alt_text || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block font-bold mb-1">Section</label>
+          <select id="media-edit-section" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">${Object.entries(MEDIA_SECTION_LABELS_NODE).map(([value, label]) => `<option value="${value}" ${item.section === value ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('')}</select>
+        </div>
+        <div>
+          <label class="block font-bold mb-1">Emplacement</label>
+          <input type="text" id="media-edit-placement" list="media-placements-edit" value="${escapeHtml(item.placement || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">
+          <datalist id="media-placements-edit">${MEDIA_PLACEMENTS_NODE.map(value => `<option value="${value}"></option>`).join('')}</datalist>
+        </div>
+        <div>
+          <label class="block font-bold mb-1">Lien au clic</label>
+          <input type="url" id="media-edit-link" value="${escapeHtml(item.link_url || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold mb-1">Ordre</label>
+            <input type="number" id="media-edit-order" value="${Number(item.display_order || 0)}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">
+          </div>
+          <div>
+            <label class="block font-bold mb-1">Visibilité</label>
+            <select id="media-edit-active" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"><option value="1" ${item.active ? 'selected' : ''}>Publiée</option><option value="0" ${item.active ? '' : 'selected'}>Masquée</option></select>
+          </div>
+        </div>
+      </div>
+    </div>
+  `, async () => {
+    let imageUrl = document.getElementById('media-edit-url').value.trim();
+    const fileInput = document.getElementById('media-edit-file');
+    const file = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+    if (file) {
+      const formData = new FormData();
+      formData.append('image', file);
+      const replaced = await api(`/api/media/${Number(item.id)}/replace`, { method: 'POST', body: formData });
+      if (replaced && replaced.media) imageUrl = replaced.media.image_url;
+    }
+    await api(`/api/media/${Number(item.id)}`, {
+      method: 'PUT',
+      body: {
+        title: document.getElementById('media-edit-title').value,
+        alt_text: document.getElementById('media-edit-alt').value,
+        image_url: imageUrl,
+        section: document.getElementById('media-edit-section').value,
+        placement: document.getElementById('media-edit-placement').value,
+        link_url: document.getElementById('media-edit-link').value,
+        display_order: document.getElementById('media-edit-order').value,
+        active: document.getElementById('media-edit-active').value === '1'
+      }
+    });
+    showToast('Image mise à jour.');
+    renderView('media');
+  });
+}
+
+async function toggleMedia(id) {
+  const item = mediaCache.find(media => Number(media.id) === Number(id));
+  if (!item) return;
+  try {
+    await api(`/api/media/${Number(id)}`, { method: 'PUT', body: { ...item, active: !item.active } });
+    showToast(item.active ? 'Image masquée du site public.' : 'Image publiée sur le site.');
+    renderView('media');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function deleteMedia(id) {
+  if (!confirm('Supprimer définitivement cette image ? Le fichier téléversé sera aussi supprimé du serveur.')) return;
+  try {
+    await api(`/api/media/${Number(id)}`, { method: 'DELETE' });
+    showToast('Image supprimée.');
+    renderView('media');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function copyMediaUrl(id) {
+  const item = mediaCache.find(media => Number(media.id) === Number(id));
+  if (!item) return;
+  try {
+    await navigator.clipboard.writeText(item.image_url);
+    showToast('URL de l’image copiée.');
+  } catch (e) {
+    showToast(`URL de l’image : ${item.image_url}`, 'info');
   }
 }
 
@@ -3728,6 +3988,19 @@ async function renderFormationView(container) {
             <p><strong>Rapport PDF :</strong> Cliquez sur <em>Statistiques & Rapports</em> puis <em>Télécharger le PDF Officiel</em> pour générer le bilan d'activité.</p>
             <p><strong>Export Excel :</strong> Cliquez sur le bouton vert <em>Exporter en Excel</em> présent dans les modules Candidatures, Investisseurs et CRM.</p>
             <p><strong>Sauvegarde de sécurité :</strong> Accédez à <em>Sauvegardes & Sécurité</em> puis cliquez sur <em>Créer une Sauvegarde Maintenant</em>.</p>
+          </div>
+        </div>
+
+        <div class="pt-6 border-t border-slate-100">
+          <h3 class="text-base font-extrabold text-emerald-950 mb-3 flex items-center gap-2">
+            <i class="fas fa-images text-emerald-600"></i>
+            Procédure 5 : Poster et Gérer les Images du Site (Médiathèque)
+          </h3>
+          <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2">
+            <p><strong>Étape 1 :</strong> Ouvrez <strong>Médiathèque — Images</strong> dans le menu de gauche.</p>
+            <p><strong>Étape 2 :</strong> Téléversez un fichier image (ou collez son URL), donnez-lui un titre, puis cliquez sur <em>Ajouter l’image</em>.</p>
+            <p><strong>Étape 3 :</strong> Section <em>Galerie</em> = l’image s’ajoute à la galerie de la page d’accueil. Un <em>emplacement</em> (ex. <code>accueil-hero</code>, <code>galerie-1</code>) remplace l’image par défaut de cet endroit du site.</p>
+            <p><strong>Étape 4 :</strong> Utilisez <em>Modifier</em> pour remplacer le fichier ou corriger les informations, <em>Masquer/Publier</em> pour la visibilité, et <em>Supprimer</em> pour la retirer définitivement.</p>
           </div>
         </div>
 

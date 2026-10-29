@@ -39,6 +39,8 @@ La plateforme web et l'espace administrateur de **PK GLOBAL PARTNERS** ont été
 2. Après sauvegarde et revue RLS, exécutez `supabase/admin-access.sql` pour le tableau de bord.
 3. Exécutez ensuite `supabase/crm.sql`. Cette migration idempotente crée `crm_contacts`, `crm_opportunities` et `crm_activities`, leurs index et des politiques d'accès complet réservées aux administrateurs actifs. Elle n'injecte aucune donnée.
 4. Connectez-vous à `/admin`, ouvrez **CRM — Contacts & Pipeline**, puis cliquez sur **Synchroniser les sources** pour importer sans doublons les demandes, investisseurs et candidatures déjà présents dans Supabase.
+5. Exécutez enfin `supabase/admin-modules.sql`. Cette migration idempotente donne aux administrateurs actifs le droit de créer, publier, modifier et supprimer les **appels à projets** depuis `/admin`, crée la table `site_media` (médiathèque) et le bucket public de stockage `site-media` pour les **images du site**. Elle n'injecte aucune donnée.
+6. Reconnectez-vous à `/admin` : le tableau de bord affiche l'état réel de chaque module (CRM, Appels à projets, Médiathèque). Un module signalé « À installer » indique la migration SQL restant à exécuter.
 
 ### Données de démonstration (option local uniquement)
 `supabase/seed-data.sql` contient des appels, candidatures, investisseurs et demandes fictifs. Ne l'appliquez jamais à une base de production. En production, les appels doivent être créés et publiés par l'équipe ; une page Appels vide est correcte tant qu'aucun appel réel n'est publié.

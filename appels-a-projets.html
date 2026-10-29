@@ -415,13 +415,46 @@
         });
 
         // --- Appels à projets : données réelles uniquement ---
-        // La liste provient exclusivement de GET /api/public/calls, qui ne
-        // retourne que les appels ouverts ou clôturés publiés dans l'admin.
+        // La liste provient de GET /api/public/calls (hébergement Node) ou, à
+        // défaut, de la table Supabase « call_for_projects » (hébergement
+        // statique) : dans les deux cas, uniquement les appels ouverts ou
+        // clôturés réellement publiés depuis l'espace admin.
         // Aucun appel de démonstration ou de secours n'est affiché.
+        const SUPABASE_URL = 'https://vumerporrumovowyonfj.supabase.co';
+        const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_1clRgc8vKrinbm0VM7OR2g_BUnDZVV4';
         let currentCalls = [];
         let callsLoaded = false;
         let callsLoadFailed = false;
+        let callsSource = null; // 'api' (Node) ou 'supabase' (statique)
         let currentFilter = 'all';
+
+        async function fetchCallsFromNodeApi() {
+            const response = await fetch('/api/public/calls', {
+                headers: { 'Accept': 'application/json' },
+                cache: 'no-store'
+            });
+            if (!response.ok) throw new Error('API indisponible');
+            const calls = await response.json();
+            if (!Array.isArray(calls)) throw new Error('Réponse API invalide');
+            return calls;
+        }
+
+        async function fetchCallsFromSupabase() {
+            const query = 'select=id,title,description,target_sector,budget_indicatif,eligibility,deadline,status,created_at'
+                + '&status=in.(open,closed)&order=deadline.desc';
+            const response = await fetch(SUPABASE_URL + '/rest/v1/call_for_projects?' + query, {
+                headers: {
+                    'apikey': SUPABASE_PUBLISHABLE_KEY,
+                    'Authorization': 'Bearer ' + SUPABASE_PUBLISHABLE_KEY,
+                    'Accept': 'application/json'
+                },
+                cache: 'no-store'
+            });
+            if (!response.ok) throw new Error('Supabase indisponible');
+            const calls = await response.json();
+            if (!Array.isArray(calls)) throw new Error('Réponse Supabase invalide');
+            return calls;
+        }
 
         function parseDeadline(value) {
             if (!value) return null;
@@ -641,13 +674,16 @@
             syncCallSelect();
 
             try {
-                const response = await fetch('/api/public/calls', {
-                    headers: { 'Accept': 'application/json' },
-                    cache: 'no-store'
-                });
-                if (!response.ok) throw new Error('API indisponible');
-                const calls = await response.json();
-                if (!Array.isArray(calls)) throw new Error('Réponse API invalide');
+                let calls;
+                try {
+                    calls = await fetchCallsFromNodeApi();
+                    callsSource = 'api';
+                } catch (nodeError) {
+                    // Hébergement statique sans API Node : lecture directe des
+                    // appels publiés dans Supabase (RLS : open/closed uniquement).
+                    calls = await fetchCallsFromSupabase();
+                    callsSource = 'supabase';
+                }
                 currentCalls = calls;
                 callsLoaded = true;
                 renderCalls();
@@ -666,6 +702,46 @@
 
         document.getElementById('retry-calls').addEventListener('click', loadCalls);
         loadCalls();
+
+        // Dépôt direct dans Supabase quand le site est hébergé sans l'API Node
+        // (politique RLS « Public insert candidatures »). Le document joint ne
+        // peut pas être téléversé dans ce mode : le candidat est invité à
+        // l'envoyer par email avec sa référence de dossier.
+        async function submitCandidatureToSupabase(formData, documentInput) {
+            const callIdValue = formData.get('call_id');
+            const documentName = documentInput && documentInput.files.length ? documentInput.files[0].name : null;
+            let details = String(formData.get('details') || '');
+            if (documentName) {
+                details = (details ? details + '\n\n' : '') + '[Document annoncé : « ' + documentName + ' » — à recevoir par email]';
+            }
+            const payload = {
+                call_id: callIdValue ? Number(callIdValue) : null,
+                candidate_name: String(formData.get('candidate_name') || ''),
+                candidate_email: String(formData.get('candidate_email') || ''),
+                candidate_phone: String(formData.get('candidate_phone') || '') || null,
+                project_title: String(formData.get('project_title') || ''),
+                sector: String(formData.get('sector') || ''),
+                location: String(formData.get('location') || ''),
+                funding_requested: Number(formData.get('funding_requested')) || 0,
+                currency: String(formData.get('currency') || 'USD'),
+                summary: String(formData.get('summary') || ''),
+                details: details || null,
+                document_name: documentName
+            };
+            const response = await fetch(SUPABASE_URL + '/rest/v1/candidatures', {
+                method: 'POST',
+                headers: {
+                    'apikey': SUPABASE_PUBLISHABLE_KEY,
+                    'Authorization': 'Bearer ' + SUPABASE_PUBLISHABLE_KEY,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'return=representation'
+                },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) throw new Error('Dépôt Supabase impossible');
+            const rows = await response.json();
+            return { id: Array.isArray(rows) && rows[0] ? rows[0].id : null, documentName };
+        }
 
         // --- Soumission de la candidature vers l'API existante ---
         const form = document.getElementById('candidature-form');
@@ -694,10 +770,17 @@
                 const documentInput = document.getElementById('document');
                 if (documentInput && !documentInput.files.length) formData.delete('document');
 
-                const response = await fetch('/api/candidatures', { method: 'POST', body: formData });
-                const result = await response.json().catch(() => ({}));
+                let result = null;
+                let nodeApiUnavailable = false;
+                try {
+                    const response = await fetch('/api/candidatures', { method: 'POST', body: formData });
+                    result = await response.json().catch(() => null);
+                    if (!response.ok || !result || (!result.success && !result.error)) nodeApiUnavailable = true;
+                } catch (networkError) {
+                    nodeApiUnavailable = true;
+                }
 
-                if (response.ok && result.success) {
+                if (!nodeApiUnavailable && result && result.success) {
                     document.getElementById('form-success-message').textContent =
                         'Votre dossier a été enregistré sous la référence #CAND-' + result.id + ' et transmis au comité de sélection. ' +
                         (result.email_status === 'sent'
@@ -706,9 +789,24 @@
                     successBox.classList.remove('hidden');
                     form.reset();
                     successBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                } else {
+                } else if (!nodeApiUnavailable && result && result.error) {
                     document.getElementById('form-error-message').textContent =
                         result.error || 'Une erreur est survenue lors du dépôt. Veuillez réessayer ou nous écrire à info@pkglobalpartners.com.';
+                    errorBox.classList.remove('hidden');
+                    errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else if (callsSource === 'supabase') {
+                    const inserted = await submitCandidatureToSupabase(formData, documentInput);
+                    document.getElementById('form-success-message').textContent =
+                        'Votre dossier a été enregistré sous la référence #CAND-' + inserted.id + ' et transmis au comité de sélection. ' +
+                        (inserted.documentName
+                            ? 'Pour joindre votre document « ' + inserted.documentName + ' », transmettez-le par email à info@pkglobalpartners.com en rappelant cette référence.'
+                            : 'La confirmation par email n’est pas disponible actuellement, mais votre dossier est bien enregistré.');
+                    successBox.classList.remove('hidden');
+                    form.reset();
+                    successBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                    document.getElementById('form-error-message').textContent =
+                        'Impossible de joindre le serveur de dépôt. Veuillez réessayer plus tard ou transmettre votre dossier à info@pkglobalpartners.com.';
                     errorBox.classList.remove('hidden');
                     errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
