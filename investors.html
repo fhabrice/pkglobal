@@ -20,6 +20,7 @@
             background-color: #ffffff;
             color: #1a2e1a;
             scroll-behavior: smooth;
+            overflow-x: hidden;
         }
 
         nav {
@@ -97,23 +98,24 @@
                     <img src="logo.svg" alt="PK Global Partners Logo" class="h-10 w-auto object-contain">
                 </div>
                 <div class="flex flex-col">
-                    <span class="font-bold text-lg uppercase tracking-widest leading-none">Global Partners</span>
+                    <span class="font-bold text-base sm:text-lg uppercase tracking-widest leading-none">Global Partners</span>
                     <span class="text-[9px] uppercase tracking-[0.3em] text-emerald-300 font-semibold">Holding Panafricaine</span>
                 </div>
             </a>
             
-            <div class="hidden lg:flex items-center space-x-10 text-[11px] font-bold uppercase tracking-[0.15em]">
+            <div class="hidden xl:flex items-center space-x-6 text-[11px] font-bold uppercase tracking-[0.15em]">
                 <a href="index.html#accueil" class="nav-link hover:text-yellow-400">Accueil</a>
                 <a href="about.html" class="nav-link hover:text-yellow-400">À Propos</a>
                 <a href="index.html#poles" class="nav-link hover:text-yellow-400">Expertise</a>
                 <a href="filiales.html" class="nav-link hover:text-yellow-400">Filiales</a>
                 <a href="investors.html" class="nav-link hover:text-yellow-400">Investisseurs</a>
+                <a href="appels-a-projets.html" class="nav-link hover:text-yellow-400">Appels à Projets</a>
                 <a href="tel:+243814119635" class="bg-yellow-400 text-green-900 px-6 py-3 rounded-xl hover:bg-white transition-colors duration-300 shadow-lg flex items-center gap-2">
                     <i class="fas fa-phone-alt text-[10px]"></i> Contact
                 </a>
             </div>
 
-            <button class="lg:hidden text-2xl p-2 hover:bg-white/10 rounded-lg transition"><i class="fas fa-bars"></i></button>
+            <button class="xl:hidden text-2xl p-2 hover:bg-white/10 rounded-lg transition"><i class="fas fa-bars"></i></button>
         </div>
     </nav>
 
@@ -146,7 +148,7 @@
         <div class="max-w-7xl mx-auto">
             <h2 class="text-4xl font-extrabold text-emerald-950 mb-12 text-center">Thèse d'Investissement</h2>
 
-            <div class="bg-white p-12 rounded-3xl border-2 border-emerald-200 mb-12">
+            <div class="bg-white p-6 md:p-12 rounded-3xl border-2 border-emerald-200 mb-12">
                 <p class="text-xl text-emerald-950 leading-relaxed mb-8">
                     PK GLOBAL PARTNERS investit et développe des projets structurants dans des secteurs stratégiques à fort potentiel en Afrique, en combinant :
                 </p>
@@ -328,7 +330,7 @@
                 <p class="text-lg text-gray-600">Intéressé par une opportunité ? Contactez directement notre équipe</p>
             </div>
 
-            <form class="bg-white p-12 rounded-3xl border-2 border-emerald-200" onsubmit="handleSubmit(event)">
+            <form class="bg-white p-6 md:p-12 rounded-3xl border-2 border-emerald-200" onsubmit="handleSubmit(event)">
                 <div class="grid md:grid-cols-2 gap-8 mb-8">
                     <div>
                         <label class="block text-sm font-bold text-emerald-950 mb-3">Nom complet *</label>
@@ -415,14 +417,14 @@
                     <label class="ml-3 text-sm text-gray-600">J'accepte que mes données soient traitées aux fins de cette demande *</label>
                 </div>
 
-                <button type="submit" class="btn-gold w-full py-4 rounded-2xl font-bold uppercase tracking-[0.2em] text-lg">
+                <button type="submit" class="btn-gold w-full py-4 rounded-2xl font-bold uppercase tracking-[0.12em] sm:tracking-[0.2em] text-sm sm:text-lg">
                     Envoyer ma demande
                 </button>
             </form>
 
             <div class="mt-12 text-center">
                 <p class="text-gray-600 mb-4">Préférez le contact direct ?</p>
-                <a href="mailto:investors@pkglobalpartners.com" class="text-emerald-600 font-bold text-lg hover:underline">
+                <a href="mailto:investors@pkglobalpartners.com" class="text-emerald-600 font-bold text-base sm:text-lg hover:underline break-all">
                     📧 investors@pkglobalpartners.com
                 </a>
             </div>
@@ -439,10 +441,10 @@
                 <h2 class="text-3xl font-bold uppercase tracking-[0.2em] mb-4">Global Partners</h2>
                 <div class="flex flex-col gap-2 mb-4">
                     <p class="text-emerald-100/70 max-w-lg text-sm mx-auto">Siège Social : Boulevard Kanyamuhanga, n°4, Ville de Goma, République Démocratique du Congo.</p>
-                    <a href="tel:+243814119635" class="text-yellow-400 font-bold text-lg hover:underline transition">
+                    <a href="tel:+243814119635" class="text-yellow-400 font-bold text-base sm:text-lg hover:underline transition break-all">
                         <i class="fas fa-phone-alt mr-2 text-sm"></i> +243 814 119 635
                     </a>
-                    <a href="mailto:investors@pkglobalpartners.com" class="text-yellow-400 font-bold text-lg hover:underline transition">
+                    <a href="mailto:investors@pkglobalpartners.com" class="text-yellow-400 font-bold text-base sm:text-lg hover:underline transition break-all">
                         <i class="fas fa-envelope mr-2 text-sm"></i> investors@pkglobalpartners.com
                     </a>
                 </div>

@@ -22,6 +22,7 @@
             background-color: #ffffff;
             color: #1a2e1a;
             scroll-behavior: smooth;
+            overflow-x: hidden;
         }
 
         nav {
@@ -143,24 +144,25 @@
                     <img src="logo.svg" alt="PK Global Partners Logo" class="h-10 w-auto object-contain">
                 </div>
                 <div class="flex flex-col">
-                    <span class="font-bold text-lg uppercase tracking-widest leading-none">Global Partners</span>
+                    <span class="font-bold text-base sm:text-lg uppercase tracking-widest leading-none">Global Partners</span>
                     <span class="text-[9px] uppercase tracking-[0.3em] text-emerald-300 font-semibold">Holding Panafricaine</span>
                 </div>
             </a>
             
-            <div class="hidden lg:flex items-center space-x-10 text-[11px] font-bold uppercase tracking-[0.15em]">
+            <div class="hidden xl:flex items-center space-x-6 text-[11px] font-bold uppercase tracking-[0.15em]">
                 <a href="index.html#accueil" class="nav-link hover:text-yellow-400">Accueil</a>
                 <a href="about.html" class="nav-link hover:text-yellow-400">À Propos</a>
                 <a href="index.html#poles" class="nav-link hover:text-yellow-400">Expertise</a>
                 <a href="filiales.html" class="nav-link hover:text-yellow-400">Filiales</a>
                 <a href="investors.html" class="nav-link hover:text-yellow-400">Investisseurs</a>
+                <a href="appels-a-projets.html" class="nav-link hover:text-yellow-400">Appels à Projets</a>
                 <a href="careers.html" class="nav-link hover:text-yellow-400">Carrières</a>
                 <a href="contact.html" class="bg-yellow-400 text-green-900 px-6 py-3 rounded-xl hover:bg-white transition-colors duration-300 shadow-lg flex items-center gap-2">
                     <i class="fas fa-phone-alt text-[10px]"></i> Contact
                 </a>
             </div>
 
-            <button class="lg:hidden text-2xl p-2 hover:bg-white/10 rounded-lg transition"><i class="fas fa-bars"></i></button>
+            <button class="xl:hidden text-2xl p-2 hover:bg-white/10 rounded-lg transition"><i class="fas fa-bars"></i></button>
         </div>
     </nav>
 
@@ -272,7 +274,7 @@
                 <p class="text-lg text-gray-600">Remplissez le formulaire ci-dessous et nous vous répondrons dans les 24 heures.</p>
             </div>
 
-            <form id="contact-form" class="bg-white p-12 rounded-3xl shadow-2xl" onsubmit="handleSubmit(event)">
+            <form id="contact-form" class="bg-white p-6 md:p-12 rounded-3xl shadow-2xl" onsubmit="handleSubmit(event)">
                 <div class="grid md:grid-cols-2 gap-6 mb-6">
                     <div>
                         <label class="block text-sm font-bold text-emerald-950 mb-3">Nom Complet *</label>
@@ -383,6 +385,7 @@
                     <h4 class="font-bold text-lg mb-4">Services</h4>
                     <ul class="space-y-2 text-sm text-emerald-200">
                         <li><a href="investors.html" class="hover:text-white">Investisseurs</a></li>
+                        <li><a href="appels-a-projets.html" class="hover:text-white">Appels à Projets</a></li>
                         <li><a href="careers.html" class="hover:text-white">Carrières</a></li>
                         <li><a href="filiales.html" class="hover:text-white">Filiales</a></li>
                     </ul>

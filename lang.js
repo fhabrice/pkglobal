@@ -9,6 +9,7 @@ const translations = {
         nav_filiales: "Filiales",
         nav_investors: "Investisseurs",
         nav_careers: "Carrières",
+        nav_calls: "Appels à Projets",
         nav_contact: "Contact",
         
         hero_title: "Transformer l'Afrique par<br><span class='text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-500'>l'Investissement d'Impact</span>",
@@ -39,6 +40,7 @@ const translations = {
         nav_filiales: "Subsidiaries",
         nav_investors: "Investors",
         nav_careers: "Careers",
+        nav_calls: "Calls for Projects",
         nav_contact: "Contact",
         
         hero_title: "Transform Africa Through<br><span class='text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-500'>Impact Investment</span>",

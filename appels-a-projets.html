@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Appels à Projets | PK GLOBAL PARTNERS</title>
+    <meta name="description" content="Découvrez les appels à projets ouverts de PK GLOBAL PARTNERS et déposez votre dossier de candidature : financement, structuration et accompagnement de projets à fort impact en RDC et en Afrique.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap');
+
+        :root {
+            --pk-green-dark: #064e3b;
+            --pk-green-main: #059669;
+            --pk-gold: #fbbf24;
+            --pk-soft-bg: #f0fdf4;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #ffffff;
+            color: #1a2e1a;
+            scroll-behavior: smooth;
+            overflow-x: hidden;
+        }
+
+        nav {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .nav-link {
+            position: relative;
+            transition: color 0.3s ease;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -4px;
+            left: 0;
+            background-color: var(--pk-gold);
+            transition: width 0.3s ease;
+        }
+
+        .nav-link:hover::after {
+            width: 100%;
+        }
+
+        .nav-link.active {
+            color: var(--pk-gold);
+        }
+
+        .nav-link.active::after {
+            width: 100%;
+        }
+
+        .nav-scrolled {
+            background: rgba(6, 78, 59, 0.98);
+            backdrop-filter: blur(12px);
+            padding-top: 0.75rem !important;
+            padding-bottom: 0.75rem !important;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+
+        .hero-gradient {
+            background: linear-gradient(to right, rgba(6, 78, 59, 0.9), rgba(6, 78, 59, 0.6)),
+                        url('https://images.unsplash.com/photo-1521791136064-7986c2920216?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80');
+            background-size: cover;
+            background-position: center;
+        }
+
+        .call-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid var(--pk-gold);
+        }
+
+        .call-card:hover {
+            transform: translateX(8px);
+            box-shadow: 0 10px 30px rgba(5, 150, 105, 0.1);
+        }
+
+        .call-card.closed {
+            border-left-color: #cbd5e1;
+            opacity: 0.75;
+        }
+
+        .call-card.closed:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .filter-btn {
+            transition: all 0.3s ease;
+        }
+
+        .filter-btn.active {
+            background-color: var(--pk-green-dark);
+            color: var(--pk-gold);
+            border-color: var(--pk-green-dark);
+        }
+
+        .btn-gold {
+            background-color: var(--pk-gold);
+            color: #064e3b;
+            transition: all 0.3s ease;
+        }
+
+        .btn-gold:hover {
+            background-color: #f59e0b;
+            transform: scale(1.05);
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: var(--pk-green-dark); border-radius: 10px; }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- NAVIGATION -->
+    <nav id="navbar" class="fixed w-full z-50 py-6 px-6 md:px-12 text-white">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <a href="index.html" class="flex items-center space-x-3 group">
+                <div class="bg-white p-1 rounded-lg shadow-lg group-hover:scale-105 transition-transform flex items-center justify-center overflow-hidden">
+                    <img src="logo.svg" alt="PK Global Partners Logo" class="h-10 w-auto object-contain">
+                </div>
+                <div class="flex flex-col">
+                    <span class="font-bold text-base sm:text-lg uppercase tracking-widest leading-none">Global Partners</span>
+                    <span class="text-[9px] uppercase tracking-[0.3em] text-emerald-300 font-semibold">Holding Panafricaine</span>
+                </div>
+            </a>
+
+            <div class="hidden xl:flex items-center space-x-6 text-[11px] font-bold uppercase tracking-[0.15em]">
+                <a href="index.html#accueil" class="nav-link hover:text-yellow-400">Accueil</a>
+                <a href="about.html" class="nav-link hover:text-yellow-400">À Propos</a>
+                <a href="index.html#poles" class="nav-link hover:text-yellow-400">Expertise</a>
+                <a href="filiales.html" class="nav-link hover:text-yellow-400">Filiales</a>
+                <a href="investors.html" class="nav-link hover:text-yellow-400">Investisseurs</a>
+                <a href="appels-a-projets.html" class="nav-link active hover:text-yellow-400" aria-current="page">Appels à Projets</a>
+                <a href="careers.html" class="nav-link hover:text-yellow-400">Carrières</a>
+                <a href="contact.html" class="bg-yellow-400 text-green-900 px-6 py-3 rounded-xl hover:bg-white transition-colors duration-300 shadow-lg flex items-center gap-2">
+                    <i class="fas fa-phone-alt text-[10px]"></i> Contact
+                </a>
+            </div>
+
+            <button class="xl:hidden text-2xl p-2 hover:bg-white/10 rounded-lg transition" aria-label="Ouvrir le menu"><i class="fas fa-bars"></i></button>
+        </div>
+    </nav>
+
+    <!-- HERO SECTION -->
+    <section class="hero-gradient min-h-[60vh] flex items-center justify-center pt-24 pb-12 px-6">
+        <div class="max-w-7xl mx-auto w-full text-center">
+            <p class="inline-flex items-center justify-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 text-yellow-300 text-[11px] sm:text-xs font-bold uppercase tracking-[0.12em] sm:tracking-[0.2em] px-4 sm:px-5 py-2.5 rounded-full mb-8 max-w-full text-center">
+                <i class="fas fa-bullhorn"></i> <span id="open-calls-count">2</span>&nbsp;appel(s) ouvert(s) actuellement
+            </p>
+            <h1 class="text-4xl md:text-6xl lg:text-7xl font-extrabold text-white leading-[1.1] mb-8">
+                Appels à Projets
+            </h1>
+            <p class="text-lg md:text-xl text-emerald-50 max-w-3xl mx-auto font-light leading-relaxed opacity-90 mb-10">
+                Vous portez un projet à fort impact économique ou social ? PK GLOBAL PARTNERS sélectionne, structure et finance des initiatives entrepreneuriales en RDC et en Afrique.
+            </p>
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <a href="#appels" class="btn-gold inline-block text-center w-full sm:w-64 py-4 rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-2xl">Voir les appels ouverts</a>
+                <a href="#candidature" class="inline-block text-center bg-white/10 backdrop-blur-md border border-white/20 w-full sm:w-64 py-4 rounded-2xl font-bold text-xs uppercase tracking-[0.2em] text-white hover:bg-white/20 transition">Déposer ma candidature</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- INTRODUCTION -->
+    <section class="py-24 px-6 md:px-12 bg-white">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-extrabold text-emerald-950 mb-8">Donnez à votre projet les moyens de réussir</h2>
+                <p class="text-lg text-gray-600 max-w-3xl mx-auto">
+                    À travers ses appels à projets, PK GLOBAL PARTNERS identifie les entrepreneurs et PME les plus prometteurs, puis mobilise son expertise en ingénierie financière et son réseau d'investisseurs pour transformer leurs ambitions en réalisations durables.
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8 mb-16">
+                <div class="bg-emerald-50 p-10 rounded-3xl border border-emerald-200">
+                    <div class="text-4xl mb-4 text-emerald-600"><i class="fas fa-hand-holding-usd"></i></div>
+                    <h3 class="text-xl font-bold text-emerald-950 mb-3">Financement</h3>
+                    <p class="text-sm text-gray-600">Accédez à des enveloppes de financement adaptées à la maturité de votre projet, selon les conditions de chaque appel.</p>
+                </div>
+                <div class="bg-yellow-50 p-10 rounded-3xl border border-yellow-200">
+                    <div class="text-4xl mb-4 text-yellow-600"><i class="fas fa-project-diagram"></i></div>
+                    <h3 class="text-xl font-bold text-emerald-950 mb-3">Structuration &amp; Accompagnement</h3>
+                    <p class="text-sm text-gray-600">Bénéficiez de l'accompagnement de nos équipes : business plan, structuration juridique et financière, mise en conformité.</p>
+                </div>
+                <div class="bg-emerald-100 p-10 rounded-3xl border border-emerald-300">
+                    <div class="text-4xl mb-4 text-emerald-700"><i class="fas fa-network-wired"></i></div>
+                    <h3 class="text-xl font-bold text-emerald-950 mb-3">Réseau &amp; Marchés</h3>
+                    <p class="text-sm text-gray-600">Connectez-vous à nos filiales, à nos partenaires commerciaux et à notre réseau d'investisseurs panafricains.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- APPELS À PROJETS EN COURS -->
+    <section id="appels" class="py-24 px-6 md:px-12 bg-emerald-50">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-4xl font-extrabold text-emerald-950 mb-6 text-center">Nos appels à projets</h2>
+            <p class="text-lg text-gray-600 max-w-3xl mx-auto text-center mb-12">
+                Consultez les conditions d'éligibilité et les dates limites de chaque appel, puis déposez votre dossier en ligne.
+            </p>
+
+            <div class="flex flex-wrap justify-center gap-3 mb-12" role="group" aria-label="Filtrer les appels à projets">
+                <button type="button" class="filter-btn active bg-white border border-emerald-200 text-emerald-950 text-xs font-bold uppercase tracking-widest px-6 py-3 rounded-full" data-filter="all">Tous</button>
+                <button type="button" class="filter-btn bg-white border border-emerald-200 text-emerald-950 text-xs font-bold uppercase tracking-widest px-6 py-3 rounded-full" data-filter="open">Ouverts</button>
+                <button type="button" class="filter-btn bg-white border border-emerald-200 text-emerald-950 text-xs font-bold uppercase tracking-widest px-6 py-3 rounded-full" data-filter="closed">Clôturés</button>
+            </div>
+
+            <div id="calls-grid" class="space-y-6" aria-live="polite">
+                <p class="text-center text-gray-500 text-sm py-8"><i class="fas fa-spinner fa-spin mr-2"></i> Chargement des appels à projets…</p>
+            </div>
+            <p id="calls-empty" class="hidden text-center text-gray-500 py-8">Aucun appel à projets dans cette catégorie pour le moment. Revenez bientôt ou déposez une candidature spontanée ci-dessous.</p>
+
+            <noscript>
+                <p class="text-center text-gray-500 py-8">Activez JavaScript pour consulter la liste des appels à projets, ou contactez-nous à <a class="font-bold text-emerald-700 underline" href="mailto:info@pkglobalpartners.com">info@pkglobalpartners.com</a>.</p>
+            </noscript>
+        </div>
+    </section>
+
+    <!-- PROCESSUS DE SÉLECTION -->
+    <section class="py-24 px-6 md:px-12 bg-emerald-950 text-white">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-4xl font-extrabold mb-16 text-center">Comment se déroule la sélection ?</h2>
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div class="bg-white/5 border border-white/10 p-8 rounded-3xl">
+                    <div class="w-12 h-12 bg-yellow-400 text-emerald-950 font-extrabold rounded-2xl flex items-center justify-center text-lg mb-6">1</div>
+                    <h3 class="text-lg font-bold mb-3">Consultez les appels</h3>
+                    <p class="text-emerald-100/70 text-sm leading-relaxed">Identifiez l'appel correspondant à votre secteur et vérifiez les critères d'éligibilité ainsi que la date limite.</p>
+                </div>
+                <div class="bg-white/5 border border-white/10 p-8 rounded-3xl">
+                    <div class="w-12 h-12 bg-yellow-400 text-emerald-950 font-extrabold rounded-2xl flex items-center justify-center text-lg mb-6">2</div>
+                    <h3 class="text-lg font-bold mb-3">Déposez votre dossier</h3>
+                    <p class="text-emerald-100/70 text-sm leading-relaxed">Complétez le formulaire ci-dessous et joignez votre dossier de projet ou business plan. Vous recevez une référence de dépôt.</p>
+                </div>
+                <div class="bg-white/5 border border-white/10 p-8 rounded-3xl">
+                    <div class="w-12 h-12 bg-yellow-400 text-emerald-950 font-extrabold rounded-2xl flex items-center justify-center text-lg mb-6">3</div>
+                    <h3 class="text-lg font-bold mb-3">Évaluation du comité</h3>
+                    <p class="text-emerald-100/70 text-sm leading-relaxed">Notre comité de sélection évalue la viabilité, l'impact et la qualité de l'équipe porteuse de chaque dossier reçu.</p>
+                </div>
+                <div class="bg-white/5 border border-white/10 p-8 rounded-3xl">
+                    <div class="w-12 h-12 bg-yellow-400 text-emerald-950 font-extrabold rounded-2xl flex items-center justify-center text-lg mb-6">4</div>
+                    <h3 class="text-lg font-bold mb-3">Sélection &amp; lancement</h3>
+                    <p class="text-emerald-100/70 text-sm leading-relaxed">Les projets retenus sont notifiés par email, puis accompagnés dans leur structuration et leur financement.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FORMULAIRE DE CANDIDATURE -->
+    <section id="candidature" class="py-24 px-6 md:px-12 bg-white">
+        <div class="max-w-4xl mx-auto">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-extrabold text-emerald-950 mb-4">Déposez votre candidature</h2>
+                <p class="text-lg text-gray-600">Répondez à un appel ouvert ou soumettez une candidature spontanée pour un futur programme.</p>
+            </div>
+
+            <div id="form-success" class="hidden mb-8 bg-emerald-50 border border-emerald-300 text-emerald-900 p-6 rounded-2xl" role="status">
+                <p class="font-bold mb-1"><i class="fas fa-check-circle text-emerald-600 mr-2"></i> Candidature bien reçue !</p>
+                <p id="form-success-message" class="text-sm"></p>
+            </div>
+            <div id="form-error" class="hidden mb-8 bg-red-50 border border-red-200 text-red-800 p-6 rounded-2xl" role="alert">
+                <p class="font-bold mb-1"><i class="fas fa-exclamation-circle text-red-500 mr-2"></i> Le dépôt n'a pas abouti</p>
+                <p id="form-error-message" class="text-sm"></p>
+            </div>
+
+            <form id="candidature-form" class="bg-emerald-50 p-6 sm:p-8 md:p-12 rounded-3xl border border-emerald-200" enctype="multipart/form-data" novalidate>
+                <div class="mb-8">
+                    <label for="call_id" class="block text-sm font-bold text-emerald-950 mb-3">Appel à projets concerné</label>
+                    <select id="call_id" name="call_id" class="w-full px-6 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20">
+                        <option value="">Candidature spontanée (hors appel en cours)</option>
+                        <option value="1">Appel à Projets 2026 : AgriTech &amp; Transformation Agroalimentaire RDC</option>
+                        <option value="2">Fonds Jeunes Entrepreneurs : Logistique du Dernier Kilomètre</option>
+                    </select>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-8 mb-8">
+                    <div>
+                        <label for="candidate_name" class="block text-sm font-bold text-emerald-950 mb-3">Nom du porteur de projet *</label>
+                        <input type="text" id="candidate_name" name="candidate_name" required class="w-full px-6 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20" placeholder="Votre nom complet">
+                    </div>
+                    <div>
+                        <label for="candidate_email" class="block text-sm font-bold text-emerald-950 mb-3">Email *</label>
+                        <input type="email" id="candidate_email" name="candidate_email" required class="w-full px-6 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20" placeholder="votre.email@exemple.com">
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-8 mb-8">
+                    <div>
+                        <label for="candidate_phone" class="block text-sm font-bold text-emerald-950 mb-3">Téléphone *</label>
+                        <input type="tel" id="candidate_phone" name="candidate_phone" required class="w-full px-6 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20" placeholder="+243 xxx xxx xxx">
+                    </div>
+                    <div>
+                        <label for="project_title" class="block text-sm font-bold text-emerald-950 mb-3">Titre du projet *</label>
+                        <input type="text" id="project_title" name="project_title" required class="w-full px-6 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20" placeholder="Ex : Unité de transformation de manioc">
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-8 mb-8">
+                    <div>
+                        <label for="sector" class="block text-sm font-bold text-emerald-950 mb-3">Secteur d'activité *</label>
+                        <select id="sector" name="sector" required class="w-full px-6 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20">
+                            <option value="">Sélectionner un secteur</option>
+                            <option value="Agroalimentaire &amp; Chaîne de valeur">Agroalimentaire &amp; Chaîne de valeur</option>
+                            <option value="Transport &amp; Logistique Verte">Transport &amp; Logistique Verte</option>
+                            <option value="Énergie Renouvelable">Énergie Renouvelable</option>
+                            <option value="Mobilité">Mobilité</option>
+                            <option value="Technologie &amp; Digital">Technologie &amp; Digital</option>
+                            <option value="Distribution &amp; Commerce">Distribution &amp; Commerce</option>
+                            <option value="Autre">Autre</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="location" class="block text-sm font-bold text-emerald-950 mb-3">Localisation du projet *</label>
+                        <input type="text" id="location" name="location" required class="w-full px-6 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20" placeholder="Ex : Goma (Nord-Kivu)">
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-8 mb-8">
+                    <div>
+                        <label for="funding_requested" class="block text-sm font-bold text-emerald-950 mb-3">Financement recherché</label>
+                        <input type="number" id="funding_requested" name="funding_requested" min="0" step="any" class="w-full px-6 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20" placeholder="Ex : 50000">
+                    </div>
+                    <div>
+                        <label for="currency" class="block text-sm font-bold text-emerald-950 mb-3">Devise</label>
+                        <select id="currency" name="currency" class="w-full px-6 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20">
+                            <option value="USD" selected>USD ($)</option>
+                            <option value="CDF">CDF (Franc congolais)</option>
+                            <option value="EUR">EUR (€)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-8">
+                    <label for="summary" class="block text-sm font-bold text-emerald-950 mb-3">Résumé du projet *</label>
+                    <textarea id="summary" name="summary" required class="w-full px-6 py-4 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20" rows="4" placeholder="Décrivez en quelques phrases votre projet, le problème qu'il résout et son impact attendu…"></textarea>
+                </div>
+
+                <div class="mb-8">
+                    <label for="details" class="block text-sm font-bold text-emerald-950 mb-3">Détails complémentaires</label>
+                    <textarea id="details" name="details" class="w-full px-6 py-4 rounded-xl border border-emerald-200 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20" rows="4" placeholder="Équipe, stade d'avancement, marché visé, emplois créés, besoins précis…"></textarea>
+                </div>
+
+                <div class="mb-8">
+                    <label for="document" class="block text-sm font-bold text-emerald-950 mb-3">Dossier de projet / business plan (PDF, Word, PowerPoint, Excel — 20 Mo max)</label>
+                    <input type="file" id="document" name="document" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx" class="w-full px-6 py-3 rounded-xl border border-emerald-200 bg-white focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20">
+                </div>
+
+                <div class="flex items-center mb-8">
+                    <input type="checkbox" id="consent" required class="w-4 h-4 accent-emerald-600">
+                    <label for="consent" class="ml-3 text-sm text-gray-600">J'accepte que mes données et mon dossier soient traités par PK GLOBAL PARTNERS aux fins d'évaluation de cette candidature *</label>
+                </div>
+
+                <button type="submit" id="submit-btn" class="btn-gold w-full py-4 rounded-2xl font-bold uppercase tracking-[0.12em] sm:tracking-[0.2em] text-sm sm:text-lg">
+                    Soumettre ma candidature
+                </button>
+                <p class="text-xs text-gray-500 text-center mt-4">Un accusé de réception avec votre référence de dossier vous sera adressé par email.</p>
+            </form>
+        </div>
+    </section>
+
+    <!-- CONTACT -->
+    <section class="py-16 px-6 md:px-12 bg-white border-t border-emerald-100">
+        <div class="max-w-4xl mx-auto text-center">
+            <h2 class="text-3xl font-bold text-emerald-950 mb-6">Des questions sur un appel à projets ?</h2>
+            <p class="text-lg text-gray-600 mb-8">Contactez le Comité de Sélection de PK GLOBAL PARTNERS</p>
+            <a href="mailto:info@pkglobalpartners.com" class="inline-block btn-gold px-6 sm:px-8 py-4 rounded-2xl font-bold uppercase tracking-[0.12em] sm:tracking-[0.2em] text-sm sm:text-lg break-all max-w-full">
+                <i class="fas fa-envelope mr-3"></i> info@pkglobalpartners.com
+            </a>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="bg-emerald-950 text-white pt-24 pb-12 px-6 md:px-12">
+        <div class="max-w-7xl mx-auto text-center">
+            <div class="flex flex-col items-center mb-16">
+                <div class="bg-white p-2 rounded-xl mb-6 shadow-xl">
+                    <img src="logo.svg" alt="PK Global Partners Logo" class="h-16 w-auto object-contain">
+                </div>
+                <h2 class="text-3xl font-bold uppercase tracking-[0.2em] mb-4">Global Partners</h2>
+                <div class="flex flex-col gap-2 mb-4">
+                    <p class="text-emerald-100/70 max-w-lg text-sm mx-auto">Siège Social : Boulevard Kanyamuhanga, n°4, Ville de Goma, République Démocratique du Congo.</p>
+                    <a href="tel:+243814119635" class="text-yellow-400 font-bold text-base sm:text-lg hover:underline transition break-all">
+                        <i class="fas fa-phone-alt mr-2 text-sm"></i> +243 814 119 635
+                    </a>
+                    <a href="mailto:info@pkglobalpartners.com" class="text-yellow-400 font-bold text-base sm:text-lg hover:underline transition break-all">
+                        <i class="fas fa-envelope mr-2 text-sm"></i> info@pkglobalpartners.com
+                    </a>
+                </div>
+            </div>
+            <div class="flex flex-wrap justify-center gap-6 mb-8 text-xs font-semibold uppercase tracking-wider text-emerald-200/80">
+                <a href="index.html" class="hover:text-yellow-400 transition">Accueil</a>
+                <a href="about.html" class="hover:text-yellow-400 transition">À Propos</a>
+                <a href="filiales.html" class="hover:text-yellow-400 transition">Filiales</a>
+                <a href="investors.html" class="hover:text-yellow-400 transition">Investisseurs</a>
+                <a href="appels-a-projets.html" class="hover:text-yellow-400 transition">Appels à Projets</a>
+                <a href="careers.html" class="hover:text-yellow-400 transition">Carrières</a>
+                <a href="contact.html" class="hover:text-yellow-400 transition">Contact</a>
+            </div>
+            <div class="h-px bg-white/10 w-full mb-12"></div>
+            <p class="text-[10px] text-emerald-100/30 uppercase tracking-widest font-bold">
+                &copy; 2026 PK Global Partners Holding. Tous droits réservés.
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        window.addEventListener('scroll', () => {
+            const nav = document.getElementById('navbar');
+            if (window.scrollY > 50) { nav.classList.add('nav-scrolled'); }
+            else { nav.classList.remove('nav-scrolled'); }
+        });
+
+        // --- Appels à projets : données de secours (affichées si l'API Node.js
+        // n'est pas disponible, p. ex. hébergement statique). Dès que /api/calls
+        // répond, la liste et le menu déroulant du formulaire sont synchronisés
+        // avec les appels publiés depuis l'espace d'administration.
+        const FALLBACK_CALLS = [
+            {
+                id: 1,
+                title: "Appel à Projets 2026 : AgriTech & Transformation Agroalimentaire RDC",
+                description: "Sélection et financement de 5 projets innovants dans la transformation locale des matières premières agricoles, la chaîne du froid et la distribution.",
+                target_sector: "Agroalimentaire & Chaîne de valeur",
+                budget_indicatif: "Jusqu'à 150 000 USD par lauréat",
+                eligibility: "Entreprises enregistrées en RDC, existence minimum de 1 an, impact social mesurable auprès des producteurs locaux.",
+                deadline: "2026-12-15 23:59:59",
+                status: "open"
+            },
+            {
+                id: 2,
+                title: "Fonds Jeunes Entrepreneurs : Logistique du Dernier Kilomètre",
+                description: "Soutien à la création de micro-hubs logistiques et flottes écologiques pour approvisionner les métropoles de Kinshasa et Goma.",
+                target_sector: "Transport & Logistique Verte",
+                budget_indicatif: "50 000 USD par projet",
+                eligibility: "Équipes de jeunes entrepreneurs (18-35 ans), prototype ou service fonctionnel déjà testé.",
+                deadline: "2026-11-30 23:59:59",
+                status: "open"
+            },
+            {
+                id: 3,
+                title: "Édition Clôturée 2025 : Énergies Renouvelables et Pompage Solaire",
+                description: "Programme d'accès à l'énergie pour les exploitations agricoles rurales.",
+                target_sector: "Énergie Renouvelable",
+                budget_indicatif: "100 000 USD",
+                eligibility: "Startups et PME d'électrification rurale",
+                deadline: "2025-12-31 23:59:59",
+                status: "closed"
+            }
+        ];
+
+        let currentCalls = FALLBACK_CALLS;
+        let currentFilter = 'all';
+
+        function parseDeadline(value) {
+            if (!value) return null;
+            const date = new Date(String(value).replace(' ', 'T'));
+            return isNaN(date.getTime()) ? null : date;
+        }
+
+        function isOpen(call) {
+            if (call.status !== 'open') return false;
+            const deadline = parseDeadline(call.deadline);
+            return !deadline || deadline >= new Date();
+        }
+
+        function formatDeadline(value) {
+            const date = parseDeadline(value);
+            if (!date) return 'Date à confirmer';
+            return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+        }
+
+        function createBadge(text, className, iconClass) {
+            const badge = document.createElement('span');
+            badge.className = className + ' text-xs px-4 py-2 rounded-full font-semibold inline-flex items-center gap-2';
+            if (iconClass) {
+                const icon = document.createElement('i');
+                icon.className = iconClass;
+                badge.appendChild(icon);
+            }
+            badge.appendChild(document.createTextNode(text));
+            return badge;
+        }
+
+        // Les contenus proviennent de l'administration : ils sont insérés via
+        // textContent (jamais en HTML) pour éviter toute injection.
+        function buildCallCard(call) {
+            const open = isOpen(call);
+            const card = document.createElement('article');
+            card.className = 'call-card bg-white p-6 sm:p-8 rounded-2xl' + (open ? '' : ' closed');
+
+            const header = document.createElement('div');
+            header.className = 'flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-4';
+
+            const headerLeft = document.createElement('div');
+            const title = document.createElement('h3');
+            title.className = 'text-xl sm:text-2xl font-bold text-emerald-950';
+            title.textContent = call.title || 'Appel à projets';
+            headerLeft.appendChild(title);
+
+            const badges = document.createElement('div');
+            badges.className = 'flex flex-wrap gap-3 mt-3';
+            badges.appendChild(createBadge(open ? 'Ouvert' : 'Clôturé', open ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600', open ? 'fas fa-door-open' : 'fas fa-door-closed'));
+            if (call.target_sector) badges.appendChild(createBadge(call.target_sector, 'bg-yellow-100 text-yellow-700', 'fas fa-industry'));
+            if (call.budget_indicatif) badges.appendChild(createBadge(call.budget_indicatif, 'bg-blue-100 text-blue-700', 'fas fa-coins'));
+            headerLeft.appendChild(badges);
+            header.appendChild(headerLeft);
+
+            if (open) {
+                const cta = document.createElement('button');
+                cta.type = 'button';
+                cta.className = 'btn-gold px-8 py-3 rounded-xl font-bold text-sm whitespace-nowrap';
+                cta.textContent = 'Candidater';
+                cta.addEventListener('click', () => selectCall(call.id));
+                header.appendChild(cta);
+            }
+            card.appendChild(header);
+
+            if (call.description) {
+                const description = document.createElement('p');
+                description.className = 'text-gray-600 mb-4';
+                description.textContent = call.description;
+                card.appendChild(description);
+            }
+
+            if (call.eligibility) {
+                const eligibility = document.createElement('p');
+                eligibility.className = 'text-sm text-gray-600 mb-4';
+                const label = document.createElement('span');
+                label.className = 'font-bold text-emerald-950';
+                label.textContent = 'Éligibilité : ';
+                eligibility.appendChild(label);
+                eligibility.appendChild(document.createTextNode(call.eligibility));
+                card.appendChild(eligibility);
+            }
+
+            const meta = document.createElement('div');
+            meta.className = 'flex flex-wrap gap-x-8 gap-y-2 text-sm font-semibold text-emerald-950';
+            const deadlineItem = document.createElement('span');
+            const deadlineIcon = document.createElement('i');
+            deadlineIcon.className = 'fas fa-calendar-alt text-emerald-600 mr-2';
+            deadlineItem.appendChild(deadlineIcon);
+            deadlineItem.appendChild(document.createTextNode((open ? 'Clôture des dépôts : ' : 'Clôturé le ') + formatDeadline(call.deadline)));
+            meta.appendChild(deadlineItem);
+
+            const deadline = parseDeadline(call.deadline);
+            if (open && deadline) {
+                const daysLeft = Math.ceil((deadline.getTime() - Date.now()) / 86400000);
+                if (daysLeft >= 0) {
+                    const daysItem = document.createElement('span');
+                    const daysIcon = document.createElement('i');
+                    daysIcon.className = 'fas fa-hourglass-half text-yellow-600 mr-2';
+                    daysItem.appendChild(daysIcon);
+                    daysItem.appendChild(document.createTextNode('Plus que ' + daysLeft + ' jour' + (daysLeft > 1 ? 's' : '') + ' pour déposer'));
+                    meta.appendChild(daysItem);
+                }
+            }
+
+            if (typeof call.candidatures_count === 'number') {
+                const countItem = document.createElement('span');
+                const countIcon = document.createElement('i');
+                countIcon.className = 'fas fa-folder-open text-emerald-600 mr-2';
+                countItem.appendChild(countIcon);
+                countItem.appendChild(document.createTextNode(call.candidatures_count + ' candidature' + (call.candidatures_count > 1 ? 's' : '') + ' reçue' + (call.candidatures_count > 1 ? 's' : '')));
+                meta.appendChild(countItem);
+            }
+            card.appendChild(meta);
+
+            return card;
+        }
+
+        function renderCalls() {
+            const grid = document.getElementById('calls-grid');
+            const empty = document.getElementById('calls-empty');
+            grid.replaceChildren();
+
+            const visible = currentCalls
+                .filter((call) => call.status !== 'draft')
+                .filter((call) => currentFilter === 'all' || (currentFilter === 'open' ? isOpen(call) : !isOpen(call)))
+                .sort((a, b) => {
+                    const aOpen = isOpen(a);
+                    const bOpen = isOpen(b);
+                    if (aOpen !== bOpen) return aOpen ? -1 : 1;
+                    const aDate = parseDeadline(a.deadline);
+                    const bDate = parseDeadline(b.deadline);
+                    if (!aDate || !bDate) return 0;
+                    return aOpen ? aDate - bDate : bDate - aDate;
+                });
+
+            visible.forEach((call) => grid.appendChild(buildCallCard(call)));
+            empty.classList.toggle('hidden', visible.length > 0);
+
+            const openCount = currentCalls.filter(isOpen).length;
+            document.getElementById('open-calls-count').textContent = openCount;
+        }
+
+        function syncCallSelect() {
+            const select = document.getElementById('call_id');
+            const previousValue = select.value;
+            select.replaceChildren();
+
+            const spontaneous = document.createElement('option');
+            spontaneous.value = '';
+            spontaneous.textContent = 'Candidature spontanée (hors appel en cours)';
+            select.appendChild(spontaneous);
+
+            currentCalls.filter(isOpen).forEach((call) => {
+                const option = document.createElement('option');
+                option.value = call.id;
+                option.textContent = call.title;
+                select.appendChild(option);
+            });
+
+            if (previousValue && select.querySelector('option[value="' + previousValue + '"]')) {
+                select.value = previousValue;
+            }
+        }
+
+        function selectCall(callId) {
+            const select = document.getElementById('call_id');
+            select.value = String(callId);
+            document.getElementById('candidature').scrollIntoView({ behavior: 'smooth' });
+            const nameInput = document.getElementById('candidate_name');
+            if (nameInput) setTimeout(() => nameInput.focus({ preventScroll: true }), 600);
+        }
+
+        document.querySelectorAll('.filter-btn').forEach((button) => {
+            button.addEventListener('click', () => {
+                document.querySelectorAll('.filter-btn').forEach((btn) => btn.classList.remove('active'));
+                button.classList.add('active');
+                currentFilter = button.getAttribute('data-filter') || 'all';
+                renderCalls();
+            });
+        });
+
+        renderCalls();
+        syncCallSelect();
+
+        fetch('/api/calls')
+            .then((response) => {
+                if (!response.ok) throw new Error('API indisponible');
+                return response.json();
+            })
+            .then((calls) => {
+                if (Array.isArray(calls)) {
+                    currentCalls = calls;
+                    renderCalls();
+                    syncCallSelect();
+                }
+            })
+            .catch(() => {
+                // Hébergement statique sans API : on conserve les appels de secours.
+            });
+
+        // --- Soumission de la candidature vers l'API existante ---
+        const form = document.getElementById('candidature-form');
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const successBox = document.getElementById('form-success');
+            const errorBox = document.getElementById('form-error');
+            successBox.classList.add('hidden');
+            errorBox.classList.add('hidden');
+
+            if (!form.checkValidity()) {
+                document.getElementById('form-error-message').textContent = 'Veuillez compléter tous les champs obligatoires (marqués d’un astérisque) et accepter le traitement de vos données.';
+                errorBox.classList.remove('hidden');
+                errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+
+            const submitBtn = document.getElementById('submit-btn');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Dépôt du dossier…';
+
+            try {
+                const formData = new FormData(form);
+                const documentInput = document.getElementById('document');
+                if (documentInput && !documentInput.files.length) formData.delete('document');
+
+                const response = await fetch('/api/candidatures', { method: 'POST', body: formData });
+                const result = await response.json().catch(() => ({}));
+
+                if (response.ok && result.success) {
+                    document.getElementById('form-success-message').textContent =
+                        'Votre dossier a été enregistré sous la référence #CAND-' + result.id + ' et transmis au comité de sélection. ' +
+                        (result.email_status === 'sent'
+                            ? 'Un email d’accusé de réception vous a été adressé.'
+                            : 'La confirmation par email n’est pas disponible actuellement, mais votre dossier est bien enregistré.');
+                    successBox.classList.remove('hidden');
+                    form.reset();
+                    successBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                    document.getElementById('form-error-message').textContent =
+                        result.error || 'Une erreur est survenue lors du dépôt. Veuillez réessayer ou nous écrire à info@pkglobalpartners.com.';
+                    errorBox.classList.remove('hidden');
+                    errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            } catch (error) {
+                document.getElementById('form-error-message').textContent =
+                    'Impossible de joindre le serveur de dépôt. Veuillez réessayer plus tard ou transmettre votre dossier à info@pkglobalpartners.com.';
+                errorBox.classList.remove('hidden');
+                errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        });
+    </script>
+    <script src="/public/js/site-connect.js"></script>
+</body>
+</html>
