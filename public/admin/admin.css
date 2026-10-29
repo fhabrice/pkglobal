@@ -81,6 +81,26 @@ body {
 .badge-valide { background-color: #dcfce7; color: #15803d; }
 .badge-desactive { background-color: #f1f5f9; color: #64748b; }
 
+/* CRM pipeline & lifecycle badges */
+.badge-crm-nouveau { background-color: #dbeafe; color: #1d4ed8; }
+.badge-crm-qualification { background-color: #e0e7ff; color: #4338ca; }
+.badge-crm-contacte { background-color: #fef3c7; color: #92400e; }
+.badge-crm-reunion { background-color: #ffedd5; color: #c2410c; }
+.badge-crm-proposition { background-color: #fae8ff; color: #a21caf; }
+.badge-crm-negociation { background-color: #fce7f3; color: #be185d; }
+.badge-crm-gagne { background-color: #dcfce7; color: #15803d; }
+.badge-crm-perdu { background-color: #fee2e2; color: #b91c1c; }
+.badge-crm-actif { background-color: #dcfce7; color: #15803d; }
+.badge-crm-inactif { background-color: #f1f5f9; color: #64748b; }
+.badge-crm-archive, .badge-draft { background-color: #e2e8f0; color: #475569; }
+.badge-open { background-color: #dcfce7; color: #15803d; }
+.badge-closed { background-color: #fee2e2; color: #b91c1c; }
+
+.crm-pipeline-scroll {
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* Modals */
 .modal-overlay {
   animation: fadeIn 0.2s ease-out;

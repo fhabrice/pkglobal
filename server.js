@@ -197,6 +197,443 @@ function requireRole(...allowedRoles) {
 }
 
 // -------------------------------------------------------------
+// CRM HELPERS (contacts, opportunités, activités)
+// Les formulaires publics réels alimentent le CRM automatiquement ;
+// POST /api/crm/sync-sources rattrape les enregistrements existants.
+// -------------------------------------------------------------
+
+const CRM_CONTACT_TYPES = ['prospect', 'client', 'partenaire', 'investisseur', 'porteur_projet', 'candidat', 'autre'];
+const CRM_CONTACT_STATUSES = ['nouveau', 'actif', 'inactif', 'archive'];
+const CRM_OPPORTUNITY_TYPES = ['commerciale', 'investissement', 'partenariat', 'appel_projet', 'recrutement', 'autre'];
+const CRM_OPPORTUNITY_STAGES = ['nouveau', 'qualification', 'contacte', 'reunion', 'proposition', 'negociation', 'gagne', 'perdu'];
+const CRM_ACTIVITY_TYPES = ['note', 'appel', 'email', 'reunion', 'whatsapp', 'tache', 'autre'];
+const CRM_ACTIVITY_STATUSES = ['a_faire', 'terminee', 'annulee'];
+
+function crmClean(value, maxLength = 500) {
+  if (value === null || value === undefined) return '';
+  return String(value).trim().slice(0, maxLength);
+}
+
+function crmNullableInt(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isInteger(parsed) ? parsed : null;
+}
+
+function crmDefaultProbability(stage) {
+  return {
+    nouveau: 10,
+    qualification: 25,
+    contacte: 35,
+    reunion: 50,
+    proposition: 65,
+    negociation: 80,
+    gagne: 100,
+    perdu: 0
+  }[stage] ?? 10;
+}
+
+function crmContactSelect(where = '') {
+  return `
+    SELECT c.*, u.name AS owner_name,
+      (SELECT COUNT(*) FROM crm_opportunities o WHERE o.contact_id = c.id) AS opportunities_count,
+      (SELECT COUNT(*) FROM crm_opportunities o WHERE o.contact_id = c.id AND o.stage NOT IN ('gagne', 'perdu')) AS open_opportunities_count,
+      (SELECT COUNT(*) FROM crm_activities a WHERE a.contact_id = c.id) AS activities_count,
+      (SELECT COUNT(*) FROM crm_activities a WHERE a.contact_id = c.id AND a.status = 'a_faire') AS open_tasks_count
+    FROM crm_contacts c
+    LEFT JOIN users u ON u.id = c.owner_id
+    ${where}
+  `;
+}
+
+function getCrmContact(id) {
+  return db.prepare(crmContactSelect('WHERE c.id = ?')).get(id);
+}
+
+function getCrmOpportunity(id) {
+  return db.prepare(`
+    SELECT o.*, c.full_name AS contact_name, c.organization AS contact_organization,
+      c.email AS contact_email, c.phone AS contact_phone, u.name AS owner_name
+    FROM crm_opportunities o
+    INNER JOIN crm_contacts c ON c.id = o.contact_id
+    LEFT JOIN users u ON u.id = o.owner_id
+    WHERE o.id = ?
+  `).get(id);
+}
+
+function getCrmActivity(id) {
+  return db.prepare(`
+    SELECT a.*, c.full_name AS contact_name, o.title AS opportunity_title, u.name AS creator_name
+    FROM crm_activities a
+    INNER JOIN crm_contacts c ON c.id = a.contact_id
+    LEFT JOIN crm_opportunities o ON o.id = a.opportunity_id
+    LEFT JOIN users u ON u.id = a.created_by
+    WHERE a.id = ?
+  `).get(id);
+}
+
+function insertCrmActivity(input = {}) {
+  const type = CRM_ACTIVITY_TYPES.includes(input.type) ? input.type : 'note';
+  const status = CRM_ACTIVITY_STATUSES.includes(input.status)
+    ? input.status
+    : (type === 'tache' ? 'a_faire' : 'terminee');
+  const result = db.prepare(`
+    INSERT INTO crm_activities (
+      contact_id, opportunity_id, type, title, details, status, due_at, completed_at, created_by, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+  `).run(
+    input.contact_id,
+    crmNullableInt(input.opportunity_id),
+    type,
+    crmClean(input.title, 300) || 'Activité CRM',
+    crmClean(input.details, 5000) || null,
+    status,
+    input.due_at || null,
+    status === 'terminee' ? (input.completed_at || new Date().toISOString().replace('T', ' ').slice(0, 19)) : null,
+    crmNullableInt(input.created_by)
+  );
+  return result.lastInsertRowid;
+}
+
+function upsertCrmContact(input = {}) {
+  const email = crmClean(input.email, 254).toLowerCase();
+  if (!email) return null;
+
+  const incoming = {
+    full_name: crmClean(input.full_name, 200),
+    organization: crmClean(input.organization, 250),
+    email,
+    phone: crmClean(input.phone, 60),
+    country: crmClean(input.country, 120),
+    location: crmClean(input.location, 250),
+    sector: crmClean(input.sector, 250),
+    type: CRM_CONTACT_TYPES.includes(input.type) ? input.type : 'prospect',
+    status: CRM_CONTACT_STATUSES.includes(input.status) ? input.status : 'nouveau',
+    source: crmClean(input.source, 80) || 'manuel',
+    source_ref_type: crmClean(input.source_ref_type, 80) || null,
+    source_ref_id: crmNullableInt(input.source_ref_id),
+    owner_id: crmNullableInt(input.owner_id),
+    tags: crmClean(input.tags, 500),
+    notes: crmClean(input.notes, 5000),
+    last_contacted_at: input.last_contacted_at || null,
+    created_by: crmNullableInt(input.created_by)
+  };
+
+  let existing = null;
+  if (incoming.source_ref_type && incoming.source_ref_id) {
+    existing = db.prepare('SELECT * FROM crm_contacts WHERE source_ref_type = ? AND source_ref_id = ?')
+      .get(incoming.source_ref_type, incoming.source_ref_id);
+  }
+  if (!existing) {
+    existing = db.prepare('SELECT * FROM crm_contacts WHERE email = ? COLLATE NOCASE').get(email);
+  }
+
+  if (existing) {
+    const merged = {
+      full_name: incoming.full_name || existing.full_name,
+      organization: incoming.organization || existing.organization,
+      phone: incoming.phone || existing.phone,
+      country: incoming.country || existing.country,
+      location: incoming.location || existing.location,
+      sector: incoming.sector || existing.sector,
+      type: (existing.type === 'prospect' || existing.type === 'autre') ? incoming.type : existing.type,
+      status: existing.status === 'archive' ? existing.status : (incoming.status !== 'nouveau' ? incoming.status : existing.status),
+      source_ref_type: existing.source_ref_type || incoming.source_ref_type,
+      source_ref_id: existing.source_ref_id || incoming.source_ref_id,
+      owner_id: incoming.owner_id || existing.owner_id,
+      tags: incoming.tags || existing.tags,
+      notes: incoming.notes || existing.notes,
+      last_contacted_at: incoming.last_contacted_at || existing.last_contacted_at
+    };
+    db.prepare(`
+      UPDATE crm_contacts SET
+        full_name = ?, organization = ?, phone = ?, country = ?, location = ?, sector = ?,
+        type = ?, status = ?, source_ref_type = ?, source_ref_id = ?, owner_id = ?,
+        tags = ?, notes = ?, last_contacted_at = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(
+      merged.full_name, merged.organization || null, merged.phone || null, merged.country || null,
+      merged.location || null, merged.sector || null, merged.type, merged.status,
+      merged.source_ref_type, merged.source_ref_id, merged.owner_id, merged.tags || null,
+      merged.notes || null, merged.last_contacted_at, existing.id
+    );
+    return { id: existing.id, created: false };
+  }
+
+  const result = db.prepare(`
+    INSERT INTO crm_contacts (
+      full_name, organization, email, phone, country, location, sector, type, status,
+      source, source_ref_type, source_ref_id, owner_id, tags, notes, last_contacted_at,
+      created_by, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+  `).run(
+    incoming.full_name || email, incoming.organization || null, incoming.email, incoming.phone || null,
+    incoming.country || null, incoming.location || null, incoming.sector || null, incoming.type,
+    incoming.status, incoming.source, incoming.source_ref_type, incoming.source_ref_id, incoming.owner_id,
+    incoming.tags || null, incoming.notes || null, incoming.last_contacted_at, incoming.created_by
+  );
+  return { id: result.lastInsertRowid, created: true };
+}
+
+function upsertCrmOpportunity(input = {}) {
+  const contactId = crmNullableInt(input.contact_id);
+  const title = crmClean(input.title, 300);
+  if (!contactId || !title) return null;
+
+  const incoming = {
+    contact_id: contactId,
+    title,
+    type: CRM_OPPORTUNITY_TYPES.includes(input.type) ? input.type : 'commerciale',
+    stage: CRM_OPPORTUNITY_STAGES.includes(input.stage) ? input.stage : 'nouveau',
+    amount: Math.max(0, Number.parseFloat(input.amount) || 0),
+    currency: crmClean(input.currency, 10).toUpperCase() || 'USD',
+    probability: Number.isFinite(Number(input.probability))
+      ? Math.min(100, Math.max(0, Math.round(Number(input.probability))))
+      : null,
+    expected_close_date: input.expected_close_date || null,
+    owner_id: crmNullableInt(input.owner_id),
+    source_ref_type: crmClean(input.source_ref_type, 80) || null,
+    source_ref_id: crmNullableInt(input.source_ref_id),
+    description: crmClean(input.description, 5000),
+    created_by: crmNullableInt(input.created_by)
+  };
+  if (incoming.probability === null) incoming.probability = crmDefaultProbability(incoming.stage);
+
+  let existing = null;
+  if (incoming.source_ref_type && incoming.source_ref_id) {
+    existing = db.prepare('SELECT * FROM crm_opportunities WHERE source_ref_type = ? AND source_ref_id = ?')
+      .get(incoming.source_ref_type, incoming.source_ref_id);
+  }
+
+  if (existing) {
+    // Une synchronisation ne doit pas faire reculer un pipeline déjà travaillé
+    // manuellement, sauf décision terminale provenant du module source.
+    let stage = existing.stage;
+    if (['gagne', 'perdu'].includes(incoming.stage)) stage = incoming.stage;
+    else if (existing.stage === 'nouveau') stage = incoming.stage;
+    const probability = ['gagne', 'perdu'].includes(stage)
+      ? crmDefaultProbability(stage)
+      : existing.probability;
+    db.prepare(`
+      UPDATE crm_opportunities SET
+        contact_id = ?, title = ?, type = ?, stage = ?, amount = ?, currency = ?,
+        probability = ?, expected_close_date = COALESCE(?, expected_close_date),
+        owner_id = COALESCE(?, owner_id), description = COALESCE(NULLIF(?, ''), description),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(
+      incoming.contact_id, incoming.title, incoming.type, stage, incoming.amount,
+      incoming.currency, probability, incoming.expected_close_date, incoming.owner_id,
+      incoming.description, existing.id
+    );
+    return { id: existing.id, created: false };
+  }
+
+  const result = db.prepare(`
+    INSERT INTO crm_opportunities (
+      contact_id, title, type, stage, amount, currency, probability, expected_close_date,
+      owner_id, source_ref_type, source_ref_id, description, created_by, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+  `).run(
+    incoming.contact_id, incoming.title, incoming.type, incoming.stage, incoming.amount,
+    incoming.currency, incoming.probability, incoming.expected_close_date, incoming.owner_id,
+    incoming.source_ref_type, incoming.source_ref_id, incoming.description || null, incoming.created_by
+  );
+  return { id: result.lastInsertRowid, created: true };
+}
+
+function syncInquiryToCrm(inquiry, actorId = null) {
+  if (!inquiry?.email) return null;
+  const stageByStatus = { nouveau: 'nouveau', en_cours: 'qualification', en_attente: 'contacte', resolu: 'gagne' };
+  const contact = upsertCrmContact({
+    full_name: inquiry.name,
+    organization: inquiry.organization,
+    email: inquiry.email,
+    phone: inquiry.phone,
+    sector: inquiry.service_requested,
+    type: 'prospect',
+    status: inquiry.status === 'resolu' ? 'actif' : 'nouveau',
+    source: 'site_contact',
+    source_ref_type: 'inquiry',
+    source_ref_id: inquiry.id,
+    owner_id: inquiry.assigned_to,
+    tags: inquiry.service_requested,
+    last_contacted_at: inquiry.responded_at || inquiry.created_at,
+    created_by: actorId
+  });
+  if (!contact) return null;
+  const opportunity = upsertCrmOpportunity({
+    contact_id: contact.id,
+    title: inquiry.subject || `Demande ${inquiry.reference || inquiry.id}`,
+    type: /invest/i.test(inquiry.service_requested || '') ? 'investissement' : (/partenariat/i.test(inquiry.service_requested || '') ? 'partenariat' : 'commerciale'),
+    stage: stageByStatus[inquiry.status] || 'nouveau',
+    owner_id: inquiry.assigned_to,
+    source_ref_type: 'inquiry',
+    source_ref_id: inquiry.id,
+    description: [inquiry.reference ? `Référence ${inquiry.reference}` : '', inquiry.service_requested, inquiry.message].filter(Boolean).join(' — '),
+    created_by: actorId
+  });
+  if (opportunity?.created) {
+    insertCrmActivity({
+      contact_id: contact.id,
+      opportunity_id: opportunity.id,
+      type: 'note',
+      title: 'Opportunité créée depuis le formulaire de contact',
+      details: inquiry.reference ? `Demande commerciale ${inquiry.reference}` : 'Demande commerciale du site',
+      created_by: actorId
+    });
+  }
+  return { contact, opportunity };
+}
+
+function syncInvestorToCrm(investor, actorId = null) {
+  if (!investor?.email) return null;
+  const contact = upsertCrmContact({
+    full_name: investor.name,
+    organization: investor.organization,
+    email: investor.email,
+    phone: investor.phone,
+    country: investor.country,
+    sector: investor.sectors_of_interest,
+    type: 'investisseur',
+    status: investor.status === 'desactive' ? 'inactif' : (investor.status === 'valide' ? 'actif' : 'nouveau'),
+    source: 'site_investisseur',
+    source_ref_type: 'investor',
+    source_ref_id: investor.id,
+    tags: investor.investor_type,
+    notes: investor.notes,
+    created_by: actorId
+  });
+  return contact ? { contact, opportunity: null } : null;
+}
+
+function syncInvestorInterestToCrm(interest, actorId = null) {
+  if (!interest?.investor_id) return null;
+  const investor = db.prepare('SELECT * FROM investors WHERE id = ?').get(interest.investor_id);
+  const synced = syncInvestorToCrm(investor, actorId);
+  if (!synced) return null;
+  const sourceStage = String(interest.stage || '').toLowerCase();
+  const stage = sourceStage.includes('term sheet') ? 'proposition'
+    : sourceStage.includes('négociation') || sourceStage.includes('negociation') ? 'negociation'
+      : sourceStage.includes('due diligence') ? 'reunion'
+        : sourceStage.includes('gagn') || sourceStage.includes('clôtur') || sourceStage.includes('clotur') ? 'gagne'
+          : 'contacte';
+  const opportunity = upsertCrmOpportunity({
+    contact_id: synced.contact.id,
+    title: interest.project_title,
+    type: 'investissement',
+    stage,
+    amount: interest.amount_intended,
+    source_ref_type: 'investor_interest',
+    source_ref_id: interest.id,
+    description: interest.notes,
+    created_by: actorId
+  });
+  if (opportunity?.created) {
+    insertCrmActivity({
+      contact_id: synced.contact.id,
+      opportunity_id: opportunity.id,
+      type: 'note',
+      title: 'Manifestation d’intérêt investisseur synchronisée',
+      details: interest.notes || interest.project_title,
+      created_by: actorId
+    });
+  }
+  return { contact: synced.contact, opportunity };
+}
+
+function syncCandidatureToCrm(candidature, actorId = null) {
+  if (!candidature?.candidate_email) return null;
+  const stageByStatus = { recu: 'nouveau', en_evaluation: 'qualification', retenu: 'gagne', rejete: 'perdu' };
+  const contact = upsertCrmContact({
+    full_name: candidature.candidate_name,
+    email: candidature.candidate_email,
+    phone: candidature.candidate_phone,
+    country: 'RDC',
+    location: candidature.location,
+    sector: candidature.sector,
+    type: 'porteur_projet',
+    status: candidature.status === 'retenu' ? 'actif' : 'nouveau',
+    source: 'appel_a_projets',
+    source_ref_type: 'candidature',
+    source_ref_id: candidature.id,
+    tags: candidature.sector,
+    last_contacted_at: candidature.evaluated_at || candidature.submitted_at,
+    created_by: actorId
+  });
+  if (!contact) return null;
+  const stage = stageByStatus[candidature.status] || 'nouveau';
+  const opportunity = upsertCrmOpportunity({
+    contact_id: contact.id,
+    title: candidature.project_title,
+    type: 'appel_projet',
+    stage,
+    amount: candidature.funding_requested,
+    currency: candidature.currency || 'USD',
+    probability: Number(candidature.evaluation_score) > 0
+      ? Math.round((Number(candidature.evaluation_score) / 5) * 100)
+      : crmDefaultProbability(stage),
+    source_ref_type: 'candidature',
+    source_ref_id: candidature.id,
+    description: [candidature.summary, candidature.details].filter(Boolean).join('\n\n'),
+    created_by: actorId
+  });
+  if (opportunity?.created) {
+    insertCrmActivity({
+      contact_id: contact.id,
+      opportunity_id: opportunity.id,
+      type: 'note',
+      title: 'Candidature Appels à Projets synchronisée',
+      details: `Référence candidature #CAND-${candidature.id}`,
+      created_by: actorId
+    });
+  }
+  return { contact, opportunity };
+}
+
+function syncRecordToCrmSafely(syncFn, record, actorId = null) {
+  try {
+    return syncFn(record, actorId);
+  } catch (err) {
+    console.error('CRM sync error:', err.message);
+    return null;
+  }
+}
+
+function syncAllCrmSources(actorId = null) {
+  const summary = {
+    contacts_created: 0,
+    contacts_updated: 0,
+    opportunities_created: 0,
+    opportunities_updated: 0,
+    records_processed: 0,
+    records_skipped: 0
+  };
+  const register = (result) => {
+    summary.records_processed += 1;
+    if (!result?.contact) { summary.records_skipped += 1; return; }
+    if (result.contact.created) summary.contacts_created += 1; else summary.contacts_updated += 1;
+    if (result.opportunity) {
+      if (result.opportunity.created) summary.opportunities_created += 1; else summary.opportunities_updated += 1;
+    }
+  };
+  const run = db.transaction(() => {
+    db.prepare('SELECT * FROM inquiries ORDER BY id ASC').all().forEach(row => register(syncInquiryToCrm(row, actorId)));
+    db.prepare('SELECT * FROM investors ORDER BY id ASC').all().forEach(row => register(syncInvestorToCrm(row, actorId)));
+    db.prepare('SELECT * FROM investor_interests ORDER BY id ASC').all().forEach(row => register(syncInvestorInterestToCrm(row, actorId)));
+    db.prepare('SELECT * FROM candidatures ORDER BY id ASC').all().forEach(row => register(syncCandidatureToCrm(row, actorId)));
+  });
+  run();
+  return summary;
+}
+
+function validateCrmOwner(ownerId) {
+  if (ownerId === null || ownerId === undefined) return true;
+  const owner = db.prepare('SELECT id FROM users WHERE id = ? AND active = 1').get(ownerId);
+  return Boolean(owner);
+}
+
+// -------------------------------------------------------------
 // PUBLIC VISITOR TRACKING & CONTACT/CANDIDATURE/INVESTOR FORMS
 // -------------------------------------------------------------
 
@@ -248,6 +685,12 @@ app.post('/api/inquiries', async (req, res) => {
     `).run(
       refNumber, clientName, clientEmail, clientPhone, clientOrg,
       clientService, clientSubject, clientMessage
+    );
+
+    // Le CRM est alimenté automatiquement par les demandes réelles du site.
+    syncRecordToCrmSafely(
+      syncInquiryToCrm,
+      db.prepare('SELECT * FROM inquiries WHERE id = ?').get(result.lastInsertRowid)
     );
 
     // Notify administrators and send auto-acknowledgment
@@ -316,11 +759,26 @@ app.post('/api/investors/interest', async (req, res) => {
     }
 
     // Record interest if project indicated
+    let interestId = null;
     if (project_interest) {
-      db.prepare(`
+      const interestResult = db.prepare(`
         INSERT INTO investor_interests (investor_id, project_title, amount_intended, stage, notes, created_at)
         VALUES (?, ?, ?, 'Premier contact', ?, CURRENT_TIMESTAMP)
       `).run(investorId, project_interest, parseFloat(ticket_min) || 50000, message || 'Intérêt exprimé via le site');
+      interestId = interestResult.lastInsertRowid;
+    }
+
+    // Le CRM est alimenté automatiquement par les profils investisseurs réels.
+    if (interestId) {
+      syncRecordToCrmSafely(
+        syncInvestorInterestToCrm,
+        db.prepare('SELECT * FROM investor_interests WHERE id = ?').get(interestId)
+      );
+    } else {
+      syncRecordToCrmSafely(
+        syncInvestorToCrm,
+        db.prepare('SELECT * FROM investors WHERE id = ?').get(investorId)
+      );
     }
 
     const emailStatus = await logEmailAndNotify({
@@ -356,6 +814,20 @@ app.post('/api/candidatures', upload.single('document'), async (req, res) => {
       return res.status(400).json({ error: 'Veuillez renseigner les champs obligatoires (nom, email, titre du projet, résumé).' });
     }
 
+    const parsedCallId = crmNullableInt(call_id);
+    if (call_id && !parsedCallId) {
+      return res.status(400).json({ error: 'Appel à projets invalide.' });
+    }
+    if (parsedCallId) {
+      const linkedCall = db.prepare(`
+        SELECT *, (datetime(deadline) < CURRENT_TIMESTAMP) AS expired
+        FROM call_for_projects WHERE id = ?
+      `).get(parsedCallId);
+      if (!linkedCall || linkedCall.status !== 'open' || linkedCall.expired) {
+        return res.status(400).json({ error: 'Cet appel à projets n’est plus ouvert aux candidatures.' });
+      }
+    }
+
     let docUrl = null;
     let docName = null;
     if (req.file) {
@@ -387,6 +859,12 @@ app.post('/api/candidatures', upload.single('document'), async (req, res) => {
     );
 
     const candId = result.lastInsertRowid;
+
+    // Le CRM est alimenté automatiquement par les candidatures réelles.
+    syncRecordToCrmSafely(
+      syncCandidatureToCrm,
+      db.prepare('SELECT * FROM candidatures WHERE id = ?').get(candId)
+    );
 
     const emailStatus = await logEmailAndNotify({
       recipient: candidate_email,
@@ -800,7 +1278,47 @@ app.delete('/api/news/:id', authenticateToken, requireRole('superadmin', 'admin'
 // -------------------------------------------------------------
 
 // Calls for Projects
-app.get('/api/calls', (req, res) => {
+const CALL_STATUSES = ['open', 'closed', 'draft'];
+
+function normalizeCallDeadline(deadline) {
+  if (!deadline) return deadline;
+  const value = String(deadline).trim();
+  // Un champ date HTML désigne toute la journée : dépôt possible jusqu'à 23h59.
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value} 23:59:59` : value;
+}
+
+function validateCallPayload(body, partial = false) {
+  const status = body.status || (partial ? undefined : 'draft');
+  if (status !== undefined && !CALL_STATUSES.includes(status)) {
+    return 'Statut invalide : utilisez draft, open ou closed.';
+  }
+  if (!partial && (!String(body.title || '').trim() || !body.deadline)) {
+    return 'Titre et date limite requis';
+  }
+  if (body.deadline && Number.isNaN(Date.parse(String(body.deadline).replace(' ', 'T')))) {
+    return 'Date limite invalide.';
+  }
+  return null;
+}
+
+// Endpoint public : uniquement les appels réellement publiés dans la base.
+app.get('/api/public/calls', (req, res) => {
+  try {
+    const calls = db.prepare(`
+      SELECT c.*, (SELECT COUNT(*) FROM candidatures WHERE call_id = c.id) as candidatures_count
+      FROM call_for_projects c
+      WHERE c.status IN ('open', 'closed')
+      ORDER BY CASE WHEN c.status = 'open' THEN 0 ELSE 1 END, c.deadline DESC
+    `).all();
+    res.set('Cache-Control', 'no-store');
+    res.json(calls);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint d'administration : inclut les brouillons et exige une session admin.
+app.get('/api/calls', authenticateToken, requireRole('superadmin', 'admin'), (req, res) => {
   try {
     const calls = db.prepare(`
       SELECT c.*, (SELECT COUNT(*) FROM candidatures WHERE call_id = c.id) as candidatures_count
@@ -816,17 +1334,26 @@ app.get('/api/calls', (req, res) => {
 app.post('/api/calls', authenticateToken, requireRole('superadmin', 'admin'), (req, res) => {
   try {
     const { title, description, target_sector, budget_indicatif, eligibility, deadline, status } = req.body;
-    if (!title || !deadline) {
-      return res.status(400).json({ error: 'Titre et date limite requis' });
-    }
-    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const validationError = validateCallPayload(req.body);
+    if (validationError) return res.status(400).json({ error: validationError });
+    const cleanTitle = String(title).trim();
+    const slug = cleanTitle.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
     const result = db.prepare(`
       INSERT INTO call_for_projects (title, slug, description, target_sector, budget_indicatif, eligibility, deadline, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(title, slug, description || '', target_sector || 'Tous secteurs', budget_indicatif || '', eligibility || '', deadline, status || 'open');
+    `).run(
+      cleanTitle,
+      slug,
+      description || '',
+      target_sector || 'Tous secteurs',
+      budget_indicatif || '',
+      eligibility || '',
+      normalizeCallDeadline(deadline),
+      status || 'draft'
+    );
 
-    logAudit(req.user.id, 'CREATE_CALL', `Création appel à projets : ${title}`, req);
+    logAudit(req.user.id, 'CREATE_CALL', `Création appel à projets : ${cleanTitle} (${status || 'draft'})`, req);
     res.status(201).json({ success: true, id: result.lastInsertRowid });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -837,10 +1364,15 @@ app.put('/api/calls/:id', authenticateToken, requireRole('superadmin', 'admin'),
   try {
     const { id } = req.params;
     const { title, description, target_sector, budget_indicatif, eligibility, deadline, status } = req.body;
+    const validationError = validateCallPayload(req.body, true);
+    if (validationError) return res.status(400).json({ error: validationError });
+    const existing = db.prepare('SELECT id FROM call_for_projects WHERE id = ?').get(id);
+    if (!existing) return res.status(404).json({ error: 'Appel à projets introuvable' });
 
     db.prepare(`
       UPDATE call_for_projects SET
         title = COALESCE(?, title),
+        slug = CASE WHEN ? IS NOT NULL THEN ? ELSE slug END,
         description = COALESCE(?, description),
         target_sector = COALESCE(?, target_sector),
         budget_indicatif = COALESCE(?, budget_indicatif),
@@ -848,9 +1380,40 @@ app.put('/api/calls/:id', authenticateToken, requireRole('superadmin', 'admin'),
         deadline = COALESCE(?, deadline),
         status = COALESCE(?, status)
       WHERE id = ?
-    `).run(title, description, target_sector, budget_indicatif, eligibility, deadline, status, id);
+    `).run(
+      title ? String(title).trim() : null,
+      title ? String(title).trim() : null,
+      title ? String(title).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : null,
+      description ?? null,
+      target_sector ?? null,
+      budget_indicatif ?? null,
+      eligibility ?? null,
+      deadline ? normalizeCallDeadline(deadline) : null,
+      status ?? null,
+      id
+    );
 
     logAudit(req.user.id, 'UPDATE_CALL', `Modification appel à projets #${id}`, req);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/calls/:id', authenticateToken, requireRole('superadmin', 'admin'), (req, res) => {
+  try {
+    const call = db.prepare(`
+      SELECT c.*, (SELECT COUNT(*) FROM candidatures WHERE call_id = c.id) AS candidatures_count
+      FROM call_for_projects c WHERE c.id = ?
+    `).get(req.params.id);
+    if (!call) return res.status(404).json({ error: 'Appel à projets introuvable' });
+    if (call.candidatures_count > 0) {
+      return res.status(409).json({
+        error: 'Cet appel possède déjà des candidatures réelles. Passez-le en brouillon ou clôturé au lieu de le supprimer.'
+      });
+    }
+    db.prepare('DELETE FROM call_for_projects WHERE id = ?').run(call.id);
+    logAudit(req.user.id, 'DELETE_CALL', `Suppression appel à projets #${call.id} : ${call.title}`, req);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -921,6 +1484,7 @@ app.put('/api/candidatures/:id/status', authenticateToken, requireRole('superadm
       UPDATE candidatures SET status = ? WHERE id = ?
     `).run(status, req.params.id);
 
+    syncRecordToCrmSafely(syncCandidatureToCrm, db.prepare('SELECT * FROM candidatures WHERE id = ?').get(req.params.id), req.user.id);
     logAudit(req.user.id, 'UPDATE_CANDIDATURE_STATUS', `Candidature #${req.params.id} passée à "${status}"`, req);
     res.json({ success: true });
   } catch (err) {
@@ -943,6 +1507,7 @@ app.put('/api/candidatures/:id/evaluate', authenticateToken, requireRole('supera
       WHERE id = ?
     `).run(score, evaluation_notes || '', status || null, req.user.id, req.params.id);
 
+    syncRecordToCrmSafely(syncCandidatureToCrm, db.prepare('SELECT * FROM candidatures WHERE id = ?').get(req.params.id), req.user.id);
     logAudit(req.user.id, 'EVALUATE_CANDIDATURE', `Évaluation candidature #${req.params.id} (Score: ${score}/5)`, req);
     res.json({ success: true });
   } catch (err) {
@@ -970,6 +1535,7 @@ app.post('/api/candidatures/:id/notify', authenticateToken, requireRole('superad
       notifMessage: subject
     });
 
+    syncRecordToCrmSafely(syncCandidatureToCrm, db.prepare('SELECT * FROM candidatures WHERE id = ?').get(cand.id), req.user.id);
     logAudit(req.user.id, 'NOTIFY_CANDIDATE', `Notification candidat #${cand.id} (${emailStatus})`, req);
     res.json({
       success: true,
@@ -1140,6 +1706,7 @@ app.post('/api/investors', authenticateToken, requireRole('superadmin', 'admin')
       notes || ''
     );
 
+    syncRecordToCrmSafely(syncInvestorToCrm, db.prepare('SELECT * FROM investors WHERE id = ?').get(result.lastInsertRowid), req.user.id);
     logAudit(req.user.id, 'CREATE_INVESTOR', `Ajout investisseur : ${name} (${organization})`, req);
     res.status(201).json({ success: true, id: result.lastInsertRowid });
   } catch (err) {
@@ -1168,6 +1735,7 @@ app.put('/api/investors/:id', authenticateToken, requireRole('superadmin', 'admi
       WHERE id = ?
     `).run(name, organization, email, phone, country, investor_type, ticket_min, ticket_max, sectors_of_interest, status, notes, id);
 
+    syncRecordToCrmSafely(syncInvestorToCrm, db.prepare('SELECT * FROM investors WHERE id = ?').get(id), req.user.id);
     logAudit(req.user.id, 'UPDATE_INVESTOR', `Mise à jour investisseur #${id}`, req);
     res.json({ success: true });
   } catch (err) {
@@ -1207,6 +1775,7 @@ app.post('/api/investors/:id/interests', authenticateToken, requireRole('superad
       notes || ''
     );
 
+    syncRecordToCrmSafely(syncInvestorInterestToCrm, db.prepare('SELECT * FROM investor_interests WHERE id = ?').get(result.lastInsertRowid), req.user.id);
     logAudit(req.user.id, 'ADD_INVESTOR_INTEREST', `Ajout opportunité financement investisseur #${req.params.id}`, req);
     res.status(201).json({ success: true, id: result.lastInsertRowid });
   } catch (err) {
@@ -1224,6 +1793,7 @@ app.put('/api/investor-interests/:id', authenticateToken, requireRole('superadmi
         notes = COALESCE(?, notes)
       WHERE id = ?
     `).run(stage, amount_intended, notes, req.params.id);
+    syncRecordToCrmSafely(syncInvestorInterestToCrm, db.prepare('SELECT * FROM investor_interests WHERE id = ?').get(req.params.id), req.user.id);
 
     res.json({ success: true });
   } catch (err) {
@@ -1361,6 +1931,7 @@ app.put('/api/inquiries/:id/assign', authenticateToken, requireRole('superadmin'
     db.prepare("UPDATE inquiries SET assigned_to = ?, status = CASE WHEN status = 'nouveau' THEN 'en_cours' ELSE status END WHERE id = ?")
       .run(assigned_to ? parseInt(assigned_to) : null, req.params.id);
 
+    syncRecordToCrmSafely(syncInquiryToCrm, db.prepare('SELECT * FROM inquiries WHERE id = ?').get(req.params.id), req.user.id);
     logAudit(req.user.id, 'ASSIGN_INQUIRY', `Attribution demande #${req.params.id} à collaborateur #${assigned_to}`, req);
     res.json({ success: true });
   } catch (err) {
@@ -1376,6 +1947,7 @@ app.put('/api/inquiries/:id/status', authenticateToken, (req, res) => {
     }
 
     db.prepare('UPDATE inquiries SET status = ? WHERE id = ?').run(status, req.params.id);
+    syncRecordToCrmSafely(syncInquiryToCrm, db.prepare('SELECT * FROM inquiries WHERE id = ?').get(req.params.id), req.user.id);
     logAudit(req.user.id, 'UPDATE_INQUIRY_STATUS', `Demande #${req.params.id} passée à ${status}`, req);
     res.json({ success: true });
   } catch (err) {
@@ -1401,6 +1973,8 @@ app.post('/api/inquiries/:id/respond', authenticateToken, async (req, res) => {
         assigned_to = COALESCE(assigned_to, ?)
       WHERE id = ?
     `).run(response_text, newStatus, req.user.id, inq.id);
+
+    syncRecordToCrmSafely(syncInquiryToCrm, db.prepare('SELECT * FROM inquiries WHERE id = ?').get(inq.id), req.user.id);
 
     const emailStatus = await logEmailAndNotify({
       recipient: inq.email,
@@ -1481,6 +2055,518 @@ app.get('/api/inquiries/export/excel', authenticateToken, async (req, res) => {
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', 'attachment; filename="Demandes_Commerciales_PKGlobal.xlsx"');
 
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// -------------------------------------------------------------
+// CRM — CONTACTS, PIPELINE D'OPPORTUNITÉS & ACTIVITÉS
+// -------------------------------------------------------------
+
+const crmAdminGuards = [authenticateToken, requireRole('superadmin', 'admin')];
+
+function crmEmailIsValid(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || ''));
+}
+
+function parseCrmContactPayload(body = {}, existing = null) {
+  const data = {
+    full_name: crmClean(body.full_name ?? body.name ?? existing?.full_name, 200),
+    organization: crmClean(body.organization ?? existing?.organization, 250),
+    email: crmClean(body.email ?? existing?.email, 254).toLowerCase(),
+    phone: crmClean(body.phone ?? existing?.phone, 60),
+    country: crmClean(body.country ?? existing?.country, 120),
+    location: crmClean(body.location ?? existing?.location, 250),
+    sector: crmClean(body.sector ?? existing?.sector, 250),
+    type: body.type ?? existing?.type ?? 'prospect',
+    status: body.status ?? existing?.status ?? 'nouveau',
+    source: crmClean(body.source ?? existing?.source, 80) || 'manuel',
+    owner_id: body.owner_id !== undefined ? crmNullableInt(body.owner_id) : (existing?.owner_id ?? null),
+    tags: crmClean(body.tags ?? existing?.tags, 500),
+    notes: crmClean(body.notes ?? existing?.notes, 5000),
+    last_contacted_at: body.last_contacted_at ?? existing?.last_contacted_at ?? null
+  };
+  if (!data.full_name) return { error: 'Le nom du contact est requis.' };
+  if (!crmEmailIsValid(data.email)) return { error: 'Une adresse email valide est requise.' };
+  if (!CRM_CONTACT_TYPES.includes(data.type)) return { error: 'Type de contact invalide.' };
+  if (!CRM_CONTACT_STATUSES.includes(data.status)) return { error: 'Statut de contact invalide.' };
+  if (!validateCrmOwner(data.owner_id)) return { error: 'Responsable CRM introuvable ou inactif.' };
+  return { data };
+}
+
+function parseCrmOpportunityPayload(body = {}, existing = null) {
+  const stage = body.stage ?? existing?.stage ?? 'nouveau';
+  const data = {
+    contact_id: body.contact_id !== undefined ? crmNullableInt(body.contact_id) : (existing?.contact_id ?? null),
+    title: crmClean(body.title ?? existing?.title, 300),
+    type: body.type ?? existing?.type ?? 'commerciale',
+    stage,
+    amount: body.amount !== undefined ? Number.parseFloat(body.amount) : (existing?.amount ?? 0),
+    currency: crmClean(body.currency ?? existing?.currency, 10).toUpperCase() || 'USD',
+    probability: body.probability !== undefined && body.probability !== ''
+      ? Number(body.probability)
+      : (existing?.probability ?? crmDefaultProbability(stage)),
+    expected_close_date: body.expected_close_date !== undefined ? (body.expected_close_date || null) : (existing?.expected_close_date ?? null),
+    owner_id: body.owner_id !== undefined ? crmNullableInt(body.owner_id) : (existing?.owner_id ?? null),
+    description: crmClean(body.description ?? existing?.description, 5000)
+  };
+  if (!data.contact_id || !db.prepare('SELECT id FROM crm_contacts WHERE id = ?').get(data.contact_id)) {
+    return { error: 'Contact CRM introuvable.' };
+  }
+  if (!data.title) return { error: 'Le titre de l’opportunité est requis.' };
+  if (!CRM_OPPORTUNITY_TYPES.includes(data.type)) return { error: 'Type d’opportunité invalide.' };
+  if (!CRM_OPPORTUNITY_STAGES.includes(data.stage)) return { error: 'Étape du pipeline invalide.' };
+  if (!Number.isFinite(data.amount) || data.amount < 0) return { error: 'Le montant doit être positif.' };
+  if (!Number.isFinite(data.probability) || data.probability < 0 || data.probability > 100) {
+    return { error: 'La probabilité doit être comprise entre 0 et 100.' };
+  }
+  data.probability = Math.round(data.probability);
+  if (!validateCrmOwner(data.owner_id)) return { error: 'Responsable CRM introuvable ou inactif.' };
+  return { data };
+}
+
+app.get('/api/crm/overview', ...crmAdminGuards, (req, res) => {
+  try {
+    const scalar = (sql, ...params) => Number(db.prepare(sql).get(...params)?.value || 0);
+    const byStage = db.prepare(`
+      SELECT stage, COUNT(*) AS count, COALESCE(SUM(amount), 0) AS amount
+      FROM crm_opportunities GROUP BY stage
+    `).all();
+    const byContactType = db.prepare(`
+      SELECT type, COUNT(*) AS count FROM crm_contacts WHERE status != 'archive' GROUP BY type
+    `).all();
+    const recentActivities = db.prepare(`
+      SELECT a.*, c.full_name AS contact_name, o.title AS opportunity_title, u.name AS creator_name
+      FROM crm_activities a
+      INNER JOIN crm_contacts c ON c.id = a.contact_id
+      LEFT JOIN crm_opportunities o ON o.id = a.opportunity_id
+      LEFT JOIN users u ON u.id = a.created_by
+      ORDER BY a.created_at DESC, a.id DESC LIMIT 8
+    `).all();
+    const upcomingTasks = db.prepare(`
+      SELECT a.*, c.full_name AS contact_name, o.title AS opportunity_title, u.name AS creator_name
+      FROM crm_activities a
+      INNER JOIN crm_contacts c ON c.id = a.contact_id
+      LEFT JOIN crm_opportunities o ON o.id = a.opportunity_id
+      LEFT JOIN users u ON u.id = a.created_by
+      WHERE a.status = 'a_faire'
+      ORDER BY CASE WHEN a.due_at IS NULL THEN 1 ELSE 0 END, a.due_at ASC, a.id DESC LIMIT 8
+    `).all();
+
+    res.json({
+      contacts_total: scalar("SELECT COUNT(*) AS value FROM crm_contacts WHERE status != 'archive'"),
+      contacts_new_30d: scalar("SELECT COUNT(*) AS value FROM crm_contacts WHERE created_at >= datetime('now', '-30 days')"),
+      contacts_by_type: byContactType,
+      opportunities_total: scalar('SELECT COUNT(*) AS value FROM crm_opportunities'),
+      opportunities_open: scalar("SELECT COUNT(*) AS value FROM crm_opportunities WHERE stage NOT IN ('gagne', 'perdu')"),
+      opportunities_won: scalar("SELECT COUNT(*) AS value FROM crm_opportunities WHERE stage = 'gagne'"),
+      opportunities_lost: scalar("SELECT COUNT(*) AS value FROM crm_opportunities WHERE stage = 'perdu'"),
+      pipeline_value: scalar("SELECT COALESCE(SUM(amount), 0) AS value FROM crm_opportunities WHERE stage NOT IN ('gagne', 'perdu')"),
+      pipeline_weighted_value: scalar("SELECT COALESCE(SUM(amount * probability / 100.0), 0) AS value FROM crm_opportunities WHERE stage NOT IN ('gagne', 'perdu')"),
+      opportunities_by_stage: byStage,
+      tasks_open: scalar("SELECT COUNT(*) AS value FROM crm_activities WHERE status = 'a_faire'"),
+      tasks_overdue: scalar("SELECT COUNT(*) AS value FROM crm_activities WHERE status = 'a_faire' AND due_at IS NOT NULL AND datetime(due_at) < CURRENT_TIMESTAMP"),
+      sources: {
+        inquiries: scalar('SELECT COUNT(*) AS value FROM inquiries'),
+        investors: scalar('SELECT COUNT(*) AS value FROM investors'),
+        candidatures: scalar('SELECT COUNT(*) AS value FROM candidatures'),
+        unsynced: scalar(`
+          SELECT
+            (SELECT COUNT(*) FROM inquiries i WHERE NOT EXISTS (SELECT 1 FROM crm_opportunities o WHERE o.source_ref_type = 'inquiry' AND o.source_ref_id = i.id)) +
+            (SELECT COUNT(*) FROM investors inv WHERE NOT EXISTS (SELECT 1 FROM crm_contacts c WHERE c.source_ref_type = 'investor' AND c.source_ref_id = inv.id)) +
+            (SELECT COUNT(*) FROM investor_interests ii WHERE NOT EXISTS (SELECT 1 FROM crm_opportunities o WHERE o.source_ref_type = 'investor_interest' AND o.source_ref_id = ii.id)) +
+            (SELECT COUNT(*) FROM candidatures ca WHERE NOT EXISTS (SELECT 1 FROM crm_opportunities o WHERE o.source_ref_type = 'candidature' AND o.source_ref_id = ca.id))
+          AS value`)
+      },
+      recent_activities: recentActivities,
+      upcoming_tasks: upcomingTasks
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/crm/sync-sources', ...crmAdminGuards, (req, res) => {
+  try {
+    const summary = syncAllCrmSources(req.user.id);
+    logAudit(req.user.id, 'SYNC_CRM_SOURCES', `Synchronisation CRM : ${summary.contacts_created} contacts créés, ${summary.opportunities_created} opportunités créées`, req);
+    res.json({ success: true, ...summary });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/crm/contacts', ...crmAdminGuards, (req, res) => {
+  try {
+    const { search, type, status, owner_id } = req.query;
+    let query = crmContactSelect('WHERE 1=1');
+    const params = [];
+    if (search) {
+      query += ' AND (c.full_name LIKE ? OR c.organization LIKE ? OR c.email LIKE ? OR c.phone LIKE ? OR c.sector LIKE ?)';
+      const term = `%${search}%`;
+      params.push(term, term, term, term, term);
+    }
+    if (type && type !== 'all') { query += ' AND c.type = ?'; params.push(type); }
+    if (status && status !== 'all') { query += ' AND c.status = ?'; params.push(status); }
+    else if (!status) query += " AND c.status != 'archive'";
+    if (owner_id) { query += ' AND c.owner_id = ?'; params.push(owner_id); }
+    query += ' ORDER BY c.updated_at DESC, c.id DESC';
+    res.json(db.prepare(query).all(...params));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/crm/contacts', ...crmAdminGuards, (req, res) => {
+  try {
+    const { data, error } = parseCrmContactPayload(req.body);
+    if (error) return res.status(400).json({ error });
+    const duplicate = db.prepare('SELECT id FROM crm_contacts WHERE email = ? COLLATE NOCASE').get(data.email);
+    if (duplicate) return res.status(409).json({ error: 'Un contact CRM existe déjà avec cet email.', id: duplicate.id });
+
+    const result = db.prepare(`
+      INSERT INTO crm_contacts (
+        full_name, organization, email, phone, country, location, sector, type, status, source,
+        owner_id, tags, notes, last_contacted_at, created_by, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `).run(
+      data.full_name, data.organization || null, data.email, data.phone || null, data.country || null,
+      data.location || null, data.sector || null, data.type, data.status, data.source, data.owner_id,
+      data.tags || null, data.notes || null, data.last_contacted_at, req.user.id
+    );
+    logAudit(req.user.id, 'CREATE_CRM_CONTACT', `Création contact CRM : ${data.full_name} (${data.email})`, req);
+    res.status(201).json({ success: true, contact: getCrmContact(result.lastInsertRowid) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/crm/contacts/:id', ...crmAdminGuards, (req, res) => {
+  try {
+    const contact = getCrmContact(req.params.id);
+    if (!contact) return res.status(404).json({ error: 'Contact CRM introuvable' });
+    const opportunities = db.prepare(`
+      SELECT o.*, u.name AS owner_name FROM crm_opportunities o
+      LEFT JOIN users u ON u.id = o.owner_id
+      WHERE o.contact_id = ? ORDER BY o.updated_at DESC, o.id DESC
+    `).all(contact.id);
+    const activities = db.prepare(`
+      SELECT a.*, o.title AS opportunity_title, u.name AS creator_name FROM crm_activities a
+      LEFT JOIN crm_opportunities o ON o.id = a.opportunity_id
+      LEFT JOIN users u ON u.id = a.created_by
+      WHERE a.contact_id = ? ORDER BY a.created_at DESC, a.id DESC
+    `).all(contact.id);
+    res.json({ ...contact, opportunities, activities });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/crm/contacts/:id', ...crmAdminGuards, (req, res) => {
+  try {
+    const existing = db.prepare('SELECT * FROM crm_contacts WHERE id = ?').get(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Contact CRM introuvable' });
+    const { data, error } = parseCrmContactPayload(req.body, existing);
+    if (error) return res.status(400).json({ error });
+    const duplicate = db.prepare('SELECT id FROM crm_contacts WHERE email = ? COLLATE NOCASE AND id != ?').get(data.email, existing.id);
+    if (duplicate) return res.status(409).json({ error: 'Un autre contact CRM utilise déjà cet email.', id: duplicate.id });
+
+    db.prepare(`
+      UPDATE crm_contacts SET
+        full_name = ?, organization = ?, email = ?, phone = ?, country = ?, location = ?, sector = ?,
+        type = ?, status = ?, source = ?, owner_id = ?, tags = ?, notes = ?, last_contacted_at = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(
+      data.full_name, data.organization || null, data.email, data.phone || null, data.country || null,
+      data.location || null, data.sector || null, data.type, data.status, data.source, data.owner_id,
+      data.tags || null, data.notes || null, data.last_contacted_at, existing.id
+    );
+    logAudit(req.user.id, 'UPDATE_CRM_CONTACT', `Mise à jour contact CRM #${existing.id} : ${data.full_name}`, req);
+    res.json({ success: true, contact: getCrmContact(existing.id) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/crm/contacts/:id', ...crmAdminGuards, (req, res) => {
+  try {
+    const existing = db.prepare('SELECT * FROM crm_contacts WHERE id = ?').get(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Contact CRM introuvable' });
+    const remove = db.transaction(() => {
+      db.prepare('DELETE FROM crm_activities WHERE contact_id = ?').run(existing.id);
+      db.prepare('DELETE FROM crm_opportunities WHERE contact_id = ?').run(existing.id);
+      db.prepare('DELETE FROM crm_contacts WHERE id = ?').run(existing.id);
+    });
+    remove();
+    logAudit(req.user.id, 'DELETE_CRM_CONTACT', `Suppression contact CRM #${existing.id} : ${existing.full_name}`, req);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/crm/opportunities', ...crmAdminGuards, (req, res) => {
+  try {
+    const { search, stage, type, contact_id, owner_id } = req.query;
+    let query = `
+      SELECT o.*, c.full_name AS contact_name, c.organization AS contact_organization,
+        c.email AS contact_email, c.phone AS contact_phone, u.name AS owner_name
+      FROM crm_opportunities o
+      INNER JOIN crm_contacts c ON c.id = o.contact_id
+      LEFT JOIN users u ON u.id = o.owner_id
+      WHERE 1=1
+    `;
+    const params = [];
+    if (search) {
+      query += ' AND (o.title LIKE ? OR c.full_name LIKE ? OR c.organization LIKE ? OR c.email LIKE ?)';
+      const term = `%${search}%`;
+      params.push(term, term, term, term);
+    }
+    if (stage && stage !== 'all') { query += ' AND o.stage = ?'; params.push(stage); }
+    if (type && type !== 'all') { query += ' AND o.type = ?'; params.push(type); }
+    if (contact_id) { query += ' AND o.contact_id = ?'; params.push(contact_id); }
+    if (owner_id) { query += ' AND o.owner_id = ?'; params.push(owner_id); }
+    query += ' ORDER BY o.updated_at DESC, o.id DESC';
+    res.json(db.prepare(query).all(...params));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/crm/opportunities', ...crmAdminGuards, (req, res) => {
+  try {
+    const { data, error } = parseCrmOpportunityPayload(req.body);
+    if (error) return res.status(400).json({ error });
+    const result = db.prepare(`
+      INSERT INTO crm_opportunities (
+        contact_id, title, type, stage, amount, currency, probability, expected_close_date,
+        owner_id, description, created_by, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `).run(
+      data.contact_id, data.title, data.type, data.stage, data.amount, data.currency, data.probability,
+      data.expected_close_date, data.owner_id, data.description || null, req.user.id
+    );
+    logAudit(req.user.id, 'CREATE_CRM_OPPORTUNITY', `Création opportunité CRM : ${data.title}`, req);
+    res.status(201).json({ success: true, opportunity: getCrmOpportunity(result.lastInsertRowid) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/crm/opportunities/:id', ...crmAdminGuards, (req, res) => {
+  try {
+    const existing = db.prepare('SELECT * FROM crm_opportunities WHERE id = ?').get(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Opportunité CRM introuvable' });
+    const { data, error } = parseCrmOpportunityPayload(req.body, existing);
+    if (error) return res.status(400).json({ error });
+    db.prepare(`
+      UPDATE crm_opportunities SET
+        contact_id = ?, title = ?, type = ?, stage = ?, amount = ?, currency = ?, probability = ?,
+        expected_close_date = ?, owner_id = ?, description = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(
+      data.contact_id, data.title, data.type, data.stage, data.amount, data.currency, data.probability,
+      data.expected_close_date, data.owner_id, data.description || null, existing.id
+    );
+    logAudit(req.user.id, 'UPDATE_CRM_OPPORTUNITY', `Mise à jour opportunité CRM #${existing.id} : ${data.title}`, req);
+    res.json({ success: true, opportunity: getCrmOpportunity(existing.id) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/crm/opportunities/:id/stage', ...crmAdminGuards, (req, res) => {
+  try {
+    const existing = db.prepare('SELECT * FROM crm_opportunities WHERE id = ?').get(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Opportunité CRM introuvable' });
+    const { stage } = req.body;
+    if (!CRM_OPPORTUNITY_STAGES.includes(stage)) return res.status(400).json({ error: 'Étape du pipeline invalide.' });
+    const probability = req.body.probability !== undefined && req.body.probability !== ''
+      ? Math.min(100, Math.max(0, Math.round(Number(req.body.probability))))
+      : crmDefaultProbability(stage);
+    if (!Number.isFinite(probability)) return res.status(400).json({ error: 'Probabilité invalide.' });
+    db.prepare('UPDATE crm_opportunities SET stage = ?, probability = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+      .run(stage, probability, existing.id);
+    insertCrmActivity({
+      contact_id: existing.contact_id,
+      opportunity_id: existing.id,
+      type: 'note',
+      title: `Pipeline : ${existing.stage} → ${stage}`,
+      created_by: req.user.id
+    });
+    logAudit(req.user.id, 'UPDATE_CRM_OPPORTUNITY_STAGE', `Opportunité CRM #${existing.id} passée à ${stage}`, req);
+    res.json({ success: true, opportunity: getCrmOpportunity(existing.id) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/crm/opportunities/:id', ...crmAdminGuards, (req, res) => {
+  try {
+    const existing = db.prepare('SELECT * FROM crm_opportunities WHERE id = ?').get(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Opportunité CRM introuvable' });
+    const remove = db.transaction(() => {
+      db.prepare('UPDATE crm_activities SET opportunity_id = NULL WHERE opportunity_id = ?').run(existing.id);
+      db.prepare('DELETE FROM crm_opportunities WHERE id = ?').run(existing.id);
+    });
+    remove();
+    logAudit(req.user.id, 'DELETE_CRM_OPPORTUNITY', `Suppression opportunité CRM #${existing.id} : ${existing.title}`, req);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/crm/activities', ...crmAdminGuards, (req, res) => {
+  try {
+    const { contact_id, opportunity_id, status, type } = req.query;
+    let query = `
+      SELECT a.*, c.full_name AS contact_name, o.title AS opportunity_title, u.name AS creator_name
+      FROM crm_activities a
+      INNER JOIN crm_contacts c ON c.id = a.contact_id
+      LEFT JOIN crm_opportunities o ON o.id = a.opportunity_id
+      LEFT JOIN users u ON u.id = a.created_by
+      WHERE 1=1
+    `;
+    const params = [];
+    if (contact_id) { query += ' AND a.contact_id = ?'; params.push(contact_id); }
+    if (opportunity_id) { query += ' AND a.opportunity_id = ?'; params.push(opportunity_id); }
+    if (status && status !== 'all') { query += ' AND a.status = ?'; params.push(status); }
+    if (type && type !== 'all') { query += ' AND a.type = ?'; params.push(type); }
+    query += ` ORDER BY CASE WHEN a.status = 'a_faire' THEN 0 ELSE 1 END,
+      CASE WHEN a.due_at IS NULL THEN 1 ELSE 0 END, a.due_at ASC, a.created_at DESC, a.id DESC`;
+    res.json(db.prepare(query).all(...params));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/crm/activities', ...crmAdminGuards, (req, res) => {
+  try {
+    const contactId = crmNullableInt(req.body.contact_id);
+    const opportunityId = crmNullableInt(req.body.opportunity_id);
+    const type = req.body.type || 'note';
+    const status = req.body.status || (type === 'tache' ? 'a_faire' : 'terminee');
+    if (!contactId || !db.prepare('SELECT id FROM crm_contacts WHERE id = ?').get(contactId)) {
+      return res.status(400).json({ error: 'Contact CRM introuvable.' });
+    }
+    if (opportunityId) {
+      const opportunity = db.prepare('SELECT id, contact_id FROM crm_opportunities WHERE id = ?').get(opportunityId);
+      if (!opportunity) return res.status(400).json({ error: 'Opportunité CRM introuvable.' });
+      if (opportunity.contact_id !== contactId) return res.status(400).json({ error: 'Cette opportunité appartient à un autre contact.' });
+    }
+    if (!CRM_ACTIVITY_TYPES.includes(type)) return res.status(400).json({ error: 'Type d’activité invalide.' });
+    if (!CRM_ACTIVITY_STATUSES.includes(status)) return res.status(400).json({ error: 'Statut d’activité invalide.' });
+    if (!crmClean(req.body.title, 300)) return res.status(400).json({ error: 'Le titre de l’activité est requis.' });
+
+    const id = insertCrmActivity({
+      contact_id: contactId,
+      opportunity_id: opportunityId,
+      type,
+      title: req.body.title,
+      details: req.body.details,
+      status,
+      due_at: req.body.due_at || null,
+      created_by: req.user.id
+    });
+    if (type !== 'tache' && status === 'terminee') {
+      db.prepare('UPDATE crm_contacts SET last_contacted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(contactId);
+    }
+    logAudit(req.user.id, 'CREATE_CRM_ACTIVITY', `Activité CRM (${type}) pour contact #${contactId}`, req);
+    res.status(201).json({ success: true, activity: getCrmActivity(id) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/crm/activities/:id/complete', ...crmAdminGuards, (req, res) => {
+  try {
+    const existing = db.prepare('SELECT * FROM crm_activities WHERE id = ?').get(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Activité CRM introuvable' });
+    db.prepare("UPDATE crm_activities SET status = 'terminee', completed_at = CURRENT_TIMESTAMP WHERE id = ?").run(existing.id);
+    db.prepare('UPDATE crm_contacts SET last_contacted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(existing.contact_id);
+    logAudit(req.user.id, 'COMPLETE_CRM_ACTIVITY', `Tâche/activité CRM #${existing.id} terminée`, req);
+    res.json({ success: true, activity: getCrmActivity(existing.id) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/crm/activities/:id', ...crmAdminGuards, (req, res) => {
+  try {
+    const existing = db.prepare('SELECT * FROM crm_activities WHERE id = ?').get(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Activité CRM introuvable' });
+    db.prepare('DELETE FROM crm_activities WHERE id = ?').run(existing.id);
+    logAudit(req.user.id, 'DELETE_CRM_ACTIVITY', `Suppression activité CRM #${existing.id}`, req);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/crm/export/excel', ...crmAdminGuards, async (req, res) => {
+  try {
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'PK GLOBAL PARTNERS';
+
+    const contactsSheet = workbook.addWorksheet('Contacts CRM');
+    contactsSheet.columns = [
+      { header: 'Nom', key: 'full_name', width: 26 },
+      { header: 'Organisation', key: 'organization', width: 30 },
+      { header: 'Email', key: 'email', width: 30 },
+      { header: 'Téléphone', key: 'phone', width: 20 },
+      { header: 'Type', key: 'type', width: 18 },
+      { header: 'Statut', key: 'status', width: 15 },
+      { header: 'Secteur', key: 'sector', width: 28 },
+      { header: 'Pays / Localisation', key: 'location', width: 26 },
+      { header: 'Responsable', key: 'owner_name', width: 24 },
+      { header: 'Source', key: 'source', width: 18 },
+      { header: 'Créé le', key: 'created_at', width: 20 }
+    ];
+    db.prepare(`
+      SELECT c.full_name, c.organization, c.email, c.phone, c.type, c.status, c.sector,
+        COALESCE(NULLIF(c.location, ''), c.country) AS location, u.name AS owner_name, c.source, c.created_at
+      FROM crm_contacts c LEFT JOIN users u ON u.id = c.owner_id
+      ORDER BY c.updated_at DESC
+    `).all().forEach(row => contactsSheet.addRow(row));
+
+    const opportunitiesSheet = workbook.addWorksheet('Pipeline CRM');
+    opportunitiesSheet.columns = [
+      { header: 'Opportunité', key: 'title', width: 42 },
+      { header: 'Contact', key: 'contact_name', width: 26 },
+      { header: 'Organisation', key: 'contact_organization', width: 30 },
+      { header: 'Type', key: 'type', width: 18 },
+      { header: 'Étape', key: 'stage', width: 18 },
+      { header: 'Montant', key: 'amount', width: 16 },
+      { header: 'Devise', key: 'currency', width: 10 },
+      { header: 'Probabilité %', key: 'probability', width: 15 },
+      { header: 'Clôture prévue', key: 'expected_close_date', width: 18 },
+      { header: 'Responsable', key: 'owner_name', width: 24 },
+      { header: 'Mise à jour', key: 'updated_at', width: 20 }
+    ];
+    db.prepare(`
+      SELECT o.title, c.full_name AS contact_name, c.organization AS contact_organization,
+        o.type, o.stage, o.amount, o.currency, o.probability, o.expected_close_date,
+        u.name AS owner_name, o.updated_at
+      FROM crm_opportunities o
+      INNER JOIN crm_contacts c ON c.id = o.contact_id
+      LEFT JOIN users u ON u.id = o.owner_id
+      ORDER BY o.updated_at DESC
+    `).all().forEach(row => opportunitiesSheet.addRow(row));
+
+    [contactsSheet, opportunitiesSheet].forEach(sheet => {
+      sheet.getRow(1).font = { name: 'Arial', bold: true, color: { argb: 'FFFFFFFF' } };
+      sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF064E3B' } };
+      sheet.getRow(1).height = 24;
+      sheet.views = [{ state: 'frozen', ySplit: 1 }];
+    });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="CRM_PKGlobal.xlsx"');
     await workbook.xlsx.write(res);
     res.end();
   } catch (err) {
@@ -2149,6 +3235,9 @@ app.get('/api/backups/export-json', authenticateToken, requireRole('superadmin')
       candidatures: db.prepare('SELECT * FROM candidatures').all(),
       investors: db.prepare('SELECT * FROM investors').all(),
       inquiries: db.prepare('SELECT * FROM inquiries').all(),
+      crm_contacts: db.prepare('SELECT * FROM crm_contacts').all(),
+      crm_opportunities: db.prepare('SELECT * FROM crm_opportunities').all(),
+      crm_activities: db.prepare('SELECT * FROM crm_activities').all(),
       filiales: db.prepare('SELECT * FROM filiales').all(),
       filiale_products: db.prepare('SELECT * FROM filiale_products').all(),
       filiale_projects: db.prepare('SELECT * FROM filiale_projects').all()
@@ -2198,6 +3287,24 @@ app.get('/api/supabase/schema', (req, res) => {
     res.download(schemaPath, 'schema_supabase_pkglobal.sql');
   } else {
     res.status(404).json({ error: 'Schéma introuvable' });
+  }
+});
+
+app.get('/api/supabase/admin-access', (req, res) => {
+  const accessPath = path.join(__dirname, 'supabase', 'admin-access.sql');
+  if (fs.existsSync(accessPath)) {
+    res.download(accessPath, 'admin-access_supabase_pkglobal.sql');
+  } else {
+    res.status(404).json({ error: 'Politiques d’accès admin introuvables' });
+  }
+});
+
+app.get('/api/supabase/crm', (req, res) => {
+  const crmPath = path.join(__dirname, 'supabase', 'crm.sql');
+  if (fs.existsSync(crmPath)) {
+    res.download(crmPath, 'crm_supabase_pkglobal.sql');
+  } else {
+    res.status(404).json({ error: 'Migration CRM introuvable' });
   }
 });
 

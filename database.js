@@ -137,6 +137,79 @@ function initializeDatabase() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS crm_contacts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      full_name TEXT NOT NULL,
+      organization TEXT,
+      email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+      phone TEXT,
+      country TEXT,
+      location TEXT,
+      sector TEXT,
+      type TEXT DEFAULT 'prospect' CHECK(type IN ('prospect', 'client', 'partenaire', 'investisseur', 'porteur_projet', 'candidat', 'autre')),
+      status TEXT DEFAULT 'nouveau' CHECK(status IN ('nouveau', 'actif', 'inactif', 'archive')),
+      source TEXT DEFAULT 'manuel',
+      source_ref_type TEXT,
+      source_ref_id INTEGER,
+      owner_id INTEGER NULL,
+      tags TEXT,
+      notes TEXT,
+      last_contacted_at DATETIME,
+      created_by INTEGER NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(source_ref_type, source_ref_id),
+      FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS crm_opportunities (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      contact_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      type TEXT DEFAULT 'commerciale' CHECK(type IN ('commerciale', 'investissement', 'partenariat', 'appel_projet', 'recrutement', 'autre')),
+      stage TEXT DEFAULT 'nouveau' CHECK(stage IN ('nouveau', 'qualification', 'contacte', 'reunion', 'proposition', 'negociation', 'gagne', 'perdu')),
+      amount REAL DEFAULT 0,
+      currency TEXT DEFAULT 'USD',
+      probability INTEGER DEFAULT 10 CHECK(probability >= 0 AND probability <= 100),
+      expected_close_date DATE,
+      owner_id INTEGER NULL,
+      source_ref_type TEXT,
+      source_ref_id INTEGER,
+      description TEXT,
+      created_by INTEGER NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(source_ref_type, source_ref_id),
+      FOREIGN KEY (contact_id) REFERENCES crm_contacts(id) ON DELETE CASCADE,
+      FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS crm_activities (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      contact_id INTEGER NOT NULL,
+      opportunity_id INTEGER NULL,
+      type TEXT DEFAULT 'note' CHECK(type IN ('note', 'appel', 'email', 'reunion', 'whatsapp', 'tache', 'autre')),
+      title TEXT NOT NULL,
+      details TEXT,
+      status TEXT DEFAULT 'terminee' CHECK(status IN ('a_faire', 'terminee', 'annulee')),
+      due_at DATETIME,
+      completed_at DATETIME,
+      created_by INTEGER NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (contact_id) REFERENCES crm_contacts(id) ON DELETE CASCADE,
+      FOREIGN KEY (opportunity_id) REFERENCES crm_opportunities(id) ON DELETE SET NULL,
+      FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_crm_contacts_owner ON crm_contacts(owner_id);
+    CREATE INDEX IF NOT EXISTS idx_crm_contacts_type_status ON crm_contacts(type, status);
+    CREATE INDEX IF NOT EXISTS idx_crm_opportunities_contact ON crm_opportunities(contact_id);
+    CREATE INDEX IF NOT EXISTS idx_crm_opportunities_stage ON crm_opportunities(stage);
+    CREATE INDEX IF NOT EXISTS idx_crm_activities_contact ON crm_activities(contact_id);
+    CREATE INDEX IF NOT EXISTS idx_crm_activities_due ON crm_activities(status, due_at);
+
     CREATE TABLE IF NOT EXISTS filiales (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       code TEXT UNIQUE NOT NULL,
@@ -215,6 +288,7 @@ function initializeDatabase() {
   `);
 
   secureSeededDemoAccounts();
+  unpublishSeededDemoCalls();
   seedData();
 }
 
@@ -261,6 +335,50 @@ function secureSeededDemoAccounts() {
     } else {
       disableDemo.run(user.id);
     }
+  }
+}
+
+// One-time real-mode cleanup: calls inserted by the former demonstration seed
+// must not be presented as official announcements. They are preserved as
+// drafts (with any linked candidatures) so an administrator can review,
+// rename and intentionally publish a real call later.
+function unpublishSeededDemoCalls() {
+  const useDemoAccounts = process.env.ALLOW_DEMO_USERS === 'true' && process.env.NODE_ENV !== 'production';
+  if (useDemoAccounts) return;
+
+  const markerKey = 'migration_demo_calls_unpublished_v1';
+  const marker = db.prepare('SELECT key FROM site_content WHERE key = ?').get(markerKey);
+  if (marker) return;
+
+  const demoSlugs = [
+    'appel-projets-agritech-2026',
+    'fonds-jeunes-logistique-dernier-km',
+    'energies-renouvelables-pompage-2025'
+  ];
+  const demoTitles = [
+    'Appel à Projets 2026 : AgriTech & Transformation Agroalimentaire RDC',
+    'Appel à Projets 2026 : AgriTech & Transformation RDC',
+    'Fonds Jeunes Entrepreneurs : Logistique du Dernier Kilomètre',
+    'Édition Clôturée 2025 : Énergies Renouvelables et Pompage Solaire'
+  ];
+  const slugPlaceholders = demoSlugs.map(() => '?').join(', ');
+  const titlePlaceholders = demoTitles.map(() => '?').join(', ');
+
+  const migrate = db.transaction(() => {
+    const result = db.prepare(`
+      UPDATE call_for_projects
+      SET status = 'draft'
+      WHERE status IN ('open', 'closed')
+        AND (slug IN (${slugPlaceholders}) OR title IN (${titlePlaceholders}))
+    `).run(...demoSlugs, ...demoTitles);
+    db.prepare('INSERT INTO site_content (key, value, updated_by) VALUES (?, ?, NULL)')
+      .run(markerKey, JSON.stringify({ unpublished: result.changes, at: new Date().toISOString() }));
+    return result.changes;
+  });
+
+  const unpublished = migrate();
+  if (unpublished > 0) {
+    console.log(`Real-data mode: ${unpublished} seeded demo call(s) moved to draft.`);
   }
 }
 
@@ -480,6 +598,11 @@ function seedData() {
     adminId
   );
 
+  // 6-10. Données transactionnelles de démonstration (appels, candidatures,
+  // investisseurs et demandes) : uniquement en mode démo explicite. En usage
+  // réel, ces tables démarrent vides et sont alimentées par l'admin et les
+  // formulaires publics.
+  if (useDemoAccounts) {
   // 6. Seed Calls for Projects
   const insertCall = db.prepare(`
     INSERT INTO call_for_projects (title, slug, description, target_sector, budget_indicatif, eligibility, deadline, status)
@@ -884,6 +1007,8 @@ function seedData() {
     '2026-10-20 09:20:00'
   );
 
+  } // fin des données transactionnelles de démonstration
+
   // 11. Seed Filiale Products
   const insertProduct = db.prepare(`
     INSERT INTO filiale_products (filiale_id, name, category, description, price_indicative, image_url, is_featured)
@@ -1023,13 +1148,15 @@ function seedData() {
     'Terminé'
   );
 
+  // 13-14. Statistiques et notifications fictives : mode démo uniquement.
+  if (useDemoAccounts) {
   // 13. Seed Visitor Statistics (for the last 30 days to render beautiful analytics)
   const insertVisit = db.prepare(`
     INSERT INTO visitor_stats (page, ip_hash, user_agent, referrer, visited_at)
     VALUES (?, ?, ?, ?, ?)
   `);
 
-  const pages = ['accueil', 'about', 'filiales', 'investors', 'careers', 'contact'];
+  const pages = ['accueil', 'about', 'filiales', 'investors', 'appels-a-projets', 'careers', 'contact'];
   const referrers = ['google.cd', 'linkedin.com', 'direct', 'facebook.com', 'twitter.com'];
 
   // Generate ~450 visits spread across the last 30 days
@@ -1086,6 +1213,8 @@ function seedData() {
     '2026-10-19 14:00:00'
   );
 
+  } // fin statistiques/notifications de démonstration
+
   // 15. Seed Audit Logs
   const insertAudit = db.prepare(`
     INSERT INTO audit_logs (user_id, action, details, ip, created_at)
@@ -1093,8 +1222,10 @@ function seedData() {
   `);
 
   insertAudit.run(superAdminId, 'INITIALIZE_PLATFORM', 'Initialisation du système et configuration de base PK Global', '2026-10-01 08:00:00');
-  insertAudit.run(adminId, 'EVALUATION_PROJECT', 'Validation de la candidature AgriKivu (Note: 4.8/5)', '2026-10-18 16:45:00');
-  insertAudit.run(friviaMgrId, 'UPDATE_FILIALE', 'Mise à jour des produits phares FRIVIA', '2026-10-22 11:20:00');
+  if (useDemoAccounts) {
+    insertAudit.run(adminId, 'EVALUATION_PROJECT', 'Validation de la candidature AgriKivu (Note: 4.8/5)', '2026-10-18 16:45:00');
+    insertAudit.run(friviaMgrId, 'UPDATE_FILIALE', 'Mise à jour des produits phares FRIVIA', '2026-10-22 11:20:00');
+  }
 
   console.log('PK GLOBAL PARTNERS database initialized and seeded successfully!');
 }
