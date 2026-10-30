@@ -27,11 +27,28 @@
         });
       }
 
+      // Dernier recours si la bibliothèque est absente ou bloquée par
+      // l'hébergeur : on la récupère sur un CDN public.
+      var SB_CDN = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js';
+
+      // Chaque entrée indique comment VÉRIFIER que le fichier a vraiment
+      // chargé : certains hébergeurs renvoient leur page 404 avec un code
+      // « 200 OK », ce qui faisait croire au chargeur que tout allait bien.
       var FILES = [
-        { list: paths(SHARED, 'js/chart.min.js') },
-        { list: paths(SHARED, 'js/pk-config.js') },
-        { list: paths(SHARED, 'js/supabase.js'), critical: true },
-        { list: paths(ADMIN, 'supabase-admin.js'), critical: true },
+        { list: paths(SHARED, 'js/chart.min.js'), test: function () { return typeof window.Chart !== 'undefined'; } },
+        { list: paths(SHARED, 'js/pk-config.js'), test: function () { return Boolean(window.PK_CONFIG); } },
+        {
+          // « pk-sbclient.js » et « supabase.js » sont le même fichier : deux
+          // noms différents car certains hébergeurs bloquent les fichiers
+          // nommés « supabase.js ».
+          list: paths(SHARED, 'js/pk-sbclient.js')
+            .concat(paths(SHARED, 'js/supabase.js'))
+            .concat([SB_CDN]),
+          critical: true,
+          label: 'la bibliothèque Supabase',
+          test: function () { return Boolean(window.supabase && window.supabase.createClient); }
+        },
+        { list: paths(ADMIN, 'supabase-admin.js'), critical: true, test: function () { return Boolean(window.SupabaseAdmin); } },
         { list: paths(ADMIN, 'admin.js'), critical: true }
       ];
 
@@ -48,14 +65,31 @@
 
       function loadOne(entry, done) {
         var index = 0;
+        var tried = [];
         (function next() {
-          if (index >= entry.list.length) { done(false, entry.list); return; }
+          if (index >= entry.list.length) { done(false, tried); return; }
           var url = entry.list[index++];
           var script = document.createElement('script');
           var settled = false;
           script.src = url;
-          script.onload = function () { if (!settled) { settled = true; done(true, url); } };
-          script.onerror = function () { if (!settled) { settled = true; next(); } };
+          script.onload = function () {
+            if (settled) return;
+            settled = true;
+            // Le fichier a été téléchargé : vérifie qu'il a bien fourni ce
+            // qu'on attend (sinon c'est une page d'erreur déguisée).
+            if (typeof entry.test === 'function' && !entry.test()) {
+              tried.push(url + ' (réponse inattendue)');
+              next();
+              return;
+            }
+            done(true, url);
+          };
+          script.onerror = function () {
+            if (settled) return;
+            settled = true;
+            tried.push(url);
+            next();
+          };
           document.head.appendChild(script);
         })();
       }
@@ -86,9 +120,11 @@
               var box = document.getElementById('login-error');
               var text = document.getElementById('login-error-text');
               if (box && text) {
-                text.textContent = 'Fichier de l\'espace admin introuvable sur le serveur '
-                  + '(' + entry.list[0].split('/').pop() + '). Vérifiez que le dossier « public/ » '
-                  + 'a bien été envoyé sur votre hébergeur.';
+                var name = entry.label || entry.list[0].split('/').pop();
+                text.textContent = 'Fichier de l\'espace admin introuvable sur le serveur ('
+                  + name + '). Vérifiez que le dossier « public/ » a bien été envoyé sur votre '
+                  + 'hébergeur et que le fichier n\'est pas bloqué (erreur 403). '
+                  + 'Détail dans la console du navigateur (touche F12).';
                 box.classList.remove('hidden');
               }
               return;

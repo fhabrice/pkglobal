@@ -64,13 +64,64 @@
   };
   // Emplacements connus du site public : une image active portant un de ces
   // emplacements remplace l'image par défaut du même emplacement.
-  // Emplacements reconnus par le site public (page d'accueil + page Filiales).
+  // Emplacements reconnus par le site public. Le libellé est ce que voit
+  // l'administrateur : il choisit « Réunion d'affaires » dans la liste, plus
+  // besoin de connaître le code technique de l'emplacement.
   const MEDIA_PLACEMENTS = [
-    'accueil-hero', 'accueil-presentation',
-    'galerie-1', 'galerie-2', 'galerie-3', 'galerie-4', 'galerie-5',
-    'filiale-frivia', 'filiale-elikya', 'filiale-youpi'
+    { value: 'accueil-hero', label: 'Accueil — image principale (haut de page)', section: 'hero' },
+    { value: 'accueil-presentation', label: 'Accueil — réunion d’affaires / présentation', section: 'general' },
+    { value: 'galerie-1', label: 'Accueil — galerie 1', section: 'galerie' },
+    { value: 'galerie-2', label: 'Accueil — galerie 2', section: 'galerie' },
+    { value: 'galerie-3', label: 'Accueil — galerie 3', section: 'galerie' },
+    { value: 'galerie-4', label: 'Accueil — galerie 4', section: 'galerie' },
+    { value: 'galerie-5', label: 'Accueil — galerie 5', section: 'galerie' },
+    { value: 'filiale-frivia', label: 'Filiales — FRIVIA Food', section: 'filiales' },
+    { value: 'filiale-elikya', label: 'Filiales — ELIKYA Coffee', section: 'filiales' },
+    { value: 'filiale-youpi', label: 'Filiales — YOUPI Bakery', section: 'filiales' }
   ];
-  const ADMIN_ROUTES = ['dashboard', 'calls', 'careers', 'media', 'crm'];
+
+  function placementLabel(value) {
+    const entry = MEDIA_PLACEMENTS.find(item => item.value === value);
+    return entry ? entry.label : value;
+  }
+
+  // Liste déroulante des emplacements + saisie libre pour les cas avancés.
+  function placementSelect(id, selected) {
+    const known = MEDIA_PLACEMENTS.some(item => item.value === selected);
+    const isOther = Boolean(selected) && !known;
+    return `<select id="${id}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">
+        <option value="">Aucun (l’image s’ajoute à la galerie de l’accueil)</option>
+        ${MEDIA_PLACEMENTS.map(item => `<option value="${item.value}" ${item.value === selected ? 'selected' : ''}>${escapeHtml(item.label)}</option>`).join('')}
+        <option value="__other" ${isOther ? 'selected' : ''}>Autre emplacement (saisie libre)…</option>
+      </select>
+      <input type="text" id="${id}-other" value="${isOther ? escapeHtml(selected) : ''}" placeholder="Code exact de l’emplacement"
+        class="w-full mt-2 px-4 py-2.5 rounded-xl border border-slate-200 ${isOther ? '' : 'hidden'}">`;
+  }
+
+  // Affiche la saisie libre uniquement quand « Autre emplacement » est choisi,
+  // et aligne la section du site sur l'emplacement sélectionné.
+  function bindPlacementSelect(selectId, sectionId) {
+    const select = document.getElementById(selectId);
+    const other = document.getElementById(selectId + '-other');
+    const section = sectionId ? document.getElementById(sectionId) : null;
+    if (!select) return;
+    const sync = () => {
+      if (other) other.classList.toggle('hidden', select.value !== '__other');
+      const entry = MEDIA_PLACEMENTS.find(item => item.value === select.value);
+      if (section && entry && entry.section) section.value = entry.section;
+    };
+    select.addEventListener('change', sync);
+    sync();
+  }
+
+  function readPlacement(selectId) {
+    const select = document.getElementById(selectId);
+    if (!select) return '';
+    if (select.value !== '__other') return select.value;
+    const other = document.getElementById(selectId + '-other');
+    return other ? other.value : '';
+  }
+  const ADMIN_ROUTES = ['dashboard', 'contents', 'calls', 'careers', 'media', 'crm', 'inquiries'];
 
   function escapeHtml(value) {
     return String(value ?? '')
@@ -880,6 +931,151 @@
       return true;
     }
 
+    // ---------------------------------------------------------------------
+    // CONTENUS DE LA VITRINE (ce que le visiteur voit réellement sur le site)
+    // ---------------------------------------------------------------------
+    // Ces tables alimentent directement la page d'accueil : sans elles, les
+    // sections « Nos Pôles d'Expertise » et « Actualités » restent vides.
+    async function listContent() {
+      const { data, error } = await client.from('site_content').select('key,value');
+      if (error) throw adminModuleError(error, 'Textes du site', 'Lecture impossible.');
+      return Array.isArray(data) ? data : [];
+    }
+
+    async function saveContent(groups) {
+      const rows = Object.keys(groups || {}).map(key => ({ key, value: groups[key] })).filter(row => row.key);
+      if (!rows.length) throw new Error('Aucun texte à enregistrer.');
+      const { error } = await client.from('site_content').upsert(rows, { onConflict: 'key' });
+      if (error) throw adminModuleError(error, 'Textes du site', 'Enregistrement impossible.');
+      return true;
+    }
+
+    async function listServices() {
+      const { data, error } = await client.from('services_poles')
+        .select('id,title,category,description,icon,active,display_order')
+        .order('display_order', { ascending: true })
+        .order('id', { ascending: true });
+      if (error) throw adminModuleError(error, 'Pôles d’expertise', 'Lecture impossible.');
+      return Array.isArray(data) ? data : [];
+    }
+
+    async function saveService(input, id = null) {
+      const title = cleanText(input.title, 200);
+      const description = cleanText(input.description, 4000);
+      if (!title) throw new Error('Le titre du pôle est obligatoire.');
+      if (!description) throw new Error('La description du pôle est obligatoire.');
+      const payload = {
+        title,
+        category: cleanText(input.category, 120) || 'Pôle',
+        description,
+        icon: cleanText(input.icon, 60) || 'fa-briefcase',
+        active: input.active !== false && input.active !== 0 && String(input.active) !== '0',
+        display_order: cleanNumber(input.display_order)
+      };
+      let result;
+      if (id) result = await client.from('services_poles').update(payload).eq('id', Number(id)).select('id').single();
+      else result = await client.from('services_poles').insert(payload).select('id').single();
+      if (result.error) throw adminModuleError(result.error, 'Pôles d’expertise', 'Enregistrement impossible.');
+      return result.data;
+    }
+
+    async function toggleService(id, active) {
+      const { error } = await client.from('services_poles')
+        .update({ active: Boolean(active) }).eq('id', Number(id));
+      if (error) throw adminModuleError(error, 'Pôles d’expertise', 'Mise à jour impossible.');
+      return true;
+    }
+
+    async function deleteService(id) {
+      const { error } = await client.from('services_poles').delete().eq('id', Number(id));
+      if (error) throw adminModuleError(error, 'Pôles d’expertise', 'Suppression impossible.');
+      return true;
+    }
+
+    async function listNews() {
+      const { data, error } = await client.from('news')
+        .select('id,title,slug,category,summary,content,image_url,status,published_at')
+        .order('published_at', { ascending: false });
+      if (error) throw adminModuleError(error, 'Actualités', 'Lecture impossible.');
+      return Array.isArray(data) ? data : [];
+    }
+
+    async function saveNews(input, id = null) {
+      const title = cleanText(input.title, 250);
+      const summary = cleanText(input.summary, 2000);
+      const content = cleanText(input.content, 20000);
+      if (!title) throw new Error('Le titre de l’actualité est obligatoire.');
+      if (!summary && !content) throw new Error('Rédigez au moins un résumé ou un contenu.');
+      const payload = {
+        title,
+        slug: cleanText(input.slug, 250) || slugify(title),
+        category: cleanText(input.category, 120) || 'Actualité',
+        summary: summary || (content || '').slice(0, 200),
+        content: content || summary,
+        image_url: cleanText(input.image_url, 2000),
+        status: input.status === 'draft' ? 'draft' : 'published',
+        published_at: input.published_at || new Date().toISOString()
+      };
+      let result;
+      if (id) result = await client.from('news').update(payload).eq('id', Number(id)).select('id').single();
+      else result = await client.from('news').insert(payload).select('id').single();
+      if (result.error) throw adminModuleError(result.error, 'Actualités', 'Enregistrement impossible.');
+      return result.data;
+    }
+
+    async function setNewsStatus(id, status) {
+      const { error } = await client.from('news')
+        .update({ status: status === 'draft' ? 'draft' : 'published' }).eq('id', Number(id));
+      if (error) throw adminModuleError(error, 'Actualités', 'Mise à jour impossible.');
+      return true;
+    }
+
+    async function deleteNews(id) {
+      const { error } = await client.from('news').delete().eq('id', Number(id));
+      if (error) throw adminModuleError(error, 'Actualités', 'Suppression impossible.');
+      return true;
+    }
+
+    // ---------------------------------------------------------------------
+    // MESSAGES REÇUS DEPUIS LE SITE PUBLIC
+    // ---------------------------------------------------------------------
+    async function listInquiries() {
+      const { data, error } = await client.from('inquiries')
+        .select('id,reference,name,email,phone,organization,service_requested,subject,message,status,created_at')
+        .order('id', { ascending: false })
+        .limit(100);
+      if (error) throw adminModuleError(error, 'Demandes', 'Lecture impossible.');
+      return Array.isArray(data) ? data : [];
+    }
+
+    async function setInquiryStatus(id, status) {
+      const { error } = await client.from('inquiries')
+        .update({ status: cleanText(status, 40) || 'nouveau' }).eq('id', Number(id));
+      if (error) throw adminModuleError(error, 'Demandes', 'Mise à jour impossible.');
+      return true;
+    }
+
+    async function deleteInquiry(id) {
+      const { error } = await client.from('inquiries').delete().eq('id', Number(id));
+      if (error) throw adminModuleError(error, 'Demandes', 'Suppression impossible.');
+      return true;
+    }
+
+    async function listInvestors() {
+      const { data, error } = await client.from('investors')
+        .select('id,name,organization,email,phone,country,investor_type,ticket_min,ticket_max,sectors_of_interest,status,notes,created_at')
+        .order('id', { ascending: false })
+        .limit(100);
+      if (error) throw adminModuleError(error, 'Investisseurs', 'Lecture impossible.');
+      return Array.isArray(data) ? data : [];
+    }
+
+    async function deleteInvestor(id) {
+      const { error } = await client.from('investors').delete().eq('id', Number(id));
+      if (error) throw adminModuleError(error, 'Investisseurs', 'Suppression impossible.');
+      return true;
+    }
+
     // État réel des modules pour le tableau de bord (jamais d'exception :
     // un module non installé est signalé avec la marche à suivre).
     async function modulesOverview() {
@@ -887,7 +1083,9 @@
         crm: { installed: false, contacts: 0, error: null },
         calls: { installed: false, total: 0, open: 0, error: null },
         careers: { installed: false, total: 0, open: 0, error: null },
-        media: { installed: false, total: 0, error: null }
+        media: { installed: false, total: 0, error: null },
+        contents: { installed: false, services: 0, news: 0, error: null },
+        inbox: { installed: false, inquiries: 0, investors: 0, error: null }
       };
       try {
         const result = await client.from('crm_contacts').select('id', { count: 'exact', head: true });
@@ -916,6 +1114,34 @@
         if (result.error) throw adminModuleError(result.error, 'Médiathèque', 'Lecture impossible.');
         overview.media = { installed: true, total: Number(result.count || 0), error: null };
       } catch (err) { overview.media.error = err.message; }
+      try {
+        const [services, news] = await Promise.all([
+          client.from('services_poles').select('id', { count: 'exact', head: true }),
+          client.from('news').select('id', { count: 'exact', head: true })
+        ]);
+        if (services.error) throw adminModuleError(services.error, 'Contenus du site', 'Lecture impossible.');
+        if (news.error) throw adminModuleError(news.error, 'Contenus du site', 'Lecture impossible.');
+        overview.contents = {
+          installed: true,
+          services: Number(services.count || 0),
+          news: Number(news.count || 0),
+          error: null
+        };
+      } catch (err) { overview.contents.error = err.message; }
+      try {
+        const [inquiries, investors] = await Promise.all([
+          client.from('inquiries').select('id', { count: 'exact', head: true }),
+          client.from('investors').select('id', { count: 'exact', head: true })
+        ]);
+        if (inquiries.error) throw adminModuleError(inquiries.error, 'Messagerie', 'Lecture impossible.');
+        if (investors.error) throw adminModuleError(investors.error, 'Messagerie', 'Lecture impossible.');
+        overview.inbox = {
+          installed: true,
+          inquiries: Number(inquiries.count || 0),
+          investors: Number(investors.count || 0),
+          error: null
+        };
+      } catch (err) { overview.inbox.error = err.message; }
       return overview;
     }
 
@@ -938,6 +1164,21 @@
       deleteMedia,
       uploadMediaFile,
       removeMediaFile,
+      listContent,
+      saveContent,
+      listServices,
+      saveService,
+      toggleService,
+      deleteService,
+      listNews,
+      saveNews,
+      setNewsStatus,
+      deleteNews,
+      listInquiries,
+      setInquiryStatus,
+      deleteInquiry,
+      listInvestors,
+      deleteInvestor,
       crmOverview,
       syncCrmSources,
       listCrmOwners,
@@ -1000,6 +1241,13 @@
     let adminCalls = [];
     let adminJobs = [];
     let adminMedia = [];
+    let adminContent = [];
+    let adminServices = [];
+    let adminNews = [];
+    let adminInquiries = [];
+    let adminInvestors = [];
+    let cmsTab = 'textes';
+    let inboxTab = 'demandes';
     let navBound = false;
     let crmEventsBound = false;
     let modalEventsBound = false;
@@ -1095,10 +1343,12 @@
     async function showRoute(profile, route) {
       if (!profile) return;
       setRouteHash(route);
-      if (route === 'crm') await showCRM(profile);
+      if (route === 'contents') await showContents(profile);
+      else if (route === 'crm') await showCRM(profile);
       else if (route === 'calls') await showCalls(profile);
       else if (route === 'careers') await showCareers(profile);
       else if (route === 'media') await showMedia(profile);
+      else if (route === 'inquiries') await showInbox(profile);
       else await showDashboard(profile, true);
     }
 
@@ -1435,6 +1685,24 @@
                 error: modules.media.error,
                 action: 'open-media', actionLabel: 'Gérer les images'
               })}
+              ${moduleCard({
+                icon: 'fa-file-alt',
+                title: 'Contenus du site',
+                description: 'Textes de la page d’accueil, pôles d’expertise et actualités : ce que le visiteur lit réellement sur la vitrine.',
+                installed: modules.contents.installed,
+                statusText: `${modules.contents.services} pôle(s) · ${modules.contents.news} actualité(s) publiée(s)`,
+                error: modules.contents.error,
+                action: 'open-contents', actionLabel: 'Gérer les contenus'
+              })}
+              ${moduleCard({
+                icon: 'fa-envelope-open-text',
+                title: 'Messages reçus du site',
+                description: 'Formulaires de contact et demandes investisseurs déposés par les visiteurs.',
+                installed: modules.inbox.installed,
+                statusText: `${modules.inbox.inquiries} message(s) · ${modules.inbox.investors} investisseur(s)`,
+                error: modules.inbox.error,
+                action: 'open-inquiries', actionLabel: 'Ouvrir la messagerie'
+              })}
             </div>
           </div>` : '';
         // Only fixed labels and numeric counts are inserted as HTML here.
@@ -1451,6 +1719,8 @@
                 <button type="button" data-admin-action="open-calls" class="px-5 py-3 bg-white/10 hover:bg-white/20 text-white text-sm font-bold rounded-2xl border border-white/20"><i class="fas fa-bullhorn mr-2"></i>Appels à projets</button>
                 <button type="button" data-admin-action="open-careers" class="px-5 py-3 bg-white/10 hover:bg-white/20 text-white text-sm font-bold rounded-2xl border border-white/20"><i class="fas fa-briefcase mr-2"></i>Offres d’emploi</button>
                 <button type="button" data-admin-action="open-media" class="px-5 py-3 bg-white/10 hover:bg-white/20 text-white text-sm font-bold rounded-2xl border border-white/20"><i class="fas fa-images mr-2"></i>Images du site</button>
+                <button type="button" data-admin-action="open-contents" class="px-5 py-3 bg-white/10 hover:bg-white/20 text-white text-sm font-bold rounded-2xl border border-white/20"><i class="fas fa-file-alt mr-2"></i>Contenus du site</button>
+                <button type="button" data-admin-action="open-inquiries" class="px-5 py-3 bg-white/10 hover:bg-white/20 text-white text-sm font-bold rounded-2xl border border-white/20"><i class="fas fa-envelope mr-2"></i>Messages reçus</button>
               </div>
             </div>
           </div>
@@ -2064,7 +2334,7 @@
         view.innerHTML = `<div class="space-y-6">
           <div class="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white p-6 rounded-3xl shadow-xl">
             <h3 class="text-lg font-black">Images du site</h3>
-            <p class="text-emerald-100/85 text-xs mt-1 max-w-3xl">Téléversez une image ou indiquez son URL. Les images <strong>actives</strong> de la section <strong>« Galerie »</strong> s’ajoutent à la galerie de la page d’accueil. Une image portant un <strong>emplacement</strong> connu (ex. <code>accueil-hero</code>, <code>galerie-1</code>) remplace l’image par défaut de cet emplacement sur le site.</p>
+            <p class="text-emerald-100/85 text-xs mt-1 max-w-3xl">Téléversez une image ou indiquez son URL. Pour <strong>remplacer une image précise du site</strong> (« réunion d’affaires », « FRIVIA », « galerie 3 »…), choisissez-la dans la liste <strong>Emplacement sur le site</strong> : aucun code à connaître. Sans emplacement, l’image s’ajoute simplement à la galerie de la page d’accueil. Pensez à la laisser <strong>Publiée</strong>.</p>
           </div>
 
           <div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs">
@@ -2075,7 +2345,7 @@
               <div><label class="block font-bold mb-1">Titre *</label><input type="text" id="sb-media-title" placeholder="Ex. Flotte ELVO à Goma" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
               <div><label class="block font-bold mb-1">Texte alternatif (accessibilité)</label><input type="text" id="sb-media-alt" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
               <div><label class="block font-bold mb-1">Section du site</label><select id="sb-media-section" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">${optionsHtml(MEDIA_SECTION_LABELS, 'galerie')}</select></div>
-              <div><label class="block font-bold mb-1">Emplacement (optionnel)</label><input type="text" id="sb-media-placement" list="sb-media-placements" placeholder="Ex. accueil-hero ou galerie-1" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"><datalist id="sb-media-placements">${MEDIA_PLACEMENTS.map(value => `<option value="${value}"></option>`).join('')}</datalist></div>
+              <div><label class="block font-bold mb-1">Emplacement sur le site</label>${placementSelect('sb-media-placement', '')}<p class="text-[10px] text-slate-500 mt-1">Choisissez l’endroit précis où l’image doit remplacer celle d’origine.</p></div>
               <div><label class="block font-bold mb-1">Lien au clic (optionnel)</label><input type="url" id="sb-media-link" placeholder="https://…" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
               <div class="grid grid-cols-2 gap-3">
                 <div><label class="block font-bold mb-1">Ordre d’affichage</label><input type="number" id="sb-media-order" value="0" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
@@ -2098,7 +2368,7 @@
               <div class="p-4 flex-1 flex flex-col gap-2">
                 <strong class="text-sm text-slate-800">${escapeHtml(item.title)}</strong>
                 <div class="text-[11px] text-slate-500 space-y-0.5">
-                  <div>Section : <strong>${escapeHtml(MEDIA_SECTION_LABELS[item.section] || item.section)}</strong>${item.placement ? ` · Emplacement : <code>${escapeHtml(item.placement)}</code>` : ''}</div>
+                  <div>Section : <strong>${escapeHtml(MEDIA_SECTION_LABELS[item.section] || item.section)}</strong>${item.placement ? ` · Emplacement : <strong>${escapeHtml(placementLabel(item.placement))}</strong>` : ''}</div>
                   <div>Ordre : ${Number(item.display_order || 0)} · Ajoutée le ${formatDate(item.created_at)}</div>
                   <div class="truncate" title="${escapeHtml(item.image_url)}">${escapeHtml(item.image_url)}</div>
                 </div>
@@ -2112,6 +2382,7 @@
             </div>`).join('')}
           </div>`}
         </div>`;
+        bindPlacementSelect('sb-media-placement', 'sb-media-section');
       } catch (err) {
         view.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-800 p-6 rounded-3xl text-xs space-y-3">
           <p class="font-bold text-sm">Médiathèque indisponible</p>
@@ -2133,7 +2404,7 @@
           <div><label class="block font-bold mb-1">Texte alternatif</label><input type="text" id="sb-media-edit-alt" value="${escapeHtml(item.alt_text || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div><label class="block font-bold mb-1">Section</label><select id="sb-media-edit-section" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">${optionsHtml(MEDIA_SECTION_LABELS, item.section)}</select></div>
-            <div><label class="block font-bold mb-1">Emplacement</label><input type="text" id="sb-media-edit-placement" list="sb-media-placements-edit" value="${escapeHtml(item.placement || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"><datalist id="sb-media-placements-edit">${MEDIA_PLACEMENTS.map(value => `<option value="${value}"></option>`).join('')}</datalist></div>
+            <div><label class="block font-bold mb-1">Emplacement sur le site</label>${placementSelect('sb-media-edit-placement', item.placement || '')}</div>
             <div><label class="block font-bold mb-1">Lien au clic</label><input type="url" id="sb-media-edit-link" value="${escapeHtml(item.link_url || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
             <div class="grid grid-cols-2 gap-3">
               <div><label class="block font-bold mb-1">Ordre</label><input type="number" id="sb-media-edit-order" value="${Number(item.display_order || 0)}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
@@ -2156,7 +2427,7 @@
             image_url: imageUrl,
             storage_path: storagePath,
             section: optionalEl('sb-media-edit-section').value,
-            placement: optionalEl('sb-media-edit-placement').value,
+            placement: readPlacement('sb-media-edit-placement'),
             link_url: optionalEl('sb-media-edit-link').value,
             display_order: optionalEl('sb-media-edit-order').value,
             active: optionalEl('sb-media-edit-active').value === '1'
@@ -2164,6 +2435,337 @@
           showCrmToast('Image mise à jour.');
           await showMedia(currentProfile);
         });
+      bindPlacementSelect('sb-media-edit-placement', 'sb-media-edit-section');
+    }
+
+    // -------------------------------------------------------------------
+    // CONTENUS DU SITE : tout ce que le visiteur lit sur la vitrine
+    // (textes de la page d'accueil, pôles d'expertise, actualités).
+    // -------------------------------------------------------------------
+    // Clés « data-cms » réellement utilisées par les pages du site.
+    const SITE_TEXT_FIELDS = [
+      { group: 'hero', key: 'badge', label: 'Bandeau du haut de page', hint: 'Petit texte au-dessus du grand titre' },
+      { group: 'hero', key: 'title', label: 'Grand titre de la page d’accueil' },
+      { group: 'hero', key: 'subtitle', label: 'Phrase d’introduction sous le titre' },
+      { group: 'hero', key: 'cta_primary', label: 'Texte du bouton principal' },
+      { group: 'hero', key: 'cta_secondary', label: 'Texte du bouton secondaire' },
+      { group: 'presentation', key: 'headline', label: 'Titre de la section « Vision & Leadership »' },
+      { group: 'presentation', key: 'mission', label: 'Paragraphe de présentation de la holding' },
+      { group: 'presentation', key: 'vision', label: 'Texte du bloc « Excellence & Rigueur »' },
+      { group: 'contact_info', key: 'address_goma', label: 'Adresse de Goma (pied de page)' }
+    ];
+
+    function cmsFieldId(group, key) {
+      return 'sb-cms-' + group + '-' + key;
+    }
+
+    function cmsValue(rows, group, key) {
+      const row = rows.find(item => String(item.key) === group);
+      if (!row || !row.value) return '';
+      if (typeof row.value === 'string') return row.value;
+      const raw = row.value[key];
+      return raw === null || raw === undefined ? '' : String(raw);
+    }
+
+    function cmsTabButton(value, label, count) {
+      return `<button type="button" data-admin-action="cms-tab" data-tab="${value}" class="px-4 py-2 text-xs font-bold rounded-xl ${cmsTab === value ? 'bg-emerald-900 text-yellow-400' : 'bg-white text-slate-600 hover:bg-slate-100'}">${label}${count === undefined ? '' : ' (' + count + ')'}</button>`;
+    }
+
+    async function showContents(profile) {
+      if (!profile) return;
+      setRouteHash('contents');
+      setShell(profile, 'Contenus du site (vitrine)', 'Textes de la page d’accueil, pôles d’expertise et actualités', 'contents');
+      view.textContent = 'Chargement des contenus…';
+      try {
+        const [rows, services, news] = await Promise.all([
+          portal.listContent(), portal.listServices(), portal.listNews()
+        ]);
+        adminContent = rows;
+        adminServices = services;
+        adminNews = news;
+        view.innerHTML = `<div class="space-y-6">
+          <div class="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white p-6 rounded-3xl shadow-xl">
+            <h3 class="text-lg font-black">Ce que voit le visiteur</h3>
+            <p class="text-emerald-100/85 text-xs mt-1 max-w-3xl">Tout ce que vous enregistrez ici apparaît <strong>immédiatement</strong> sur le site public. Les sections « Pôles d’expertise » et « Actualités » de la page d’accueil sont vides tant qu’aucun élément n’est publié.</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            ${cmsTabButton('textes', '1. Textes de la page d’accueil')}
+            ${cmsTabButton('poles', '2. Pôles d’expertise', adminServices.length)}
+            ${cmsTabButton('actus', '3. Actualités & annonces', adminNews.length)}
+          </div>
+          <div id="sb-cms-panel"></div>
+        </div>`;
+        renderCmsPanel();
+      } catch (err) {
+        view.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-800 p-6 rounded-3xl text-xs space-y-3">
+          <p class="font-bold text-sm">Contenus indisponibles</p>
+          <p>${escapeHtml(err.message)}</p>
+          <p class="text-red-700">Si le message parle de droits ou de table absente, exécutez <strong>supabase/contenus-vitrine.sql</strong> dans le SQL Editor de Supabase, puis revenez ici.</p>
+          <button type="button" data-admin-action="open-contents" class="px-4 py-2 bg-red-700 text-white rounded-xl font-bold">Réessayer</button>
+        </div>`;
+      }
+    }
+
+    function renderCmsPanel() {
+      const panel = optionalEl('sb-cms-panel');
+      if (!panel) return;
+      if (cmsTab === 'poles') return renderCmsPoles(panel);
+      if (cmsTab === 'actus') return renderCmsNews(panel);
+      renderCmsTextes(panel);
+    }
+
+    function renderCmsTextes(panel) {
+      const fields = SITE_TEXT_FIELDS.map(field => {
+        const isLong = field.key === 'subtitle' || field.key === 'mission';
+        const value = cmsValue(adminContent, field.group, field.key);
+        return `<div class="${isLong ? 'sm:col-span-2' : ''}">
+          <label class="block font-bold mb-1">${escapeHtml(field.label)}</label>
+          ${isLong
+            ? `<textarea id="${cmsFieldId(field.group, field.key)}" rows="3" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm" placeholder="Laisser vide pour conserver le texte d’origine du site">${escapeHtml(value)}</textarea>`
+            : `<input type="text" id="${cmsFieldId(field.group, field.key)}" value="${escapeHtml(value)}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm" placeholder="Laisser vide pour conserver le texte d’origine du site">`}
+          ${field.hint ? `<p class="text-[10px] text-slate-500 mt-1">${escapeHtml(field.hint)}</p>` : ''}
+        </div>`;
+      }).join('');
+
+      panel.innerHTML = `<div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs">
+        <h4 class="text-sm font-extrabold text-slate-800 mb-1"><i class="fas fa-pen-to-square text-emerald-700 mr-2"></i>Textes de la page d’accueil</h4>
+        <p class="text-xs text-slate-500 mb-4">Modifiez un texte puis cliquez sur « Enregistrer et publier ». Un champ laissé vide conserve le texte d’origine du site.</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">${fields}</div>
+        <div class="mt-5 flex justify-end">
+          <button type="button" data-admin-action="save-cms-texts" class="px-5 py-2.5 bg-emerald-900 hover:bg-emerald-800 text-yellow-400 text-xs font-bold rounded-xl shadow flex items-center gap-2"><i class="fas fa-cloud-arrow-up"></i> Enregistrer et publier sur le site</button>
+        </div>
+      </div>`;
+    }
+
+    function renderCmsPoles(panel) {
+      panel.innerHTML = `<div class="space-y-6">
+        <div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs">
+          <h4 class="text-sm font-extrabold text-slate-800 mb-4"><i class="fas fa-plus text-emerald-700 mr-2"></i>Ajouter un pôle d’expertise</h4>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div><label class="block font-bold mb-1">Titre *</label><input type="text" id="sb-pole-title" placeholder="Ex. Agroalimentaire & Transformation" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+            <div><label class="block font-bold mb-1">Catégorie</label><input type="text" id="sb-pole-category" placeholder="Ex. Pôle Industriel" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+            <div class="sm:col-span-2"><label class="block font-bold mb-1">Description *</label><textarea id="sb-pole-description" rows="2" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></textarea></div>
+            <div><label class="block font-bold mb-1">Icône FontAwesome</label><input type="text" id="sb-pole-icon" value="fa-briefcase" placeholder="fa-utensils" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+            <div class="grid grid-cols-2 gap-3">
+              <div><label class="block font-bold mb-1">Ordre</label><input type="number" id="sb-pole-order" value="0" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+              <div><label class="block font-bold mb-1">Visibilité</label><select id="sb-pole-active" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"><option value="1" selected>Publié</option><option value="0">Masqué</option></select></div>
+            </div>
+          </div>
+          <div class="mt-4 flex justify-end"><button type="button" data-admin-action="create-pole" class="px-5 py-2.5 bg-emerald-900 hover:bg-emerald-800 text-yellow-400 text-xs font-bold rounded-xl shadow flex items-center gap-2"><i class="fas fa-plus"></i> Ajouter le pôle</button></div>
+        </div>
+
+        ${adminServices.length === 0 ? `<div class="bg-white border border-dashed border-slate-300 rounded-3xl p-10 text-center">
+          <i class="fas fa-layer-group text-3xl text-slate-300 mb-3"></i>
+          <p class="text-sm font-bold text-slate-700">Aucun pôle d’expertise publié</p>
+          <p class="text-xs text-slate-500 mt-1">La section « Nos Pôles d’Expertise » de la page d’accueil affiche « à venir » tant qu’aucun pôle n’est créé ici.</p>
+        </div>` : `<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          ${adminServices.map(item => `<div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-5 flex flex-col">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <span class="w-11 h-11 rounded-2xl bg-emerald-800 text-white flex items-center justify-center"><i class="fas ${escapeHtml(String(item.icon || 'fa-briefcase').split(/\s+/).filter(t => /^[a-z0-9_-]+$/i.test(t)).join(' ') || 'fa-briefcase')}"></i></span>
+                <div>
+                  <strong class="text-sm text-slate-800 block">${escapeHtml(item.title)}</strong>
+                  <span class="text-[11px] text-slate-500">${escapeHtml(item.category || '')} · ordre ${Number(item.display_order || 0)}</span>
+                </div>
+              </div>
+              <span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${item.active ? 'bg-emerald-600 text-white' : 'bg-slate-500 text-white'}">${item.active ? 'Publié' : 'Masqué'}</span>
+            </div>
+            <p class="text-xs text-slate-600 mt-3 leading-relaxed">${escapeHtml(item.description)}</p>
+            <div class="flex flex-wrap gap-2 pt-3 mt-3 border-t border-slate-100">
+              <button type="button" data-admin-action="edit-pole" data-id="${Number(item.id)}" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl">Modifier</button>
+              <button type="button" data-admin-action="toggle-pole" data-id="${Number(item.id)}" data-next="${item.active ? '0' : '1'}" class="px-3 py-1.5 ${item.active ? 'bg-amber-50 hover:bg-amber-100 text-amber-700' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800'} text-xs font-semibold rounded-xl">${item.active ? 'Masquer' : 'Publier'}</button>
+              <button type="button" data-admin-action="delete-pole" data-id="${Number(item.id)}" class="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold rounded-xl">Supprimer</button>
+            </div>
+          </div>`).join('')}
+        </div>`}
+      </div>`;
+    }
+
+    function renderCmsNews(panel) {
+      panel.innerHTML = `<div class="space-y-6">
+        <div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs">
+          <h4 class="text-sm font-extrabold text-slate-800 mb-4"><i class="fas fa-plus text-emerald-700 mr-2"></i>Publier une actualité</h4>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div><label class="block font-bold mb-1">Titre *</label><input type="text" id="sb-news-title" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+            <div><label class="block font-bold mb-1">Catégorie</label><input type="text" id="sb-news-category" value="Actualité" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+            <div class="sm:col-span-2"><label class="block font-bold mb-1">Résumé *</label><textarea id="sb-news-summary" rows="2" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></textarea></div>
+            <div class="sm:col-span-2"><label class="block font-bold mb-1">Contenu complet</label><textarea id="sb-news-content" rows="4" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></textarea></div>
+            <div><label class="block font-bold mb-1">Image (URL)</label><input type="url" id="sb-news-image" placeholder="https://…" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+            <div><label class="block font-bold mb-1">Statut</label><select id="sb-news-status" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"><option value="published" selected>Publiée (visible sur le site)</option><option value="draft">Brouillon (non public)</option></select></div>
+          </div>
+          <div class="mt-4 flex justify-end"><button type="button" data-admin-action="create-news" class="px-5 py-2.5 bg-emerald-900 hover:bg-emerald-800 text-yellow-400 text-xs font-bold rounded-xl shadow flex items-center gap-2"><i class="fas fa-plus"></i> Publier l’actualité</button></div>
+        </div>
+
+        ${adminNews.length === 0 ? `<div class="bg-white border border-dashed border-slate-300 rounded-3xl p-10 text-center">
+          <i class="fas fa-newspaper text-3xl text-slate-300 mb-3"></i>
+          <p class="text-sm font-bold text-slate-700">Aucune actualité publiée</p>
+          <p class="text-xs text-slate-500 mt-1">Les 3 dernières actualités publiées s’affichent sur la page d’accueil.</p>
+        </div>` : `<div class="space-y-3">
+          ${adminNews.map(item => `<div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-5">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <strong class="text-sm text-slate-800">${escapeHtml(item.title)}</strong>
+                  <span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${item.status === 'published' ? 'bg-emerald-600 text-white' : 'bg-slate-500 text-white'}">${item.status === 'published' ? 'Publiée' : 'Brouillon'}</span>
+                  <span class="text-[11px] text-slate-500">${escapeHtml(item.category || '')} · ${formatDate(item.published_at)}</span>
+                </div>
+                <p class="text-xs text-slate-600 mt-2 leading-relaxed">${escapeHtml(item.summary || item.content || '')}</p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" data-admin-action="edit-news" data-id="${Number(item.id)}" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl">Modifier</button>
+                <button type="button" data-admin-action="set-news-status" data-id="${Number(item.id)}" data-status="${item.status === 'published' ? 'draft' : 'published'}" class="px-3 py-1.5 ${item.status === 'published' ? 'bg-amber-50 hover:bg-amber-100 text-amber-700' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800'} text-xs font-semibold rounded-xl">${item.status === 'published' ? 'Dépublier' : 'Publier'}</button>
+                <button type="button" data-admin-action="delete-news" data-id="${Number(item.id)}" class="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold rounded-xl">Supprimer</button>
+              </div>
+            </div>
+          </div>`).join('')}
+        </div>`}
+      </div>`;
+    }
+
+    function openPoleEditor(id) {
+      const item = adminServices.find(row => String(row.id) === String(id));
+      if (!item) { showCrmToast('Pôle introuvable. Rechargez la page.', 'error'); return; }
+      openCrmModal('Modifier le pôle', `
+        <div class="space-y-4 text-xs">
+          <div><label class="block font-bold mb-1">Titre *</label><input type="text" id="sb-pole-edit-title" value="${escapeHtml(item.title)}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+          <div><label class="block font-bold mb-1">Catégorie</label><input type="text" id="sb-pole-edit-category" value="${escapeHtml(item.category || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+          <div><label class="block font-bold mb-1">Description *</label><textarea id="sb-pole-edit-description" rows="3" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">${escapeHtml(item.description)}</textarea></div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="block font-bold mb-1">Icône</label><input type="text" id="sb-pole-edit-icon" value="${escapeHtml(item.icon || 'fa-briefcase')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+            <div><label class="block font-bold mb-1">Ordre</label><input type="number" id="sb-pole-edit-order" value="${Number(item.display_order || 0)}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+          </div>
+        </div>`, async () => {
+          await portal.saveService({
+            title: optionalEl('sb-pole-edit-title').value,
+            category: optionalEl('sb-pole-edit-category').value,
+            description: optionalEl('sb-pole-edit-description').value,
+            icon: optionalEl('sb-pole-edit-icon').value,
+            display_order: optionalEl('sb-pole-edit-order').value,
+            active: item.active
+          }, item.id);
+          showCrmToast('Pôle mis à jour : le site est à jour.');
+          await showContents(currentProfile);
+        });
+    }
+
+    function openNewsEditor(id) {
+      const item = adminNews.find(row => String(row.id) === String(id));
+      if (!item) { showCrmToast('Actualité introuvable. Rechargez la page.', 'error'); return; }
+      openCrmModal('Modifier l’actualité', `
+        <div class="space-y-4 text-xs">
+          <div><label class="block font-bold mb-1">Titre *</label><input type="text" id="sb-news-edit-title" value="${escapeHtml(item.title)}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+          <div><label class="block font-bold mb-1">Catégorie</label><input type="text" id="sb-news-edit-category" value="${escapeHtml(item.category || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+          <div><label class="block font-bold mb-1">Résumé *</label><textarea id="sb-news-edit-summary" rows="2" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">${escapeHtml(item.summary || '')}</textarea></div>
+          <div><label class="block font-bold mb-1">Contenu</label><textarea id="sb-news-edit-content" rows="4" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">${escapeHtml(item.content || '')}</textarea></div>
+          <div><label class="block font-bold mb-1">Image (URL)</label><input type="url" id="sb-news-edit-image" value="${escapeHtml(item.image_url || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+        </div>`, async () => {
+          await portal.saveNews({
+            title: optionalEl('sb-news-edit-title').value,
+            category: optionalEl('sb-news-edit-category').value,
+            summary: optionalEl('sb-news-edit-summary').value,
+            content: optionalEl('sb-news-edit-content').value,
+            image_url: optionalEl('sb-news-edit-image').value,
+            status: item.status,
+            published_at: item.published_at
+          }, item.id);
+          showCrmToast('Actualité mise à jour : le site est à jour.');
+          await showContents(currentProfile);
+        });
+    }
+
+    // -------------------------------------------------------------------
+    // MESSAGES REÇUS DEPUIS LE SITE PUBLIC (formulaire de contact et
+    // formulaire investisseurs) : rien n'était visible jusqu'ici.
+    // -------------------------------------------------------------------
+    function inboxTabButton(value, label, count) {
+      return `<button type="button" data-admin-action="inbox-tab" data-tab="${value}" class="px-4 py-2 text-xs font-bold rounded-xl ${inboxTab === value ? 'bg-emerald-900 text-yellow-400' : 'bg-white text-slate-600 hover:bg-slate-100'}">${label} (${count})</button>`;
+    }
+
+    async function showInbox(profile) {
+      if (!profile) return;
+      setRouteHash('inquiries');
+      setShell(profile, 'Messages reçus du site', 'Formulaires de contact et demandes investisseurs', 'inquiries');
+      view.textContent = 'Chargement des messages…';
+      let inquiries = [];
+      let investors = [];
+      let inquiryError = null;
+      let investorError = null;
+      try { inquiries = await portal.listInquiries(); }
+      catch (err) { inquiryError = err.message; }
+      try { investors = await portal.listInvestors(); }
+      catch (err) { investorError = err.message; }
+      adminInquiries = inquiries;
+      adminInvestors = investors;
+
+      if (inquiryError && investorError) {
+        view.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-800 p-6 rounded-3xl text-xs space-y-3">
+          <p class="font-bold text-sm">Messagerie indisponible</p>
+          <p>${escapeHtml(inquiryError)}</p>
+          <p class="text-red-700">Exécutez <strong>supabase/contenus-vitrine.sql</strong> dans le SQL Editor de Supabase pour activer la lecture des messages, puis revenez ici.</p>
+          <button type="button" data-admin-action="open-inquiries" class="px-4 py-2 bg-red-700 text-white rounded-xl font-bold">Réessayer</button>
+        </div>`;
+        return;
+      }
+
+      view.innerHTML = `<div class="space-y-6">
+        <div class="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white p-6 rounded-3xl shadow-xl">
+          <h3 class="text-lg font-black">Messages envoyés depuis le site</h3>
+          <p class="text-emerald-100/85 text-xs mt-1 max-w-3xl">Ces messages sont déposés par les visiteurs dans les formulaires « Nous contacter » et « Espace Investisseurs ». Ils sont enregistrés directement dans Supabase.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          ${inboxTabButton('demandes', 'Demandes de contact', adminInquiries.length)}
+          ${inboxTabButton('investors', 'Investisseurs', adminInvestors.length)}
+        </div>
+        <div id="sb-inbox-panel"></div>
+      </div>`;
+      renderInboxPanel();
+    }
+
+    function renderInboxPanel() {
+      const panel = optionalEl('sb-inbox-panel');
+      if (!panel) return;
+      if (inboxTab === 'investors') {
+        panel.innerHTML = adminInvestors.length === 0
+          ? `<div class="bg-white border border-dashed border-slate-300 rounded-3xl p-10 text-center"><i class="fas fa-handshake text-3xl text-slate-300 mb-3"></i><p class="text-sm font-bold text-slate-700">Aucune demande investisseur</p></div>`
+          : `<div class="space-y-3">${adminInvestors.map(item => `<div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-5">
+              <div class="flex items-start justify-between gap-4">
+                <div class="flex-1 text-xs">
+                  <strong class="text-sm text-slate-800">${escapeHtml(item.name || '—')}</strong>
+                  <span class="text-[11px] text-slate-500 ml-2">${escapeHtml(item.organization || '')} · ${escapeHtml(item.country || '')}</span>
+                  <div class="text-slate-600 mt-1">${escapeHtml(item.email || '')} ${item.phone ? '· ' + escapeHtml(item.phone) : ''}</div>
+                  <div class="text-slate-600 mt-1">Ticket : ${escapeHtml(String(item.ticket_min || 0))} – ${escapeHtml(String(item.ticket_max || 0))} USD · ${escapeHtml(item.investor_type || '')}</div>
+                  ${item.sectors_of_interest ? `<div class="text-slate-500 mt-1">Secteurs : ${escapeHtml(item.sectors_of_interest)}</div>` : ''}
+                  ${item.notes ? `<p class="text-slate-600 mt-2 leading-relaxed">${escapeHtml(item.notes)}</p>` : ''}
+                  <div class="text-[10px] text-slate-400 mt-2">Reçu le ${formatDate(item.created_at, true)}</div>
+                </div>
+                <button type="button" data-admin-action="delete-investor" data-id="${Number(item.id)}" class="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold rounded-xl">Supprimer</button>
+              </div>
+            </div>`).join('')}</div>`;
+        return;
+      }
+
+      panel.innerHTML = adminInquiries.length === 0
+        ? `<div class="bg-white border border-dashed border-slate-300 rounded-3xl p-10 text-center"><i class="fas fa-inbox text-3xl text-slate-300 mb-3"></i><p class="text-sm font-bold text-slate-700">Aucun message pour le moment</p><p class="text-xs text-slate-500 mt-1">Les messages envoyés depuis la page Contact apparaîtront ici.</p></div>`
+        : `<div class="space-y-3">${adminInquiries.map(item => `<div class="bg-white rounded-3xl border border-slate-200/80 shadow-xs p-5">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1 text-xs">
+                <div class="flex flex-wrap items-center gap-2">
+                  <strong class="text-sm text-slate-800">${escapeHtml(item.subject || 'Message du site')}</strong>
+                  <span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-slate-800 text-white">${escapeHtml(item.status || 'nouveau')}</span>
+                  <span class="text-[11px] text-slate-500">${escapeHtml(item.reference || '#' + item.id)}</span>
+                </div>
+                <div class="text-slate-600 mt-1">${escapeHtml(item.name || '')} · <a class="text-emerald-700 underline" href="mailto:${escapeHtml(item.email || '')}">${escapeHtml(item.email || '')}</a> ${item.phone ? '· ' + escapeHtml(item.phone) : ''} ${item.organization ? '· ' + escapeHtml(item.organization) : ''}</div>
+                ${item.service_requested ? `<div class="text-slate-500 mt-1">Service demandé : ${escapeHtml(item.service_requested)}</div>` : ''}
+                <p class="text-slate-700 mt-2 leading-relaxed whitespace-pre-line">${escapeHtml(item.message || '')}</p>
+                <div class="text-[10px] text-slate-400 mt-2">Reçu le ${formatDate(item.created_at, true)}</div>
+              </div>
+              <div class="flex flex-col gap-2">
+                <button type="button" data-admin-action="set-inquiry-status" data-id="${Number(item.id)}" data-status="resolu" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold rounded-xl">Marquer résolu</button>
+                <button type="button" data-admin-action="set-inquiry-status" data-id="${Number(item.id)}" data-status="en_cours" class="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold rounded-xl">En cours</button>
+                <button type="button" data-admin-action="delete-inquiry" data-id="${Number(item.id)}" class="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold rounded-xl">Supprimer</button>
+              </div>
+            </div>
+          </div>`).join('')}</div>`;
     }
 
     async function handleAdminAction(button) {
@@ -2173,6 +2775,113 @@
         if (action === 'open-calls') await showCalls(currentProfile);
         else if (action === 'open-careers') await showCareers(currentProfile);
         else if (action === 'open-media') await showMedia(currentProfile);
+        else if (action === 'open-contents') await showContents(currentProfile);
+        else if (action === 'open-inquiries') await showInbox(currentProfile);
+        else if (action === 'cms-tab') {
+          cmsTab = button.getAttribute('data-tab') || 'textes';
+          const tabs = view.querySelectorAll('[data-admin-action="cms-tab"]');
+          Array.prototype.forEach.call(tabs, function (tab) {
+            const active = tab.getAttribute('data-tab') === cmsTab;
+            tab.className = tab.className
+              .replace(/bg-emerald-900 text-yellow-400|bg-white text-slate-600 hover:bg-slate-100/g, '')
+              .trim() + (active ? ' bg-emerald-900 text-yellow-400' : ' bg-white text-slate-600 hover:bg-slate-100');
+          });
+          renderCmsPanel();
+        }
+        else if (action === 'inbox-tab') {
+          inboxTab = button.getAttribute('data-tab') || 'demandes';
+          const tabs = view.querySelectorAll('[data-admin-action="inbox-tab"]');
+          Array.prototype.forEach.call(tabs, function (tab) {
+            const active = tab.getAttribute('data-tab') === inboxTab;
+            tab.className = tab.className
+              .replace(/bg-emerald-900 text-yellow-400|bg-white text-slate-600 hover:bg-slate-100/g, '')
+              .trim() + (active ? ' bg-emerald-900 text-yellow-400' : ' bg-white text-slate-600 hover:bg-slate-100');
+          });
+          renderInboxPanel();
+        }
+        else if (action === 'save-cms-texts') {
+          const groups = {};
+          SITE_TEXT_FIELDS.forEach(function (field) {
+            const input = optionalEl(cmsFieldId(field.group, field.key));
+            const value = input ? String(input.value || '').trim() : '';
+            if (!value) return;
+            groups[field.group] = groups[field.group] || {};
+            groups[field.group][field.key] = value;
+          });
+          if (!Object.keys(groups).length) {
+            showCrmToast('Rien à enregistrer : remplissez au moins un champ.', 'error');
+            return;
+          }
+          await portal.saveContent(groups);
+          showCrmToast('Textes enregistrés : la page d’accueil est à jour.');
+          await showContents(currentProfile);
+        }
+        else if (action === 'create-pole') {
+          await portal.saveService({
+            title: optionalEl('sb-pole-title').value,
+            category: optionalEl('sb-pole-category').value,
+            description: optionalEl('sb-pole-description').value,
+            icon: optionalEl('sb-pole-icon').value,
+            display_order: optionalEl('sb-pole-order').value,
+            active: optionalEl('sb-pole-active').value === '1'
+          });
+          showCrmToast('Pôle ajouté : il apparaît sur la page d’accueil.');
+          await showContents(currentProfile);
+        }
+        else if (action === 'edit-pole') openPoleEditor(id);
+        else if (action === 'toggle-pole') {
+          await portal.toggleService(id, button.getAttribute('data-next') === '1');
+          showCrmToast('Visibilité du pôle mise à jour.');
+          await showContents(currentProfile);
+        }
+        else if (action === 'delete-pole') {
+          if (!confirmAction('Supprimer ce pôle d’expertise ? Il disparaîtra de la page d’accueil.')) return;
+          await portal.deleteService(id);
+          showCrmToast('Pôle supprimé.');
+          await showContents(currentProfile);
+        }
+        else if (action === 'create-news') {
+          await portal.saveNews({
+            title: optionalEl('sb-news-title').value,
+            category: optionalEl('sb-news-category').value,
+            summary: optionalEl('sb-news-summary').value,
+            content: optionalEl('sb-news-content').value,
+            image_url: optionalEl('sb-news-image').value,
+            status: optionalEl('sb-news-status').value
+          });
+          showCrmToast('Actualité publiée sur la page d’accueil.');
+          await showContents(currentProfile);
+        }
+        else if (action === 'edit-news') openNewsEditor(id);
+        else if (action === 'set-news-status') {
+          const status = button.getAttribute('data-status');
+          await portal.setNewsStatus(id, status);
+          showCrmToast(status === 'published' ? 'Actualité publiée sur le site.' : 'Actualité repassée en brouillon.');
+          await showContents(currentProfile);
+        }
+        else if (action === 'delete-news') {
+          if (!confirmAction('Supprimer cette actualité ?')) return;
+          await portal.deleteNews(id);
+          showCrmToast('Actualité supprimée.');
+          await showContents(currentProfile);
+        }
+        else if (action === 'set-inquiry-status') {
+          await portal.setInquiryStatus(id, button.getAttribute('data-status'));
+          showCrmToast('Statut du message mis à jour.');
+          await showInbox(currentProfile);
+        }
+        else if (action === 'delete-inquiry') {
+          if (!confirmAction('Supprimer ce message ?')) return;
+          await portal.deleteInquiry(id);
+          showCrmToast('Message supprimé.');
+          await showInbox(currentProfile);
+        }
+        else if (action === 'delete-investor') {
+          if (!confirmAction('Supprimer cette demande investisseur ?')) return;
+          await portal.deleteInvestor(id);
+          showCrmToast('Demande supprimée.');
+          await showInbox(currentProfile);
+        }
         else if (action === 'back-dashboard') await showDashboard(currentProfile, true);
         else if (action === 'new-call') openCallEditor();
         else if (action === 'edit-call') openCallEditor(id);
@@ -2219,7 +2928,7 @@
             image_url: imageUrl,
             storage_path: storagePath,
             section: optionalEl('sb-media-section').value,
-            placement: optionalEl('sb-media-placement').value,
+            placement: readPlacement('sb-media-placement'),
             link_url: optionalEl('sb-media-link').value,
             display_order: optionalEl('sb-media-order').value,
             active: optionalEl('sb-media-active').value === '1',

@@ -105,9 +105,24 @@ Pour une nouvelle image, utilisez **Ajouter** avec :
 | Image | fichier téléversé **ou** URL complète (`https://…`) |
 | Active | cochée |
 
-Emplacements disponibles : `accueil-hero`, `accueil-presentation`,
-`galerie-1` … `galerie-5`, `filiale-frivia`, `filiale-elikya`,
-`filiale-youpi`.
+**Bonne nouvelle : vous n'avez plus aucun code à retenir.** Le champ
+« Emplacement sur le site » est une **liste déroulante** qui présente les zones
+en clair :
+
+- *Accueil — image principale (haut de page)*
+- *Accueil — réunion d'affaires / présentation*
+- *Accueil — galerie 1* à *galerie 5*
+- *Filiales — FRIVIA Food*, *ELIKYA Coffee*, *YOUPI Bakery*
+- *Aucun* → l'image s'ajoute simplement à la galerie de la page d'accueil
+
+Il suffit de choisir la zone dans la liste, la section du site se règle
+automatiquement. L'option « Autre emplacement (saisie libre) » reste disponible
+pour les cas avancés.
+
+Si l'image a déjà été enregistrée avec un libellé approximatif (par exemple
+« Réunion d'affaire » ou « réalisation sur terrain »), le site la reconnaît
+aussi : les accents, la casse et la ponctuation sont ignorés, et le titre de
+l'image est pris en compte.
 
 > Les images de la section **Galerie** (sans emplacement) alimentent la galerie
 > de la page d'accueil.
@@ -158,6 +173,9 @@ Erreurs fréquentes :
 | Les offres d'emploi ne changent pas | module Carrières : offres en **Brouillon** ou script non exécuté | exécuter `supabase/careers.sql` ; statut **Publiée** |
 | « Module « Carrières » indisponible » dans l'admin | table `job_offers` absente | exécuter `supabase/careers.sql` dans le SQL Editor |
 | « Le client Supabase est indisponible » | ancien fichier `public/admin/index.html` déployé | renvoyer le nouveau `public/admin/index.html` (ou ouvrir `public/admin/index.html` directement) |
+| L'image modifiée ne change pas sur le site | cache du navigateur | **Ctrl + F5** (le site ajoute aussi un paramètre anti-cache automatiquement) |
+| Une image publiée n'apparaît nulle part | son emplacement ne correspond à aucune zone | ouvrez la console (F12) : le site indique les emplacements disponibles sur la page ; ou choisissez la zone dans la liste déroulante |
+| Image remplacée par un visuel « PK GLOBAL PARTNERS » | le fichier n'est pas accessible à l'URL enregistrée | vérifiez l'URL dans la médiathèque (bouton « Copier l'URL ») : elle doit s'ouvrir dans le navigateur |
 | Les images restent celles d'origine | aucune image **active** avec le bon emplacement | Médiathèque → vérifier « Emplacement » et « Active » |
 | Image « PK GLOBAL PARTNERS » à la place d'une photo | fichier absent sur l'hébergeur | envoyer le dossier `images/` ou renseigner une URL `https://…` |
 | Formulaire : « impossible d'enregistrer » | politiques d'insertion absentes | réexécuter la partie 2 de `hebergement-statique.sql` |

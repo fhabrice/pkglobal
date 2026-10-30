@@ -22,13 +22,23 @@ RewriteRule ^css/(.+)$ public/css/$1 [L]
 </IfModule>
 
 # --- Sécurité : on n'expose pas les fichiers techniques ----------------------
+#     ⚠️ IMPORTANT : ces règles ne doivent viser QUE les fichiers de la RACINE.
+#     « public/js/supabase.js » est la bibliothèque utilisée par l'espace
+#     administrateur : il doit rester accessible, sinon l'admin affiche
+#     « Le client Supabase est indisponible » ou « Fichier introuvable ».
+#     FilesMatch ne connaît que le NOM du fichier (il s'applique aussi aux
+#     sous-dossiers) : on utilise donc RedirectMatch, qui travaille sur le
+#     chemin complet de l'URL et peut être limité à la racine.
+RedirectMatch 404 ^/(server|database|supabase|test-platform)\.js$
+RedirectMatch 404 ^/\.env(\..+)?$
+
 <IfModule mod_authz_core.c>
-  <FilesMatch "(^\.env|^\.env\..*|package\.json|package-lock\.json|server\.js|database\.js|supabase\.js)$">
+  <FilesMatch "^(package\.json|package-lock\.json)$">
     Require all denied
   </FilesMatch>
 </IfModule>
 <IfModule !mod_authz_core.c>
-  <FilesMatch "(^\.env|^\.env\..*|package\.json|package-lock\.json|server\.js|database\.js|supabase\.js)$">
+  <FilesMatch "^(package\.json|package-lock\.json)$">
     Order allow,deny
     Deny from all
   </FilesMatch>
