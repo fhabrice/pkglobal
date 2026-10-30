@@ -2125,7 +2125,7 @@
               <p class="text-emerald-100/85 text-xs mt-1 max-w-2xl">Créez un appel ici, passez son statut à <strong>« Ouvert »</strong> et il s’affichera immédiatement sur la page publique des appels à projets. Les <strong>brouillons</strong> restent visibles uniquement dans cet espace. ${adminCalls.length} appel(s) au total · ${openCount} ouvert(s).</p>
             </div>
             <div class="flex flex-wrap gap-2 shrink-0">
-              <a href="/appels-a-projets.html" target="_blank" rel="noopener" class="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl border border-white/20 flex items-center gap-2"><i class="fas fa-arrow-up-right-from-square"></i> Voir la page publique</a>
+              <a href="${publicPageUrl('appels-a-projets.html')}" target="_blank" rel="noopener" class="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl border border-white/20 flex items-center gap-2"><i class="fas fa-arrow-up-right-from-square"></i> Voir la page publique</a>
               <button type="button" data-admin-action="new-call" class="px-4 py-2.5 bg-yellow-400 hover:bg-yellow-500 text-emerald-950 text-xs font-black rounded-xl shadow flex items-center gap-2"><i class="fas fa-plus"></i> Créer un Appel à Projets</button>
             </div>
           </div>
@@ -2230,7 +2230,7 @@
               <p class="text-emerald-100/85 text-xs mt-1 max-w-2xl">Créez une offre puis passez son statut à <strong>« Publiée »</strong> : elle s’affichera immédiatement sur la page Carrières. Les <strong>brouillons</strong> restent visibles uniquement dans cet espace. ${adminJobs.length} offre(s) au total · ${openCount} publiée(s).</p>
             </div>
             <div class="flex flex-wrap gap-2 shrink-0">
-              <a href="../careers.html" target="_blank" rel="noopener" class="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl border border-white/20 flex items-center gap-2"><i class="fas fa-arrow-up-right-from-square"></i> Voir la page publique</a>
+              <a href="${publicPageUrl('careers.html')}" target="_blank" rel="noopener" class="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl border border-white/20 flex items-center gap-2"><i class="fas fa-arrow-up-right-from-square"></i> Voir la page publique</a>
               <button type="button" data-admin-action="new-job" class="px-4 py-2.5 bg-yellow-400 hover:bg-yellow-500 text-emerald-950 text-xs font-black rounded-xl shadow flex items-center gap-2"><i class="fas fa-plus"></i> Créer une offre d’emploi</button>
             </div>
           </div>
@@ -2465,6 +2465,20 @@
       if (typeof row.value === 'string') return row.value;
       const raw = row.value[key];
       return raw === null || raw === undefined ? '' : String(raw);
+    }
+
+    // Adresse d'une page du site public vue depuis l'espace admin.
+    // L'admin peut être ouvert à « /admin/ » (réécriture) ou à
+    // « /public/admin/ » : sans ce calcul, le lien « Voir la page publique »
+    // pointait vers /public/careers.html, qui n'existe pas (erreur 404).
+    function publicPageUrl(page) {
+      var siteRoot = root.PK_SITE_ROOT;
+      if (!siteRoot) {
+        var path = String((root.location && root.location.pathname) || '');
+        var base = path.replace(/\/admin\/.*$/, '');       // « /public » ou « »
+        siteRoot = (base.replace(/\/[^/]*$/, '') || '') + '/';
+      }
+      return siteRoot + page;
     }
 
     function cmsTabButton(value, label, count) {
