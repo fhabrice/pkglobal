@@ -19,6 +19,20 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^js/(.+)$ public/js/$1 [L]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^css/(.+)$ public/css/$1 [L]
+
+# --- Liens obsolètes : /public/<page>.html  ->  /<page>.html ----------------
+#     Les pages du site sont à la RACINE (careers.html, filiales.html…), alors
+#     que d'anciens liens — favoris, e-mails, moteurs de recherche — pointent
+#     parfois vers /public/careers.html, qui n'existe pas. On redirige vers la
+#     bonne page au lieu d'afficher une erreur 404.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^public/(index|about|filiales|appels-a-projets|careers|investors|contact)\.html$ /$1.html [R=301,L]
+
+#     Idem pour le dossier /public/ lui-même et pour l'espace administrateur.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^public/?$ / [R=301,L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^public/admin/?$ /admin/ [R=301,L]
 </IfModule>
 
 # --- Sécurité : on n'expose pas les fichiers techniques ----------------------
