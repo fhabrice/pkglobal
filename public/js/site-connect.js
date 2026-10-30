@@ -437,12 +437,15 @@
   async function syncPublicJobOffers() {
     var grid = document.getElementById('jobs-grid');
     if (!grid) return;
-    var jobs = await loadJobOffers();
-    if (!isFilledList(jobs)) {
-      debug('aucune offre d\'emploi publiée : la liste d\'origine est conservée.');
+    var jobs = (await loadJobOffers()) || [];
+    // Sécurité : seules les offres « ouvertes » sont publiques, même si la
+    // source de données renvoyait des brouillons ou des offres clôturées.
+    var published = jobs.filter(function (job) { return job && job.status === 'open'; });
+    if (!isFilledList(published)) {
+      debug('aucune offre d’emploi publiée : le message d’attente de la page reste affiché.');
       return;
     }
-    renderPublicJobOffers(grid, jobs);
+    renderPublicJobOffers(grid, published);
   }
 
   function renderPublicJobOffers(grid, jobs) {
