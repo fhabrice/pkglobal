@@ -90,8 +90,9 @@
       if (!element || element.tagName !== 'IMG') return;
       if (element.getAttribute('data-pk-fallback') === '1') return;
       element.setAttribute('data-pk-fallback', '1');
+      warn('image introuvable sur le serveur (URL : ' + element.src
+        + ') — visuel de substitution affiché. Vérifiez que le fichier existe bien à cette adresse.');
       element.src = FALLBACK_IMAGE;
-      warn('image introuvable, remplacée par le visuel de substitution :', element.getAttribute('src'));
     }, true);
   }
 
@@ -242,13 +243,68 @@
   //    -> remplace l'image d'un emplacement (data-media-slot) et alimente la
   //       galerie de la page d'accueil.
   // -------------------------------------------------------------------------
+  // Une image peut être enregistrée sous forme d'URL complète ou simplement
+  // du chemin du fichier dans le stockage Supabase (« media/photo.jpg ») :
+  // dans ce cas on reconstitue l'URL publique.
+  function storagePublicUrl(rawUrl) {
+    var value = String(rawUrl || '').trim();
+    if (!value) return null;
+    if (/^https?:\/\//i.test(value) || value.indexOf('//') === 0 || value.indexOf('data:') === 0) return value;
+    var base = CONFIG.supabaseUrl || (window.PK_CONFIG && window.PK_CONFIG.supabaseUrl) || '';
+    var bucket = CONFIG.storageBucket || (window.PK_CONFIG && window.PK_CONFIG.storageBucket) || 'site-media';
+    if (!base) return null;
+    return String(base).replace(/\/+$/, '') + '/storage/v1/object/public/' + bucket + '/' + value.replace(/^\/+/, '');
+  }
+
   function safeImageUrl(rawUrl) {
+    var value = storagePublicUrl(rawUrl);
+    if (!value) return null;
     try {
-      var url = new URL(String(rawUrl || ''), window.location.href);
-      return (url.protocol === 'http:' || url.protocol === 'https:') ? url.href : null;
+      var url = new URL(String(value), window.location.href);
+      return (url.protocol === 'http:' || url.protocol === 'https:' || url.protocol === 'data:') ? url.href : null;
     } catch (_) {
       return null;
     }
+  }
+
+  // Normalise un libellé pour comparer « Réunion d'affaire » et
+  // « reunion-d-affaire » : casse, accents et ponctuation ignorés.
+  // Ajoute un paramètre anti-cache : quand une image est remplacée dans
+  // l'administration, le navigateur ne doit pas continuer à afficher l'ancienne.
+  function cacheBusted(url, item) {
+    if (!url || url.indexOf('data:') === 0) return url;
+    var stamp = item && (item.updated_at || item.created_at || item.id);
+    if (!stamp) return url;
+    var separator = url.indexOf('?') === -1 ? '?' : '&';
+    return url + separator + 'v=' + encodeURIComponent(String(stamp).replace(/[^a-zA-Z0-9]/g, ''));
+  }
+
+  function normalizeKey(value) {
+    var raw = String(value === null || value === undefined ? '' : value);
+    if (typeof raw.normalize === 'function') raw = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return raw
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+
+  // Emplacements acceptés par une balise du site : le code technique
+  // (data-media-slot) et ses alias métier (data-media-alt).
+  function slotKeys(element) {
+    var keys = [element.getAttribute('data-media-slot')];
+    var alt = element.getAttribute('data-media-alt');
+    if (alt) keys = keys.concat(String(alt).split(','));
+    return keys.map(normalizeKey).filter(Boolean);
+  }
+
+  // Clés d'une image de la médiathèque : emplacement, titre et texte alternatif.
+  function mediaKeys(item) {
+    return [item.placement, item.title, item.alt_text].map(normalizeKey).filter(Boolean);
+  }
+
+  function matchesSlot(element, item) {
+    var slots = slotKeys(element);
+    return mediaKeys(item).some(function (key) { return slots.indexOf(key) !== -1; });
   }
 
   async function syncManagedMedia() {
@@ -273,20 +329,41 @@
   }
 
   function applyMediaPlacements(media) {
+    var used = {};
+    var slots = Array.prototype.slice.call(document.querySelectorAll('[data-media-slot]')).map(function (element) {
+      return element.getAttribute('data-media-slot');
+    });
     document.querySelectorAll('[data-media-slot]').forEach(function (element) {
       var slot = element.getAttribute('data-media-slot');
       if (!slot) return;
-      var item = media.filter(function (candidate) { return candidate.placement === slot; })[0];
-      if (!item) return;
-      var imageUrl = safeImageUrl(item.image_url);
+      // Correspondance exacte d'abord, puis tolérante (accents, casse, alias
+      // métier, titre de l'image) pour les images enregistrées avec un
+      // libellé tel que « Réunion d'affaire ».
+      var item = media.filter(function (candidate) { return candidate.placement === slot; })[0]
+        || media.filter(function (candidate) { return !used[candidate.id] && matchesSlot(element, candidate); })[0];
+      if (!item) {
+        debug('aucune image publiée pour l\'emplacement', slot);
+        return;
+      }
+      used[item.id] = true;
+      var imageUrl = cacheBusted(safeImageUrl(item.image_url), item);
       if (!imageUrl) return;
       if (element.tagName === 'IMG') {
         element.setAttribute('src', imageUrl);
         element.setAttribute('alt', item.alt_text || item.title || element.getAttribute('alt') || '');
-        debug('image appliquée sur l\'emplacement', slot);
+        debug('image appliquée sur l\'emplacement', slot, '→', imageUrl);
       } else {
         element.style.backgroundImage = 'url("' + imageUrl + '")';
       }
+    });
+
+    // Aide au diagnostic : une image publiée dont l'emplacement ne correspond à
+    // aucune zone du site n'est tout simplement pas affichée.
+    media.forEach(function (item) {
+      if (used[item.id] || item.section === 'galerie') return;
+      warn('image « ' + (item.title || item.placement || item.id) + ' » (emplacement « '
+        + (item.placement || 'aucun') + ' ») ne correspond à aucune zone du site. '
+        + 'Emplacements disponibles sur cette page : ' + (slots.join(', ') || 'aucun'));
     });
   }
 
@@ -302,7 +379,7 @@
     // Les images gérées depuis l'administration remplacent la galerie d'origine.
     grid.replaceChildren();
     galleryItems.forEach(function (item) {
-      var imageUrl = safeImageUrl(item.image_url);
+      var imageUrl = cacheBusted(safeImageUrl(item.image_url), item);
       if (!imageUrl) return;
       var card = document.createElement('div');
       card.className = 'gallery-item h-80 group';

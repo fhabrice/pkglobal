@@ -64,12 +64,63 @@
   };
   // Emplacements connus du site public : une image active portant un de ces
   // emplacements remplace l'image par défaut du même emplacement.
-  // Emplacements reconnus par le site public (page d'accueil + page Filiales).
+  // Emplacements reconnus par le site public. Le libellé est ce que voit
+  // l'administrateur : il choisit « Réunion d'affaires » dans la liste, plus
+  // besoin de connaître le code technique de l'emplacement.
   const MEDIA_PLACEMENTS = [
-    'accueil-hero', 'accueil-presentation',
-    'galerie-1', 'galerie-2', 'galerie-3', 'galerie-4', 'galerie-5',
-    'filiale-frivia', 'filiale-elikya', 'filiale-youpi'
+    { value: 'accueil-hero', label: 'Accueil — image principale (haut de page)', section: 'hero' },
+    { value: 'accueil-presentation', label: 'Accueil — réunion d’affaires / présentation', section: 'general' },
+    { value: 'galerie-1', label: 'Accueil — galerie 1', section: 'galerie' },
+    { value: 'galerie-2', label: 'Accueil — galerie 2', section: 'galerie' },
+    { value: 'galerie-3', label: 'Accueil — galerie 3', section: 'galerie' },
+    { value: 'galerie-4', label: 'Accueil — galerie 4', section: 'galerie' },
+    { value: 'galerie-5', label: 'Accueil — galerie 5', section: 'galerie' },
+    { value: 'filiale-frivia', label: 'Filiales — FRIVIA Food', section: 'filiales' },
+    { value: 'filiale-elikya', label: 'Filiales — ELIKYA Coffee', section: 'filiales' },
+    { value: 'filiale-youpi', label: 'Filiales — YOUPI Bakery', section: 'filiales' }
   ];
+
+  function placementLabel(value) {
+    const entry = MEDIA_PLACEMENTS.find(item => item.value === value);
+    return entry ? entry.label : value;
+  }
+
+  // Liste déroulante des emplacements + saisie libre pour les cas avancés.
+  function placementSelect(id, selected) {
+    const known = MEDIA_PLACEMENTS.some(item => item.value === selected);
+    const isOther = Boolean(selected) && !known;
+    return `<select id="${id}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">
+        <option value="">Aucun (l’image s’ajoute à la galerie de l’accueil)</option>
+        ${MEDIA_PLACEMENTS.map(item => `<option value="${item.value}" ${item.value === selected ? 'selected' : ''}>${escapeHtml(item.label)}</option>`).join('')}
+        <option value="__other" ${isOther ? 'selected' : ''}>Autre emplacement (saisie libre)…</option>
+      </select>
+      <input type="text" id="${id}-other" value="${isOther ? escapeHtml(selected) : ''}" placeholder="Code exact de l’emplacement"
+        class="w-full mt-2 px-4 py-2.5 rounded-xl border border-slate-200 ${isOther ? '' : 'hidden'}">`;
+  }
+
+  // Affiche la saisie libre uniquement quand « Autre emplacement » est choisi,
+  // et aligne la section du site sur l'emplacement sélectionné.
+  function bindPlacementSelect(selectId, sectionId) {
+    const select = document.getElementById(selectId);
+    const other = document.getElementById(selectId + '-other');
+    const section = sectionId ? document.getElementById(sectionId) : null;
+    if (!select) return;
+    const sync = () => {
+      if (other) other.classList.toggle('hidden', select.value !== '__other');
+      const entry = MEDIA_PLACEMENTS.find(item => item.value === select.value);
+      if (section && entry && entry.section) section.value = entry.section;
+    };
+    select.addEventListener('change', sync);
+    sync();
+  }
+
+  function readPlacement(selectId) {
+    const select = document.getElementById(selectId);
+    if (!select) return '';
+    if (select.value !== '__other') return select.value;
+    const other = document.getElementById(selectId + '-other');
+    return other ? other.value : '';
+  }
   const ADMIN_ROUTES = ['dashboard', 'calls', 'careers', 'media', 'crm'];
 
   function escapeHtml(value) {
@@ -2064,7 +2115,7 @@
         view.innerHTML = `<div class="space-y-6">
           <div class="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white p-6 rounded-3xl shadow-xl">
             <h3 class="text-lg font-black">Images du site</h3>
-            <p class="text-emerald-100/85 text-xs mt-1 max-w-3xl">Téléversez une image ou indiquez son URL. Les images <strong>actives</strong> de la section <strong>« Galerie »</strong> s’ajoutent à la galerie de la page d’accueil. Une image portant un <strong>emplacement</strong> connu (ex. <code>accueil-hero</code>, <code>galerie-1</code>) remplace l’image par défaut de cet emplacement sur le site.</p>
+            <p class="text-emerald-100/85 text-xs mt-1 max-w-3xl">Téléversez une image ou indiquez son URL. Pour <strong>remplacer une image précise du site</strong> (« réunion d’affaires », « FRIVIA », « galerie 3 »…), choisissez-la dans la liste <strong>Emplacement sur le site</strong> : aucun code à connaître. Sans emplacement, l’image s’ajoute simplement à la galerie de la page d’accueil. Pensez à la laisser <strong>Publiée</strong>.</p>
           </div>
 
           <div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs">
@@ -2075,7 +2126,7 @@
               <div><label class="block font-bold mb-1">Titre *</label><input type="text" id="sb-media-title" placeholder="Ex. Flotte ELVO à Goma" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
               <div><label class="block font-bold mb-1">Texte alternatif (accessibilité)</label><input type="text" id="sb-media-alt" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
               <div><label class="block font-bold mb-1">Section du site</label><select id="sb-media-section" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">${optionsHtml(MEDIA_SECTION_LABELS, 'galerie')}</select></div>
-              <div><label class="block font-bold mb-1">Emplacement (optionnel)</label><input type="text" id="sb-media-placement" list="sb-media-placements" placeholder="Ex. accueil-hero ou galerie-1" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"><datalist id="sb-media-placements">${MEDIA_PLACEMENTS.map(value => `<option value="${value}"></option>`).join('')}</datalist></div>
+              <div><label class="block font-bold mb-1">Emplacement sur le site</label>${placementSelect('sb-media-placement', '')}<p class="text-[10px] text-slate-500 mt-1">Choisissez l’endroit précis où l’image doit remplacer celle d’origine.</p></div>
               <div><label class="block font-bold mb-1">Lien au clic (optionnel)</label><input type="url" id="sb-media-link" placeholder="https://…" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
               <div class="grid grid-cols-2 gap-3">
                 <div><label class="block font-bold mb-1">Ordre d’affichage</label><input type="number" id="sb-media-order" value="0" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
@@ -2098,7 +2149,7 @@
               <div class="p-4 flex-1 flex flex-col gap-2">
                 <strong class="text-sm text-slate-800">${escapeHtml(item.title)}</strong>
                 <div class="text-[11px] text-slate-500 space-y-0.5">
-                  <div>Section : <strong>${escapeHtml(MEDIA_SECTION_LABELS[item.section] || item.section)}</strong>${item.placement ? ` · Emplacement : <code>${escapeHtml(item.placement)}</code>` : ''}</div>
+                  <div>Section : <strong>${escapeHtml(MEDIA_SECTION_LABELS[item.section] || item.section)}</strong>${item.placement ? ` · Emplacement : <strong>${escapeHtml(placementLabel(item.placement))}</strong>` : ''}</div>
                   <div>Ordre : ${Number(item.display_order || 0)} · Ajoutée le ${formatDate(item.created_at)}</div>
                   <div class="truncate" title="${escapeHtml(item.image_url)}">${escapeHtml(item.image_url)}</div>
                 </div>
@@ -2112,6 +2163,7 @@
             </div>`).join('')}
           </div>`}
         </div>`;
+        bindPlacementSelect('sb-media-placement', 'sb-media-section');
       } catch (err) {
         view.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-800 p-6 rounded-3xl text-xs space-y-3">
           <p class="font-bold text-sm">Médiathèque indisponible</p>
@@ -2133,7 +2185,7 @@
           <div><label class="block font-bold mb-1">Texte alternatif</label><input type="text" id="sb-media-edit-alt" value="${escapeHtml(item.alt_text || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div><label class="block font-bold mb-1">Section</label><select id="sb-media-edit-section" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">${optionsHtml(MEDIA_SECTION_LABELS, item.section)}</select></div>
-            <div><label class="block font-bold mb-1">Emplacement</label><input type="text" id="sb-media-edit-placement" list="sb-media-placements-edit" value="${escapeHtml(item.placement || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"><datalist id="sb-media-placements-edit">${MEDIA_PLACEMENTS.map(value => `<option value="${value}"></option>`).join('')}</datalist></div>
+            <div><label class="block font-bold mb-1">Emplacement sur le site</label>${placementSelect('sb-media-edit-placement', item.placement || '')}</div>
             <div><label class="block font-bold mb-1">Lien au clic</label><input type="url" id="sb-media-edit-link" value="${escapeHtml(item.link_url || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
             <div class="grid grid-cols-2 gap-3">
               <div><label class="block font-bold mb-1">Ordre</label><input type="number" id="sb-media-edit-order" value="${Number(item.display_order || 0)}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
@@ -2156,7 +2208,7 @@
             image_url: imageUrl,
             storage_path: storagePath,
             section: optionalEl('sb-media-edit-section').value,
-            placement: optionalEl('sb-media-edit-placement').value,
+            placement: readPlacement('sb-media-edit-placement'),
             link_url: optionalEl('sb-media-edit-link').value,
             display_order: optionalEl('sb-media-edit-order').value,
             active: optionalEl('sb-media-edit-active').value === '1'
@@ -2164,6 +2216,7 @@
           showCrmToast('Image mise à jour.');
           await showMedia(currentProfile);
         });
+      bindPlacementSelect('sb-media-edit-placement', 'sb-media-edit-section');
     }
 
     async function handleAdminAction(button) {
@@ -2219,7 +2272,7 @@
             image_url: imageUrl,
             storage_path: storagePath,
             section: optionalEl('sb-media-section').value,
-            placement: optionalEl('sb-media-placement').value,
+            placement: readPlacement('sb-media-placement'),
             link_url: optionalEl('sb-media-link').value,
             display_order: optionalEl('sb-media-order').value,
             active: optionalEl('sb-media-active').value === '1',
