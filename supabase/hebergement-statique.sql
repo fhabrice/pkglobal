@@ -1,100 +1,271 @@
 -- =============================================================================
 -- PK GLOBAL PARTNERS — HÉBERGEMENT STATIQUE (sans serveur Node.js)
 -- -----------------------------------------------------------------------------
--- À exécuter UNE SEULE FOIS dans Supabase :
---     Supabase > votre projet > SQL Editor > New query
---     -> collez tout ce fichier -> Run
+-- À exécuter dans Supabase : SQL Editor > New query > coller > Run
 --
--- Ce script :
---   1. autorise le site public à LIRE les contenus publiés (images, appels à
---      projets, services, actualités) ;
---   2. autorise les VISITEURS à déposer leurs formulaires (contact,
---      investisseurs, candidatures, statistiques de visites) ;
---   3. crée 3 appels à projets d'exemple (modifiables dans l'admin) ;
---   4. crée les 3 emplacements d'images des FILIALES (FRIVIA, ELIKYA, YOUPI)
---      afin qu'elles apparaissent dans la médiathèque de l'admin et sur le site.
+-- Ce script est AUTONOME et IDÉMPOTENT :
+--   • il crée les tables manquantes (sans jamais écraser celles qui existent) ;
+--   • il active la sécurité (RLS) et crée les politiques d'accès ;
+--   • il insère 3 appels à projets et les 3 images des filiales.
+-- Vous pouvez le relancer autant de fois que vous voulez : rien n'est dupliqué
+-- et une table absente ne provoque plus d'erreur.
 --
--- Le script est « idempotent » : vous pouvez le relancer sans risque, il ne
--- duplique aucune donnée.
+-- Si une ligne du résultat indique « NOTICE : Table absente » , ce n'est pas
+-- une erreur : la table est créée juste après.
 -- =============================================================================
 
--- -----------------------------------------------------------------------------
--- 1. ACCÈS EN LECTURE POUR LE SITE PUBLIC (visiteurs non connectés)
--- -----------------------------------------------------------------------------
-DO $$
-BEGIN
-  ALTER TABLE public.site_media       ENABLE ROW LEVEL SECURITY;
-  ALTER TABLE public.call_for_projects ENABLE ROW LEVEL SECURITY;
-  ALTER TABLE public.services_poles   ENABLE ROW LEVEL SECURITY;
-  ALTER TABLE public.news             ENABLE ROW LEVEL SECURITY;
-  ALTER TABLE public.site_content     ENABLE ROW LEVEL SECURITY;
-EXCEPTION WHEN undefined_table THEN
-  RAISE NOTICE 'Certaines tables n''existent pas encore : exécutez d''abord supabase/schema.sql';
-END $$;
 
--- Images de la médiathèque : uniquement les images actives
-DROP POLICY IF EXISTS "Public read active media" ON public.site_media;
-CREATE POLICY "Public read active media" ON public.site_media
-  FOR SELECT USING (active = true);
-
--- Appels à projets : uniquement ceux publiés (ouverts ou clôturés)
-DROP POLICY IF EXISTS "Public read calls" ON public.call_for_projects;
-CREATE POLICY "Public read calls" ON public.call_for_projects
-  FOR SELECT USING (status IN ('open', 'closed'));
-
--- Pôles d'expertise actifs
-DROP POLICY IF EXISTS "Public read services" ON public.services_poles;
-CREATE POLICY "Public read services" ON public.services_poles
-  FOR SELECT USING (active = true);
-
--- Actualités publiées
-DROP POLICY IF EXISTS "Public read news" ON public.news;
-CREATE POLICY "Public read news" ON public.news
-  FOR SELECT USING (status = 'published');
+-- =============================================================================
+-- ÉTAPE 1 — CRÉER LES TABLES MANQUANTES
+-- (CREATE TABLE IF NOT EXISTS ne modifie jamais une table déjà présente)
+-- =============================================================================
 
 -- Textes du site (CMS)
-DROP POLICY IF EXISTS "Public read content" ON public.site_content;
-CREATE POLICY "Public read content" ON public.site_content
-  FOR SELECT USING (true);
+CREATE TABLE IF NOT EXISTS public.site_content (
+    key TEXT PRIMARY KEY,
+    value JSONB NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
 
--- -----------------------------------------------------------------------------
--- 2. DÉPÔT DES FORMULAIRES PAR LES VISITEURS (aucune donnée lisible ensuite)
---    En mode statique il n'y a pas de serveur : le navigateur écrit
---    directement dans la base. Seules les insertions sont autorisées.
--- -----------------------------------------------------------------------------
+-- Pôles d'expertise
+CREATE TABLE IF NOT EXISTS public.services_poles (
+    id BIGSERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    category TEXT NOT NULL,
+    description TEXT NOT NULL,
+    icon TEXT DEFAULT 'fa-briefcase',
+    active BOOLEAN DEFAULT TRUE,
+    display_order INT DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Actualités
+CREATE TABLE IF NOT EXISTS public.news (
+    id BIGSERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    slug TEXT NOT NULL,
+    category TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    content TEXT NOT NULL,
+    image_url TEXT,
+    status TEXT DEFAULT 'published' CHECK (status IN ('published', 'draft')),
+    published_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Appels à projets
+CREATE TABLE IF NOT EXISTS public.call_for_projects (
+    id BIGSERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    slug TEXT NOT NULL,
+    description TEXT NOT NULL,
+    target_sector TEXT NOT NULL,
+    budget_indicatif TEXT NOT NULL,
+    eligibility TEXT NOT NULL,
+    deadline TIMESTAMP WITH TIME ZONE NOT NULL,
+    status TEXT DEFAULT 'draft' CHECK (status IN ('open', 'closed', 'draft')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Candidatures déposées depuis le site
+CREATE TABLE IF NOT EXISTS public.candidatures (
+    id BIGSERIAL PRIMARY KEY,
+    call_id BIGINT,
+    candidate_name TEXT NOT NULL,
+    candidate_email TEXT NOT NULL,
+    candidate_phone TEXT,
+    project_title TEXT NOT NULL,
+    sector TEXT NOT NULL,
+    location TEXT NOT NULL,
+    funding_requested NUMERIC NOT NULL,
+    currency TEXT DEFAULT 'USD',
+    summary TEXT NOT NULL,
+    details TEXT,
+    document_url TEXT,
+    document_name TEXT,
+    status TEXT DEFAULT 'recu' CHECK (status IN ('recu', 'en_evaluation', 'retenu', 'rejete')),
+    evaluation_score NUMERIC DEFAULT 0,
+    evaluation_notes TEXT,
+    submitted_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    evaluated_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Investisseurs
+CREATE TABLE IF NOT EXISTS public.investors (
+    id BIGSERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    organization TEXT NOT NULL,
+    email TEXT NOT NULL,
+    phone TEXT,
+    country TEXT DEFAULT 'RDC',
+    investor_type TEXT NOT NULL,
+    ticket_min NUMERIC DEFAULT 0,
+    ticket_max NUMERIC DEFAULT 0,
+    sectors_of_interest TEXT,
+    status TEXT DEFAULT 'en_attente' CHECK (status IN ('en_attente', 'valide', 'desactive')),
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Manifestations d'intérêt
+CREATE TABLE IF NOT EXISTS public.investor_interests (
+    id BIGSERIAL PRIMARY KEY,
+    investor_id BIGINT,
+    candidature_id BIGINT,
+    project_title TEXT NOT NULL,
+    amount_intended NUMERIC DEFAULT 0,
+    stage TEXT DEFAULT 'Premier contact',
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Demandes de contact
+CREATE TABLE IF NOT EXISTS public.inquiries (
+    id BIGSERIAL PRIMARY KEY,
+    reference TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL,
+    phone TEXT,
+    organization TEXT,
+    service_requested TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    message TEXT NOT NULL,
+    status TEXT DEFAULT 'nouveau' CHECK (status IN ('nouveau', 'en_cours', 'en_attente', 'resolu')),
+    response_text TEXT,
+    responded_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Statistiques de visites
+CREATE TABLE IF NOT EXISTS public.visitor_stats (
+    id BIGSERIAL PRIMARY KEY,
+    page TEXT NOT NULL,
+    ip_hash TEXT,
+    user_agent TEXT,
+    referrer TEXT,
+    visited_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Médiathèque (images du site gérées depuis l'admin)
+CREATE TABLE IF NOT EXISTS public.site_media (
+    id BIGSERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    alt_text TEXT,
+    image_url TEXT NOT NULL,
+    storage_path TEXT,
+    section TEXT NOT NULL DEFAULT 'galerie'
+      CHECK (section IN ('galerie', 'hero', 'filiales', 'general')),
+    placement TEXT,
+    link_url TEXT,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    display_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS site_media_public_idx
+  ON public.site_media (active, section, display_order);
+
+
+-- =============================================================================
+-- ÉTAPE 2 — SÉCURITÉ : activer RLS sur les tables qui existent
+-- =============================================================================
 DO $$
+DECLARE
+  nom text;
 BEGIN
-  ALTER TABLE public.inquiries        ENABLE ROW LEVEL SECURITY;
-  ALTER TABLE public.candidatures     ENABLE ROW LEVEL SECURITY;
-  ALTER TABLE public.investors        ENABLE ROW LEVEL SECURITY;
-  ALTER TABLE public.visitor_stats    ENABLE ROW LEVEL SECURITY;
-EXCEPTION WHEN undefined_table THEN
-  RAISE NOTICE 'Certaines tables n''existent pas encore : exécutez d''abord supabase/schema.sql';
+  FOREACH nom IN ARRAY ARRAY[
+    'site_content', 'services_poles', 'news', 'call_for_projects',
+    'candidatures', 'investors', 'investor_interests', 'inquiries',
+    'visitor_stats', 'site_media'
+  ]
+  LOOP
+    IF to_regclass('public.' || nom) IS NOT NULL THEN
+      EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', nom);
+      RAISE NOTICE 'RLS activée sur %', nom;
+    ELSE
+      RAISE NOTICE 'Table absente (ignorée) : %', nom;
+    END IF;
+  END LOOP;
 END $$;
 
-DROP POLICY IF EXISTS "Public insert inquiries" ON public.inquiries;
-CREATE POLICY "Public insert inquiries" ON public.inquiries
-  FOR INSERT TO anon, authenticated WITH CHECK (true);
 
-DROP POLICY IF EXISTS "Public insert candidatures" ON public.candidatures;
-CREATE POLICY "Public insert candidatures" ON public.candidatures
-  FOR INSERT TO anon, authenticated WITH CHECK (true);
+-- =============================================================================
+-- ÉTAPE 3 — LECTURE PUBLIQUE (les visiteurs voient ce qui est publié)
+-- =============================================================================
+DO $$
+BEGIN
+  IF to_regclass('public.site_media') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "Public read active media" ON public.site_media;
+    CREATE POLICY "Public read active media" ON public.site_media
+      FOR SELECT USING (active = true);
+  END IF;
 
-DROP POLICY IF EXISTS "Public insert investors" ON public.investors;
-CREATE POLICY "Public insert investors" ON public.investors
-  FOR INSERT TO anon, authenticated WITH CHECK (true);
+  IF to_regclass('public.call_for_projects') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "Public read calls" ON public.call_for_projects;
+    CREATE POLICY "Public read calls" ON public.call_for_projects
+      FOR SELECT USING (status IN ('open', 'closed'));
+  END IF;
 
-DROP POLICY IF EXISTS "Public insert visits" ON public.visitor_stats;
-CREATE POLICY "Public insert visits" ON public.visitor_stats
-  FOR INSERT TO anon, authenticated WITH CHECK (true);
+  IF to_regclass('public.services_poles') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "Public read services" ON public.services_poles;
+    CREATE POLICY "Public read services" ON public.services_poles
+      FOR SELECT USING (active = true);
+  END IF;
 
-DROP POLICY IF EXISTS "Public insert interests" ON public.investor_interests;
-CREATE POLICY "Public insert interests" ON public.investor_interests
-  FOR INSERT TO anon, authenticated WITH CHECK (true);
+  IF to_regclass('public.news') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "Public read news" ON public.news;
+    CREATE POLICY "Public read news" ON public.news
+      FOR SELECT USING (status = 'published');
+  END IF;
 
--- -----------------------------------------------------------------------------
--- 3. APPELS À PROJETS DE DÉPART (modifiables depuis l'espace admin)
--- -----------------------------------------------------------------------------
+  IF to_regclass('public.site_content') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "Public read content" ON public.site_content;
+    CREATE POLICY "Public read content" ON public.site_content
+      FOR SELECT USING (true);
+  END IF;
+END $$;
+
+
+-- =============================================================================
+-- ÉTAPE 4 — DÉPÔT DES FORMULAIRES (insertion uniquement, aucune lecture)
+-- =============================================================================
+DO $$
+BEGIN
+  IF to_regclass('public.inquiries') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "Public insert inquiries" ON public.inquiries;
+    CREATE POLICY "Public insert inquiries" ON public.inquiries
+      FOR INSERT TO anon, authenticated WITH CHECK (true);
+  END IF;
+
+  IF to_regclass('public.candidatures') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "Public insert candidatures" ON public.candidatures;
+    CREATE POLICY "Public insert candidatures" ON public.candidatures
+      FOR INSERT TO anon, authenticated WITH CHECK (true);
+  END IF;
+
+  IF to_regclass('public.investors') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "Public insert investors" ON public.investors;
+    CREATE POLICY "Public insert investors" ON public.investors
+      FOR INSERT TO anon, authenticated WITH CHECK (true);
+  END IF;
+
+  IF to_regclass('public.investor_interests') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "Public insert interests" ON public.investor_interests;
+    CREATE POLICY "Public insert interests" ON public.investor_interests
+      FOR INSERT TO anon, authenticated WITH CHECK (true);
+  END IF;
+
+  IF to_regclass('public.visitor_stats') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "Public insert visits" ON public.visitor_stats;
+    CREATE POLICY "Public insert visits" ON public.visitor_stats
+      FOR INSERT TO anon, authenticated WITH CHECK (true);
+  END IF;
+END $$;
+
+
+-- =============================================================================
+-- ÉTAPE 5 — TROIS APPELS À PROJETS DE DÉPART
+-- =============================================================================
 INSERT INTO public.call_for_projects
   (title, slug, description, target_sector, budget_indicatif, eligibility, deadline, status)
 SELECT * FROM (VALUES
@@ -133,14 +304,13 @@ WHERE NOT EXISTS (
   SELECT 1 FROM public.call_for_projects c WHERE c.slug = v.slug
 );
 
--- -----------------------------------------------------------------------------
--- 4. IMAGES DES FILIALES (FRIVIA, ELIKYA, YOUPI)
---    Elles apparaissent dans : Admin > Médiathèque > section « Filiales ».
---    Pour les remplacer par vos propres photos :
---      • soit modifiez la ligne « image_url » ci-dessous et relancez ce script ;
---      • soit, plus simple : Admin > Médiathèque > Modifier (icône crayon) puis
---        téléversez votre image — elle remplacera celle-ci automatiquement.
--- -----------------------------------------------------------------------------
+
+-- =============================================================================
+-- ÉTAPE 6 — IMAGES DES FILIALES (FRIVIA, ELIKYA, YOUPI)
+--   Visibles ensuite dans : Admin > Médiathèque > section « Filiales ».
+--   Pour les remplacer par vos photos : Médiathèque > Modifier (crayon) >
+--   téléverser votre image.
+-- =============================================================================
 INSERT INTO public.site_media (title, alt_text, image_url, section, placement, active, display_order)
 SELECT * FROM (VALUES
   ('FRIVIA — Food', 'FRIVIA, la filiale agroalimentaire de PK Global Partners',
@@ -157,9 +327,10 @@ WHERE NOT EXISTS (
   SELECT 1 FROM public.site_media m WHERE m.placement = v.placement
 );
 
--- -----------------------------------------------------------------------------
--- 5. CONTRÔLE (facultatif) : copiez-collez ces deux lignes seules pour vérifier
---    que tout est en place. Vous devez obtenir 3 appels et 3 images.
---      SELECT title, status, deadline FROM public.call_for_projects ORDER BY id;
---      SELECT placement, image_url, active FROM public.site_media ORDER BY display_order;
--- -----------------------------------------------------------------------------
+
+-- =============================================================================
+-- ÉTAPE 7 — CONTRÔLE : exécutez ces deux lignes seules pour vérifier.
+--   Vous devez obtenir 3 appels et 3 images de filiales.
+--     SELECT title, status, deadline FROM public.call_for_projects ORDER BY id;
+--     SELECT placement, image_url, active FROM public.site_media ORDER BY display_order;
+-- =============================================================================

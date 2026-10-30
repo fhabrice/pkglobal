@@ -59,19 +59,23 @@ projets et l'espace admin lisent tous cette configuration.
 Dans **Supabase → SQL Editor → New query**, collez le contenu de
 **`supabase/hebergement-statique.sql`** puis **Run**.
 
-Il fait quatre choses, sans jamais rien dupliquer (vous pouvez le relancer) :
+Il fait cinq choses, sans jamais rien dupliquer (vous pouvez le relancer) :
 
-1. autorise les visiteurs à **lire** les contenus publiés (images, appels à
+1. **crée les tables manquantes** (`visitor_stats`, `inquiries`,
+   `investor_interests`, …) si votre projet ne les a pas encore — sans jamais
+   écraser une table existante ;
+2. autorise les visiteurs à **lire** les contenus publiés (images, appels à
    projets, services, actualités, textes) ;
-2. autorise les visiteurs à **déposer** leurs formulaires (contact,
+3. autorise les visiteurs à **déposer** leurs formulaires (contact,
    investisseurs, candidatures, statistiques de visites) ;
-3. crée **3 appels à projets** de départ (2 ouverts, 1 clôturé) — modifiables
+4. crée **3 appels à projets** de départ (2 ouverts, 1 clôturé) — modifiables
    depuis l'admin ;
-4. crée les **3 images des filiales** (FRIVIA, ELIKYA, YOUPI) pour qu'elles
+5. crée les **3 images des filiales** (FRIVIA, ELIKYA, YOUPI) pour qu'elles
    apparaissent sur le site et dans la médiathèque.
 
 Si vous aviez déjà exécuté `schema.sql`, `crm.sql` et `admin-modules.sql`, ce
-script reste compatible et ne casse rien.
+script reste compatible et ne casse rien. Les messages « NOTICE : Table absente
+(ignorée) » ne sont pas des erreurs.
 
 ---
 
