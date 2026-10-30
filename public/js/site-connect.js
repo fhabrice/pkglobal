@@ -115,6 +115,7 @@
     setupMobileMenu();
     syncManagedPublicContent();
     syncManagedMedia();
+    syncPublicJobOffers();
     wireContactForm();
     wireInvestorForm();
     wireCareersForm();
@@ -340,6 +341,99 @@
   }
 
   // -------------------------------------------------------------------------
+  // 5.bis Carrières : offres d'emploi publiées depuis l'administration
+  //      (table Supabase « job_offers », statut « open » uniquement).
+  //      Si aucune offre n'est publiée, la liste d'origine de la page reste
+  //      affichée : aucune offre fictive n'est ajoutée.
+  // -------------------------------------------------------------------------
+  function loadJobOffers() {
+    return DB.firstUsable({
+      supabase: function () {
+        return DB.select('job_offers', 'select=id,title,department,location,contract_type,level,description,profile,deadline,display_order,status'
+          + '&status=eq.open&order=display_order.asc,created_at.desc');
+      },
+      node: function () { return fetchJson('/api/job-offers?status=open'); }
+    }, isFilledList).catch(function () { return []; });
+  }
+
+  async function syncPublicJobOffers() {
+    var grid = document.getElementById('jobs-grid');
+    if (!grid) return;
+    var jobs = await loadJobOffers();
+    if (!isFilledList(jobs)) {
+      debug('aucune offre d\'emploi publiée : la liste d\'origine est conservée.');
+      return;
+    }
+    renderPublicJobOffers(grid, jobs);
+  }
+
+  function renderPublicJobOffers(grid, jobs) {
+    grid.replaceChildren();
+    jobs.forEach(function (job) {
+      var card = document.createElement('div');
+      card.className = 'job-card bg-white p-8 rounded-2xl';
+
+      var header = document.createElement('div');
+      header.className = 'flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-4';
+
+      var headerLeft = document.createElement('div');
+      var title = document.createElement('h3');
+      title.className = 'text-2xl font-bold text-emerald-950';
+      title.textContent = job.title || 'Offre d\'emploi';
+      headerLeft.appendChild(title);
+
+      var badges = document.createElement('div');
+      badges.className = 'flex flex-wrap gap-3 mt-3';
+      [
+        [job.department, 'bg-emerald-100 text-emerald-700'],
+        [job.location, 'bg-blue-100 text-blue-700'],
+        [job.level, 'bg-yellow-100 text-yellow-700'],
+        [job.contract_type, 'bg-slate-100 text-slate-700']
+      ].forEach(function (pair) {
+        if (!pair[0]) return;
+        var badge = document.createElement('span');
+        badge.className = pair[1] + ' text-xs px-4 py-2 rounded-full font-semibold';
+        badge.textContent = pair[0];
+        badges.appendChild(badge);
+      });
+      headerLeft.appendChild(badges);
+      header.appendChild(headerLeft);
+
+      // Bouton « Postuler » : renvoie vers le formulaire et pré-remplit le poste.
+      var apply = document.createElement('a');
+      apply.href = '#contact';
+      apply.className = 'btn-gold px-8 py-3 rounded-xl font-bold text-sm whitespace-nowrap';
+      apply.textContent = 'Postuler';
+      apply.addEventListener('click', function () {
+        var target = document.getElementById('target-position');
+        if (target && !target.value) target.value = job.title || '';
+      });
+      header.appendChild(apply);
+
+      card.appendChild(header);
+
+      if (job.description) {
+        var description = document.createElement('p');
+        description.className = 'text-gray-600 mb-4';
+        description.textContent = job.description;
+        card.appendChild(description);
+      }
+      if (job.profile) {
+        var profile = document.createElement('p');
+        profile.className = 'text-sm text-gray-600';
+        var label = document.createElement('span');
+        label.className = 'font-bold text-emerald-950';
+        label.textContent = 'Profil recherché : ';
+        profile.appendChild(label);
+        profile.appendChild(document.createTextNode(job.profile));
+        card.appendChild(profile);
+      }
+      grid.appendChild(card);
+    });
+    debug(jobs.length + ' offre(s) d\'emploi chargée(s) depuis l\'administration.');
+  }
+
+  // -------------------------------------------------------------------------
   // 6. Formulaires publics
   //    En mode statique, les réponses sont enregistrées DIRECTEMENT dans
   //    Supabase (politiques « Public insert … »). Aucun email automatique
@@ -538,19 +632,35 @@
       var emailVal = careersForm.querySelector('input[type="email"]');
       var phoneVal = careersForm.querySelector('input[type="tel"]');
       var msgVal = careersForm.querySelector('textarea');
-      var position = careersForm.querySelector('select');
+      var selects = careersForm.querySelectorAll('select');
+      var domain = selects[0];           // Domaine d'expertise
+      var availability = selects[1];     // Disponibilité
+      var positionInput = document.getElementById('target-position');
+      var cvInput = document.getElementById('cv-input') || document.getElementById('cv-upload');
+
+      var poste = (positionInput && positionInput.value.trim()) || '';
+      var domaine = (domain && (domain.selectedOptions[0] ? domain.selectedOptions[0].textContent : domain.value)) || '';
+
+      var details = 'Déposée depuis la page Carrières du site web.';
+      if (availability && availability.value) {
+        details += '\nDisponibilité : ' + (availability.selectedOptions[0] ? availability.selectedOptions[0].textContent : availability.value);
+      }
+      var cvName = cvInput && cvInput.files && cvInput.files.length ? cvInput.files[0].name : null;
+      if (cvName) {
+        details += '\n[CV annoncé : « ' + cvName + ' » — à recevoir par email]';
+      }
 
       var record = {
         candidate_name: (nameVal && nameVal.value) || 'Candidat',
         candidate_email: (emailVal && emailVal.value) || '',
         candidate_phone: (phoneVal && phoneVal.value) || null,
-        project_title: 'Candidature spontanée' + (position && position.value ? ' — ' + position.value : ''),
-        sector: (position && position.value) || 'Carrières',
+        project_title: 'Candidature — ' + (poste || domaine || 'candidature spontanée'),
+        sector: domaine || 'Carrières',
         location: 'Non précisé',
         funding_requested: 0,
         currency: 'USD',
         summary: (msgVal && msgVal.value) || 'Candidature spontanée déposée depuis la page Carrières.',
-        details: 'Déposée depuis la page Carrières du site web.'
+        details: details
       };
 
       var result = await submitEntry('candidatures', record, '/api/candidatures');
@@ -562,10 +672,14 @@
 
       if (result.ok) {
         var id = result.data && result.data.id;
+        var reference = id ? ' (référence #CAND-' + id + ')' : '';
         showModal({
           title: 'Candidature enregistrée',
           icon: 'fa-check-circle text-emerald-500',
-          message: 'Merci, votre candidature a bien été transmise' + (id ? ' (référence #CAND-' + id + ')' : '') + '. Notre équipe RH reviendra vers vous rapidement.'
+          message: 'Merci, votre candidature a bien été transmise' + reference + '. '
+            + (cvName
+              ? 'Pour joindre votre CV « ' + escapeHtml(cvName) + ' », envoyez-le par email à carrieres@pkglobalpartners.com en rappelant cette référence.'
+              : 'Notre équipe RH reviendra vers vous rapidement.')
         });
         careersForm.reset();
       } else {

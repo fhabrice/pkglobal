@@ -329,8 +329,83 @@ WHERE NOT EXISTS (
 
 
 -- =============================================================================
--- ÉTAPE 7 — CONTRÔLE : exécutez ces deux lignes seules pour vérifier.
---   Vous devez obtenir 3 appels et 3 images de filiales.
+-- ÉTAPE 7 — CARRIÈRES : offres d'emploi gérables depuis l'admin
+--   (même contenu que le fichier supabase/careers.sql)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.job_offers (
+    id BIGSERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    department TEXT,
+    location TEXT,
+    contract_type TEXT DEFAULT 'CDI',
+    level TEXT DEFAULT 'Confirmé',
+    description TEXT NOT NULL,
+    profile TEXT,
+    status TEXT DEFAULT 'draft' CHECK (status IN ('open', 'closed', 'draft')),
+    display_order INT NOT NULL DEFAULT 0,
+    deadline TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS job_offers_public_idx
+  ON public.job_offers (status, display_order);
+
+DO $$
+BEGIN
+  ALTER TABLE public.job_offers ENABLE ROW LEVEL SECURITY;
+  DROP POLICY IF EXISTS "Public read open jobs" ON public.job_offers;
+  CREATE POLICY "Public read open jobs" ON public.job_offers
+    FOR SELECT USING (status = 'open');
+END $$;
+
+DO $$
+BEGIN
+  IF to_regprocedure('public.is_pk_admin()') IS NOT NULL THEN
+    EXECUTE 'DROP POLICY IF EXISTS "PK admins manage jobs" ON public.job_offers';
+    EXECUTE 'CREATE POLICY "PK admins manage jobs" ON public.job_offers
+             FOR ALL TO authenticated
+             USING (public.is_pk_admin())
+             WITH CHECK (public.is_pk_admin())';
+  ELSIF to_regclass('public.profiles') IS NOT NULL THEN
+    EXECUTE 'DROP POLICY IF EXISTS "Admins full access jobs" ON public.job_offers';
+    EXECUTE 'CREATE POLICY "Admins full access jobs" ON public.job_offers
+             FOR ALL USING (
+               EXISTS (SELECT 1 FROM public.profiles p
+                       WHERE p.id = auth.uid() AND p.active = true
+                         AND p.role IN (''superadmin'', ''admin''))
+             )';
+  END IF;
+END $$;
+
+INSERT INTO public.job_offers
+  (title, department, location, contract_type, level, description, status, display_order)
+SELECT * FROM (VALUES
+  ('Responsable Investissement & Structuration', 'Finance', 'Goma', 'CDI', 'Senior',
+   'Pilotage de projets d''investissement, ingénierie financière et structuration de SPV. Expérience 5+ ans en finance structurée.',
+   'open', 1),
+  ('Directeur Opérations - RAKA Logistique', 'Logistique', 'Kinshasa', 'CDI', 'Senior',
+   'Management opérationnel de la plateforme RAKA, gestion des livreurs, optimisation des routes. Expérience en logistique urbaine.',
+   'open', 2),
+  ('Responsable Commercial - ELVO Mobilité', 'Ventes', 'Goma', 'CDI', 'Confirmé',
+   'Développement réseau distribution, gestion clients flotte, targets commerciales. Expérience mobilité/secteur automobile.',
+   'open', 3),
+  ('Ingénieur Logiciel Fullstack', 'Technologie', 'Goma / Remote', 'CDI', 'Confirmé',
+   'Développement plateformes digitales (frontend React/Vue, backend Node/Python), API REST, bases de données. Stack tech moderne.',
+   'open', 4),
+  ('Assistant Ressources Humaines', 'RH', 'Goma', 'CDI', 'Débutant',
+   'Support RH, traitement candidatures, gestion paie/absences, événements internes. Excellent relationnel et organisation.',
+   'open', 5)
+) AS v(title, department, location, contract_type, level, description, status, display_order)
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.job_offers j WHERE j.title = v.title
+);
+
+
+-- =============================================================================
+-- ÉTAPE 8 — CONTRÔLE : exécutez ces lignes seules pour vérifier.
+--   Vous devez obtenir 3 appels, 3 images de filiales et 5 offres d'emploi.
 --     SELECT title, status, deadline FROM public.call_for_projects ORDER BY id;
 --     SELECT placement, image_url, active FROM public.site_media ORDER BY display_order;
+--     SELECT title, department, status FROM public.job_offers ORDER BY display_order;
 -- =============================================================================

@@ -71,7 +71,9 @@ Il fait cinq choses, sans jamais rien dupliquer (vous pouvez le relancer) :
 4. crée **3 appels à projets** de départ (2 ouverts, 1 clôturé) — modifiables
    depuis l'admin ;
 5. crée les **3 images des filiales** (FRIVIA, ELIKYA, YOUPI) pour qu'elles
-   apparaissent sur le site et dans la médiathèque.
+   apparaissent sur le site et dans la médiathèque ;
+6. crée la table **Carrières** (`job_offers`) avec les 5 offres d'emploi déjà
+   présentes sur le site, gérables depuis le menu « Carrières » de l'admin.
 
 Si vous aviez déjà exécuté `schema.sql`, `crm.sql` et `admin-modules.sql`, ce
 script reste compatible et ne casse rien. Les messages « NOTICE : Table absente
@@ -108,11 +110,34 @@ Emplacements disponibles : `accueil-hero`, `accueil-presentation`,
 
 ---
 
+## 4 bis. Gérer les offres d'emploi (page Carrières)
+
+1. Ouvrez **`https://votre-domaine.com/admin/`** puis le menu **Carrières —
+   Offres d'emploi**.
+2. **Créer une offre d'emploi** : intitulé, département/filiale, lieu, type de
+   contrat, niveau, description, profil recherché, ordre d'affichage et date
+   limite (optionnelle).
+3. Statut :
+   - **Brouillon** → visible uniquement dans l'admin ;
+   - **Publiée** → affichée aussitôt sur `careers.html` ;
+   - **Clôturée** → l'offre reste affichée comme terminée… ou dépubliez-la en
+     repassant en brouillon pour la retirer du site.
+4. Les 5 offres déjà présentes sur le site sont créées automatiquement par le
+   script SQL : modifiez-les ou supprimez-les librement.
+
+Le bouton **Postuler** de chaque offre renvoie au formulaire « Envoyez votre CV »
+et pré-remplit le champ *Poste convoité*. En mode statique, le CV ne peut pas
+être téléversé : le candidat est invité à l'envoyer par email
+(`carrieres@pkglobalpartners.com`) en rappelant la référence de sa candidature.
+Toutes les candidatures arrivent dans la table `candidatures`, consultable depuis
+le CRM (bouton **Synchroniser les sources**).
+
 ## 5. Vérifier que tout fonctionne
 
 - Page **Appels à projets** : les 3 appels doivent s'afficher (2 « Ouvert »,
   1 « Clôturé »). Ils sont publiés depuis l'admin (menu *Appels à projets*).
 - Page **Filiales** : les 3 visuels viennent de la médiathèque.
+- Page **Carrières** : les 5 offres publiées s'affichent (Admin → Carrières).
 - Formulaire de **contact** : après envoi, une référence `WEB-…` s'affiche et la
   demande apparaît dans l'admin (module Demandes / CRM).
 
@@ -126,6 +151,8 @@ Erreurs fréquentes :
 | Symptôme | Cause probable | Solution |
 |----------|----------------|----------|
 | « Aucun appel à projets publié » | script SQL non exécuté, ou appels en **Brouillon** | exécuter `hebergement-statique.sql` ; passer le statut à **Ouvert** dans l'admin |
+| Les offres d'emploi ne changent pas | module Carrières : offres en **Brouillon** ou script non exécuté | exécuter `supabase/careers.sql` ; statut **Publiée** |
+| « Module « Carrières » indisponible » dans l'admin | table `job_offers` absente | exécuter `supabase/careers.sql` dans le SQL Editor |
 | Les images restent celles d'origine | aucune image **active** avec le bon emplacement | Médiathèque → vérifier « Emplacement » et « Active » |
 | Image « PK GLOBAL PARTNERS » à la place d'une photo | fichier absent sur l'hébergeur | envoyer le dossier `images/` ou renseigner une URL `https://…` |
 | Formulaire : « impossible d'enregistrer » | politiques d'insertion absentes | réexécuter la partie 2 de `hebergement-statique.sql` |
