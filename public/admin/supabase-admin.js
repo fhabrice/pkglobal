@@ -56,7 +56,12 @@
   };
   // Emplacements connus du site public : une image active portant un de ces
   // emplacements remplace l'image par défaut du même emplacement.
-  const MEDIA_PLACEMENTS = ['accueil-hero', 'accueil-presentation', 'galerie-1', 'galerie-2', 'galerie-3', 'galerie-4', 'galerie-5'];
+  // Emplacements reconnus par le site public (page d'accueil + page Filiales).
+  const MEDIA_PLACEMENTS = [
+    'accueil-hero', 'accueil-presentation',
+    'galerie-1', 'galerie-2', 'galerie-3', 'galerie-4', 'galerie-5',
+    'filiale-frivia', 'filiale-elikya', 'filiale-youpi'
+  ];
   const ADMIN_ROUTES = ['dashboard', 'calls', 'media', 'crm'];
 
   function escapeHtml(value) {
@@ -881,9 +886,12 @@
 
     let client;
     try {
+      // Configuration centralisée (public/js/pk-config.js) — modifiable en
+      // un seul endroit, sans toucher au code.
+      const siteConfig = window.PK_CONFIG || {};
       client = supabaseLibrary.createClient(
-        'https://vumerporrumovowyonfj.supabase.co',
-        'sb_publishable_1clRgc8vKrinbm0VM7OR2g_BUnDZVV4'
+        siteConfig.supabaseUrl || 'https://vumerporrumovowyonfj.supabase.co',
+        siteConfig.supabaseAnonKey || 'sb_publishable_1clRgc8vKrinbm0VM7OR2g_BUnDZVV4'
       );
     } catch (err) {
       showError('Impossible de démarrer le client Supabase. Vérifiez sa configuration.');

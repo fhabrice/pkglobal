@@ -53,6 +53,11 @@ const adminIndexPath = path.join(adminDir, 'index.html');
 // Express static's directory-index redirect for the bare /admin URL.
 app.get(['/admin', '/admin/'], (req, res) => res.sendFile(adminIndexPath));
 app.use('/admin', express.static(adminDir));
+// Mêmes alias que les règles du fichier .htaccess : depuis /admin/, les pages
+// chargent « ../js/… » et « ../css/… », c'est-à-dire /js/… et /css/…
+// (utile en hébergement statique comme derrière le serveur Node).
+app.use('/js', express.static(path.join(__dirname, 'public', 'js')));
+app.use('/css', express.static(path.join(__dirname, 'public', 'css')));
 app.use('/uploads', express.static(uploadDir));
 
 // Multer storage for documents & uploads

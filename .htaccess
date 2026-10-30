@@ -1,7 +1,50 @@
-# LiteSpeed / Apache: serve the admin page and its assets at the URLs used
-# by the site. Keep these rules before any catch-all rewrite rules.
+# =============================================================================
+# PK GLOBAL PARTNERS — configuration Apache / LiteSpeed (hébergement mutualisé)
+# =============================================================================
+
+DirectoryIndex index.html
+
 <IfModule mod_rewrite.c>
 RewriteEngine On
-RewriteRule ^admin/?$ public/admin/index.html [L]
-RewriteRule ^admin/(admin\.(?:js|css))$ public/admin/$1 [L]
+
+# --- Espace d'administration : /admin  ->  public/admin/index.html -----------
+#     On force la barre finale pour que les chemins relatifs de la page
+#     fonctionnent, puis on sert tous ses fichiers depuis public/admin/.
+RewriteRule ^admin$ admin/ [R=301,L]
+RewriteRule ^admin/$ public/admin/index.html [L]
+RewriteRule ^admin/(.+)$ public/admin/$1 [L]
+
+# --- Ressources partagées (depuis /admin/, « ../js/… » pointe sur /js/…) -----
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^js/(.+)$ public/js/$1 [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^css/(.+)$ public/css/$1 [L]
 </IfModule>
+
+# --- Sécurité : on n'expose pas les fichiers techniques ----------------------
+<IfModule mod_authz_core.c>
+  <FilesMatch "(^\.env|^\.env\..*|package\.json|package-lock\.json|server\.js|database\.js|supabase\.js)$">
+    Require all denied
+  </FilesMatch>
+</IfModule>
+<IfModule !mod_authz_core.c>
+  <FilesMatch "(^\.env|^\.env\..*|package\.json|package-lock\.json|server\.js|database\.js|supabase\.js)$">
+    Order allow,deny
+    Deny from all
+  </FilesMatch>
+</IfModule>
+
+RedirectMatch 404 ^/(node_modules|data|backups|tests|supabase)/
+
+# --- Mise en cache des fichiers statiques ------------------------------------
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/jpeg  "access plus 1 month"
+  ExpiresByType image/png   "access plus 1 month"
+  ExpiresByType image/svg+xml "access plus 1 month"
+  ExpiresByType text/css    "access plus 1 week"
+  ExpiresByType application/javascript "access plus 1 week"
+</IfModule>
+
+# --- Pages d'erreur ----------------------------------------------------------
+ErrorDocument 404 /404.html

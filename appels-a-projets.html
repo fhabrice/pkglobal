@@ -407,6 +407,7 @@
         </div>
     </footer>
 
+    <script src="public/js/pk-config.js"></script>
     <script>
         window.addEventListener('scroll', () => {
             const nav = document.getElementById('navbar');
@@ -415,13 +416,18 @@
         });
 
         // --- Appels à projets : données réelles uniquement ---
-        // La liste provient de GET /api/public/calls (hébergement Node) ou, à
-        // défaut, de la table Supabase « call_for_projects » (hébergement
-        // statique) : dans les deux cas, uniquement les appels ouverts ou
-        // clôturés réellement publiés depuis l'espace admin.
+        // La liste provient de la table Supabase « call_for_projects »
+        // (hébergement statique) ou, à défaut, de GET /api/public/calls
+        // (hébergement Node) : dans les deux cas, uniquement les appels ouverts
+        // ou clôturés réellement publiés depuis l'espace admin.
         // Aucun appel de démonstration ou de secours n'est affiché.
-        const SUPABASE_URL = 'https://vumerporrumovowyonfj.supabase.co';
-        const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_1clRgc8vKrinbm0VM7OR2g_BUnDZVV4';
+        // Configuration centralisée : public/js/pk-config.js
+        const PK = window.PK_CONFIG || {};
+        const SUPABASE_URL = PK.supabaseUrl || 'https://vumerporrumovowyonfj.supabase.co';
+        const SUPABASE_PUBLISHABLE_KEY = PK.supabaseAnonKey || 'sb_publishable_1clRgc8vKrinbm0VM7OR2g_BUnDZVV4';
+        // Hébergement statique : on interroge Supabase en priorité ; l'API Node
+        // n'est utilisée que si elle est disponible (hébergement VPS/Node).
+        const NODE_FIRST = PK.dataSource === 'node';
         let currentCalls = [];
         let callsLoaded = false;
         let callsLoadFailed = false;
@@ -429,14 +435,19 @@
         let currentFilter = 'all';
 
         async function fetchCallsFromNodeApi() {
-            const response = await fetch('/api/public/calls', {
-                headers: { 'Accept': 'application/json' },
-                cache: 'no-store'
-            });
-            if (!response.ok) throw new Error('API indisponible');
-            const calls = await response.json();
-            if (!Array.isArray(calls)) throw new Error('Réponse API invalide');
-            return calls;
+            try {
+                const response = await fetch('/api/public/calls', {
+                    headers: { 'Accept': 'application/json' },
+                    cache: 'no-store'
+                });
+                if (!response.ok) throw new Error('API indisponible');
+                const calls = await response.json();
+                if (!Array.isArray(calls)) throw new Error('Réponse API invalide');
+                return calls;
+            } catch (err) {
+                console.warn('Node API fetch failed, falling back to Supabase:', err.message);
+                throw err;
+            }
         }
 
         async function fetchCallsFromSupabase() {
@@ -673,17 +684,29 @@
             grid.appendChild(loading);
             syncCallSelect();
 
+            // Ordre des sources : Supabase d'abord (fonctionne sur tous les
+            // hébergements), API Node ensuite si elle est disponible.
+            const sources = NODE_FIRST
+                ? [{ name: 'api', load: fetchCallsFromNodeApi }, { name: 'supabase', load: fetchCallsFromSupabase }]
+                : [{ name: 'supabase', load: fetchCallsFromSupabase }, { name: 'api', load: fetchCallsFromNodeApi }];
+
             try {
-                let calls;
-                try {
-                    calls = await fetchCallsFromNodeApi();
-                    callsSource = 'api';
-                } catch (nodeError) {
-                    // Hébergement statique sans API Node : lecture directe des
-                    // appels publiés dans Supabase (RLS : open/closed uniquement).
-                    calls = await fetchCallsFromSupabase();
-                    callsSource = 'supabase';
+                let calls = null;
+                let lastError = null;
+                for (const source of sources) {
+                    try {
+                        const result = await source.load();
+                        if (Array.isArray(result) && result.length) {
+                            calls = result;
+                            callsSource = source.name;
+                            break;
+                        }
+                        if (!Array.isArray(calls)) { calls = Array.isArray(result) ? result : []; callsSource = source.name; }
+                    } catch (error) {
+                        lastError = error;
+                    }
                 }
+                if (calls === null) throw lastError || new Error('Aucune source disponible');
                 currentCalls = calls;
                 callsLoaded = true;
                 renderCalls();
@@ -770,22 +793,55 @@
                 const documentInput = document.getElementById('document');
                 if (documentInput && !documentInput.files.length) formData.delete('document');
 
+                // Dépôt : Supabase d'abord (hébergement statique), sinon l'API
+                // Node si elle répond.
                 let result = null;
-                let nodeApiUnavailable = false;
-                try {
-                    const response = await fetch('/api/candidatures', { method: 'POST', body: formData });
-                    result = await response.json().catch(() => null);
-                    if (!response.ok || !result || (!result.success && !result.error)) nodeApiUnavailable = true;
-                } catch (networkError) {
-                    nodeApiUnavailable = true;
+                let nodeApiUnavailable = true;
+                if (!NODE_FIRST) {
+                    try {
+                        const inserted = await submitCandidatureToSupabase(formData, documentInput);
+                        result = { success: true, id: inserted.id, mode: 'supabase', documentName: inserted.documentName };
+                        nodeApiUnavailable = false;
+                    } catch (supabaseError) {
+                        console.warn('Dépôt Supabase impossible, essai de l’API Node :', supabaseError.message);
+                    }
+                }
+                if (nodeApiUnavailable) {
+                    try {
+                        const response = await fetch('/api/candidatures', { method: 'POST', body: formData });
+                        result = await response.json().catch(() => null);
+                        if (response.ok && result && result.success) {
+                            result.mode = 'node';
+                            nodeApiUnavailable = false;
+                        } else if (result && result.error) {
+                            nodeApiUnavailable = false;
+                        }
+                    } catch (networkError) {
+                        nodeApiUnavailable = true;
+                    }
+                }
+
+                // En dernier recours (mode « node ») : dépôt direct Supabase.
+                if (nodeApiUnavailable && (!result || !result.error)) {
+                    try {
+                        const inserted = await submitCandidatureToSupabase(formData, documentInput);
+                        result = { success: true, id: inserted.id, mode: 'supabase', documentName: inserted.documentName };
+                        nodeApiUnavailable = false;
+                    } catch (supabaseError) {
+                        console.warn('Dépôt Supabase impossible :', supabaseError.message);
+                    }
                 }
 
                 if (!nodeApiUnavailable && result && result.success) {
-                    document.getElementById('form-success-message').textContent =
-                        'Votre dossier a été enregistré sous la référence #CAND-' + result.id + ' et transmis au comité de sélection. ' +
-                        (result.email_status === 'sent'
+                    const confirmation = result.mode === 'supabase'
+                        ? (result.documentName
+                            ? 'Pour joindre votre document « ' + result.documentName + ' », transmettez-le par email à info@pkglobalpartners.com en rappelant cette référence.'
+                            : 'La confirmation par email n’est pas disponible actuellement, mais votre dossier est bien enregistré.')
+                        : (result.email_status === 'sent'
                             ? 'Un email d’accusé de réception vous a été adressé.'
                             : 'La confirmation par email n’est pas disponible actuellement, mais votre dossier est bien enregistré.');
+                    document.getElementById('form-success-message').textContent =
+                        'Votre dossier a été enregistré sous la référence #CAND-' + result.id + ' et transmis au comité de sélection. ' + confirmation;
                     successBox.classList.remove('hidden');
                     form.reset();
                     successBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -794,16 +850,6 @@
                         result.error || 'Une erreur est survenue lors du dépôt. Veuillez réessayer ou nous écrire à info@pkglobalpartners.com.';
                     errorBox.classList.remove('hidden');
                     errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                } else if (callsSource === 'supabase') {
-                    const inserted = await submitCandidatureToSupabase(formData, documentInput);
-                    document.getElementById('form-success-message').textContent =
-                        'Votre dossier a été enregistré sous la référence #CAND-' + inserted.id + ' et transmis au comité de sélection. ' +
-                        (inserted.documentName
-                            ? 'Pour joindre votre document « ' + inserted.documentName + ' », transmettez-le par email à info@pkglobalpartners.com en rappelant cette référence.'
-                            : 'La confirmation par email n’est pas disponible actuellement, mais votre dossier est bien enregistré.');
-                    successBox.classList.remove('hidden');
-                    form.reset();
-                    successBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 } else {
                     document.getElementById('form-error-message').textContent =
                         'Impossible de joindre le serveur de dépôt. Veuillez réessayer plus tard ou transmettre votre dossier à info@pkglobalpartners.com.';
@@ -821,6 +867,6 @@
             }
         });
     </script>
-    <script src="/public/js/site-connect.js"></script>
+    <script src="public/js/site-connect.js"></script>
 </body>
 </html>

@@ -12,6 +12,30 @@ Le serveur Node.js et son API utilisent SQLite pour les fonctions complètes. Le
 
 L'interface admin utilise désormais Supabase Auth par défaut, y compris avec un hébergement statique. En mode Supabase, la connexion, le tableau de bord, le **CRM complet** (contacts, pipeline, activités et synchronisation des sources), les **Appels à projets** (création et publication vers la page publique) et la **Médiathèque** (poster, modifier et supprimer les images du site) sont disponibles ; les autres modules historiques sont masqués. Le tableau de bord affiche l'état réel de chaque module et la migration SQL à exécuter si l'un d'eux n'est pas encore installé. En hébergement statique, la page des appels à projets et les images gérées en admin sont lues directement depuis Supabase. Pour utiliser l'ancien admin Node/SQLite, remplacer `data-admin-backend="supabase"` par `data-admin-backend="node"` dans `public/admin/index.html` et démarrer son API. Ces deux modes utilisent des comptes et des données distincts.
 
+### Hébergement statique (sans Node.js)
+
+Le site fonctionne également en **pur statique** : les pages HTML interrogent
+Supabase directement depuis le navigateur, sans serveur Node. C'est le mode
+recommandé pour un hébergement mutualisé.
+
+1. Envoyer par FTP les pages HTML, `logo.svg`, le dossier `public/`, `.htaccess`
+   (et le dossier `images/` si vous utilisez des photos locales). Ne jamais
+   publier `server.js`, `node_modules/`, `data/`, `backups/`, `supabase/`,
+   `tests/` ni `.env`.
+2. Vérifier `public/js/pk-config.js` : c'est le seul fichier contenant l'URL du
+   projet Supabase et sa clé **publishable** (jamais `service_role`).
+   `dataSource` vaut `'auto'` (Supabase puis API Node si elle existe),
+   `'supabase'` (100 % statique) ou `'node'`.
+3. Exécuter `supabase/hebergement-statique.sql` dans le SQL Editor : il crée
+   les politiques de lecture publique et d'insertion des formulaires, 3 appels
+   à projets de départ et les 3 images des filiales (`filiale-frivia`,
+   `filiale-elikya`, `filiale-youpi`). Le script est idempotent.
+4. En cas de problème, ajouter `?pkdebug=1` à l'URL d'une page et ouvrir la
+   console (F12) : le diagnostic indique table par table ce qui est lu.
+
+Procédure complète, tableau de dépannage et gestion des images : voir
+**[`GUIDE_HEBERGEUR.md`](GUIDE_HEBERGEUR.md)**.
+
 ### Hébergement LiteSpeed / Apache
 
 Le fichier `.htaccess` fournit les règles pour servir `/admin` et ses fichiers depuis `public/admin/`. Si le serveur possède déjà un `.htaccess`, fusionner ces règles avant les règles générales plutôt que de remplacer la configuration existante ; la réécriture doit être autorisée par l'hébergeur. Déployer également les fichiers `public/admin/` et `public/css/` et `public/js/` à la racine du site.
