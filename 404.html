@@ -4,15 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Page introuvable | PK GLOBAL PARTNERS</title>
+
+    <!--
+      IMPORTANT — ne pas retirer cette balise.
+      Cette page est servie pour N'IMPORTE QUELLE adresse erronée. Sans elle,
+      les liens « index.html » et « logo.svg » sont résolus par rapport au
+      dossier de l'adresse fautive : par exemple depuis /public/une-page.html
+      ils devenaient /public/index.html, qui n'existe pas, et le visiteur
+      restait bloqué sur une erreur 404 en boucle.
+      Si le site est installé dans un sous-dossier (ex. /pkglobal/), remplacez
+      « / » par ce sous-dossier : c'est la seule ligne à modifier.
+    -->
+    <base href="/">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-emerald-950 text-white min-h-screen flex items-center justify-center p-6">
-    <div class="text-center max-w-xl">
+    <div class="text-center max-w-2xl">
         <img src="logo.svg" alt="PK Global Partners" class="h-16 w-auto object-contain mx-auto mb-8">
         <p class="text-yellow-400 text-sm font-bold uppercase tracking-[0.3em] mb-3">Erreur 404</p>
         <h1 class="text-3xl md:text-4xl font-extrabold mb-4">Cette page est introuvable</h1>
         <p class="text-emerald-100/70 mb-10">Le lien est peut-être obsolète ou l'adresse mal recopiée.</p>
+
         <div class="flex flex-wrap justify-center gap-4">
             <a href="index.html" class="bg-yellow-400 hover:bg-yellow-300 text-emerald-950 font-bold px-8 py-3.5 rounded-xl text-xs uppercase tracking-widest transition">
                 <i class="fas fa-home mr-2"></i> Retour à l'accueil
@@ -21,6 +35,21 @@
                 Nous contacter
             </a>
         </div>
+
+        <p class="text-emerald-100/50 text-xs uppercase tracking-widest font-bold mt-14 mb-4">Aller directement à</p>
+        <div class="flex flex-wrap justify-center gap-x-6 gap-y-3 text-sm">
+            <a href="about.html" class="text-emerald-100/80 hover:text-yellow-400 transition">La holding</a>
+            <a href="filiales.html" class="text-emerald-100/80 hover:text-yellow-400 transition">Nos filiales</a>
+            <a href="appels-a-projets.html" class="text-emerald-100/80 hover:text-yellow-400 transition">Appels à projets</a>
+            <a href="careers.html" class="text-emerald-100/80 hover:text-yellow-400 transition">Carrières</a>
+            <a href="investors.html" class="text-emerald-100/80 hover:text-yellow-400 transition">Investisseurs</a>
+            <a href="contact.html" class="text-emerald-100/80 hover:text-yellow-400 transition">Contact</a>
+        </div>
+
+        <p class="text-emerald-100/40 text-xs mt-14">
+            Une question ? Écrivez-nous à
+            <a href="mailto:info@pkglobalpartners.com" class="text-yellow-400 hover:underline">info@pkglobalpartners.com</a>
+        </p>
     </div>
 </body>
 </html>

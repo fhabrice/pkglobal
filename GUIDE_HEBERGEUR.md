@@ -199,6 +199,16 @@ Renvoyez donc ces fichiers par FTP : `.htaccess`, `public/js/pk-sbclient.js`,
 `public/admin/index.html`, `public/admin/supabase-admin.js`,
 `public/js/site-connect.js`, `index.html`.
 
+### La page d'erreur 404
+
+Le fichier `404.html` est servi pour **n'importe quelle adresse erronée**. Il
+contient une balise `<base href="/">` : sans elle, les liens « Retour à
+l'accueil » seraient calculés par rapport au dossier de l'adresse fautive (par
+exemple `/public/index.html`, qui n'existe pas) et le visiteur restait bloqué
+sur l'erreur. **Si le site est installé dans un sous-dossier** (par exemple
+`/pkglobal/`), remplacez `/` par `/pkglobal/` dans cette balise : c'est la
+seule ligne à modifier.
+
 ## 5. Vérifier que tout fonctionne
 
 - Page **Appels à projets** : les 3 appels doivent s'afficher (2 « Ouvert »,
