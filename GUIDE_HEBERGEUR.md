@@ -232,6 +232,7 @@ Erreurs fréquentes :
 | « Module « Carrières » indisponible » dans l'admin | table `job_offers` absente | exécuter `supabase/careers.sql` dans le SQL Editor |
 | « Le client Supabase est indisponible » | ancien fichier `public/admin/index.html` déployé | renvoyer le nouveau `public/admin/index.html` (ou ouvrir `public/admin/index.html` directement) |
 | L'image modifiée ne change pas sur le site | cache du navigateur | **Ctrl + F5** (le site ajoute aussi un paramètre anti-cache automatiquement) |
+| « /public/careers.html » affiche une 404 | ancienne adresse : les pages sont à la **racine** du site | utilisez `https://www.pkglobalpartners.com/careers.html`. Depuis la PR #13, `public/<page>.html` redirige automatiquement vers la bonne page. |
 | Une image publiée n'apparaît nulle part | son emplacement ne correspond à aucune zone | ouvrez la console (F12) : le site indique les emplacements disponibles sur la page ; ou choisissez la zone dans la liste déroulante |
 | Image remplacée par un visuel « PK GLOBAL PARTNERS » | le fichier n'est pas accessible à l'URL enregistrée | vérifiez l'URL dans la médiathèque (bouton « Copier l'URL ») : elle doit s'ouvrir dans le navigateur |
 | Les images restent celles d'origine | aucune image **active** avec le bon emplacement | Médiathèque → vérifier « Emplacement » et « Active » |
