@@ -4,17 +4,107 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Administration | PK GLOBAL PARTNERS</title>
-    <!-- Local assets keep the portal usable even when external CDNs are blocked. -->
-    <link rel="stylesheet" href="../css/tailwind.css">
-    <link rel="stylesheet" href="../css/fontawesome/css/all.min.css">
-    <!-- Local Chart.js -->
-    <script src="../js/chart.min.js"></script>
-    <!-- Configuration centrale du site (URL + clé publique Supabase) -->
-    <script src="../js/pk-config.js"></script>
-    <!-- Local Supabase JS Client -->
-    <script src="../js/supabase.js"></script>
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="admin.css">
+    <!--
+      Chargeur de ressources « multi-chemins » : l'espace admin fonctionne
+      quelle que soit la façon dont il est servi :
+        • /admin/ (règles .htaccess actives)
+        • /public/admin/index.html (accès direct au fichier)
+        • dans un sous-dossier du domaine
+      Pour chaque fichier, plusieurs chemins sont essayés l'un après l'autre :
+      aucune configuration serveur n'est nécessaire.
+    -->
+    <script>
+    (function () {
+      var SHARED = ['../', '../public/', 'public/', '/public/'];
+      var ADMIN = ['', '../public/admin/', 'public/admin/', '/public/admin/'];
+
+      function paths(bases, file) {
+        var seen = {};
+        return bases.map(function (base) { return base + file; }).filter(function (url) {
+          if (seen[url]) return false;
+          seen[url] = true;
+          return true;
+        });
+      }
+
+      var FILES = [
+        { list: paths(SHARED, 'js/chart.min.js') },
+        { list: paths(SHARED, 'js/pk-config.js') },
+        { list: paths(SHARED, 'js/supabase.js'), critical: true },
+        { list: paths(ADMIN, 'supabase-admin.js'), critical: true },
+        { list: paths(ADMIN, 'admin.js'), critical: true }
+      ];
+
+      // Feuilles de style : chargées en parallèle, sans bloquer.
+      [['css/tailwind.css', SHARED], ['css/fontawesome/css/all.min.css', SHARED], ['admin.css', ADMIN]]
+        .forEach(function (entry) {
+          paths(entry[1], entry[0]).forEach(function (href) {
+            var link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = href;
+            document.head.appendChild(link);
+          });
+        });
+
+      function loadOne(entry, done) {
+        var index = 0;
+        (function next() {
+          if (index >= entry.list.length) { done(false, entry.list); return; }
+          var url = entry.list[index++];
+          var script = document.createElement('script');
+          var settled = false;
+          script.src = url;
+          script.onload = function () { if (!settled) { settled = true; done(true, url); } };
+          script.onerror = function () { if (!settled) { settled = true; next(); } };
+          document.head.appendChild(script);
+        })();
+      }
+
+      // Recalcule la racine du site à partir de l'emplacement réel de admin.js
+      // (le dossier admin se trouve toujours deux niveaux sous la racine :
+      // « public/admin/ » ou « /admin/ » réécrit).
+      function fixSiteLinks(adminUrl) {
+        var siteRoot = String(adminUrl).replace(/admin\.js.*$/, '') + '../../';
+        Array.prototype.forEach.call(document.querySelectorAll('a[href$="index.html"]'), function (link) {
+          link.setAttribute('href', siteRoot + 'index.html');
+        });
+        Array.prototype.forEach.call(document.querySelectorAll('img[src$="logo.svg"]'), function (img) {
+          img.setAttribute('src', siteRoot + 'logo.svg');
+        });
+      }
+
+      function loadAll(position) {
+        if (position >= FILES.length) return;
+        var entry = FILES[position];
+        loadOne(entry, function (ok, info) {
+          if (ok && position === FILES.length - 1 && typeof info === 'string') fixSiteLinks(info);
+          if (!ok) {
+            if (entry.critical && window.console) {
+              console.error('[PK Global Admin] fichier introuvable, chemins essayés :', info);
+            }
+            if (entry.critical) {
+              var box = document.getElementById('login-error');
+              var text = document.getElementById('login-error-text');
+              if (box && text) {
+                text.textContent = 'Fichier de l\'espace admin introuvable sur le serveur '
+                  + '(' + entry.list[0].split('/').pop() + '). Vérifiez que le dossier « public/ » '
+                  + 'a bien été envoyé sur votre hébergeur.';
+                box.classList.remove('hidden');
+              }
+              return;
+            }
+          }
+          loadAll(position + 1);
+        });
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () { loadAll(0); });
+      } else {
+        loadAll(0);
+      }
+    })();
+    </script>
 </head>
 <body data-admin-backend="supabase" class="h-full overflow-hidden text-slate-800 antialiased flex flex-col font-['Plus_Jakarta_Sans']">
 
@@ -285,8 +375,7 @@
     <!-- TOAST NOTIFICATION CONTAINER -->
     <div id="toast-container" class="fixed bottom-5 right-5 z-50 space-y-2 pointer-events-none"></div>
 
-    <!-- Admin Client Logic -->
-    <script src="supabase-admin.js"></script>
-    <script src="admin.js"></script>
+    <!-- Les scripts (supabase-admin.js puis admin.js) sont chargés par le
+         chargeur multi-chemins placé dans l'en-tête de cette page. -->
 </body>
 </html>

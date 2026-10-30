@@ -83,7 +83,11 @@ script reste compatible et ne casse rien. Les messages « NOTICE : Table absente
 
 ## 4. Ajouter / remplacer les images (notamment les filiales)
 
-1. Ouvrez **`https://votre-domaine.com/admin/`** (ou `public/admin/index.html`).
+1. Ouvrez **`https://votre-domaine.com/admin/`** — ou, si votre hébergeur
+   n'applique pas le fichier `.htaccess`, directement
+   **`https://votre-domaine.com/public/admin/index.html`**.
+   La page cherche automatiquement ses fichiers à plusieurs emplacements :
+   elle fonctionne dans tous les cas, sans configuration serveur.
 2. Connectez-vous avec votre compte Supabase (créé dans *Authentication →
    Users*, avec un profil `superadmin`/`admin` — voir le README).
 3. Menu **Médiathèque**.
@@ -153,6 +157,7 @@ Erreurs fréquentes :
 | « Aucun appel à projets publié » | script SQL non exécuté, ou appels en **Brouillon** | exécuter `hebergement-statique.sql` ; passer le statut à **Ouvert** dans l'admin |
 | Les offres d'emploi ne changent pas | module Carrières : offres en **Brouillon** ou script non exécuté | exécuter `supabase/careers.sql` ; statut **Publiée** |
 | « Module « Carrières » indisponible » dans l'admin | table `job_offers` absente | exécuter `supabase/careers.sql` dans le SQL Editor |
+| « Le client Supabase est indisponible » | ancien fichier `public/admin/index.html` déployé | renvoyer le nouveau `public/admin/index.html` (ou ouvrir `public/admin/index.html` directement) |
 | Les images restent celles d'origine | aucune image **active** avec le bon emplacement | Médiathèque → vérifier « Emplacement » et « Active » |
 | Image « PK GLOBAL PARTNERS » à la place d'une photo | fichier absent sur l'hébergeur | envoyer le dossier `images/` ou renseigner une URL `https://…` |
 | Formulaire : « impossible d'enregistrer » | politiques d'insertion absentes | réexécuter la partie 2 de `hebergement-statique.sql` |
