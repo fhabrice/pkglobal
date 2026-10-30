@@ -46,6 +46,14 @@
     open: 'Ouvert aux candidatures',
     closed: 'Clôturé'
   };
+  const JOB_STATUSES = ['draft', 'open', 'closed'];
+  const JOB_STATUS_LABELS = {
+    draft: 'Brouillon (non public)',
+    open: 'Publiée — candidatures ouvertes',
+    closed: 'Clôturée'
+  };
+  const JOB_LEVELS = ['Débutant', 'Confirmé', 'Senior', 'Cadre / Direction'];
+  const JOB_CONTRACTS = ['CDI', 'CDD', 'Stage', 'Freelance', 'Consultance'];
   const MEDIA_BUCKET = 'site-media';
   const MEDIA_SECTIONS = ['galerie', 'hero', 'filiales', 'general'];
   const MEDIA_SECTION_LABELS = {
@@ -56,8 +64,13 @@
   };
   // Emplacements connus du site public : une image active portant un de ces
   // emplacements remplace l'image par défaut du même emplacement.
-  const MEDIA_PLACEMENTS = ['accueil-hero', 'accueil-presentation', 'galerie-1', 'galerie-2', 'galerie-3', 'galerie-4', 'galerie-5'];
-  const ADMIN_ROUTES = ['dashboard', 'calls', 'media', 'crm'];
+  // Emplacements reconnus par le site public (page d'accueil + page Filiales).
+  const MEDIA_PLACEMENTS = [
+    'accueil-hero', 'accueil-presentation',
+    'galerie-1', 'galerie-2', 'galerie-3', 'galerie-4', 'galerie-5',
+    'filiale-frivia', 'filiale-elikya', 'filiale-youpi'
+  ];
+  const ADMIN_ROUTES = ['dashboard', 'calls', 'careers', 'media', 'crm'];
 
   function escapeHtml(value) {
     return String(value ?? '')
@@ -206,6 +219,28 @@
       eligibility: cleanText(input.eligibility, 10000) || '',
       deadline,
       status: CALL_STATUSES.includes(input.status) ? input.status : 'draft'
+    };
+  }
+
+  function jobPayload(input = {}) {
+    const rawDeadline = cleanText(input.deadline, 40);
+    let deadline = null;
+    if (rawDeadline) {
+      const parsed = new Date(/^\d{4}-\d{2}-\d{2}$/.test(rawDeadline) ? `${rawDeadline}T23:59:59` : rawDeadline.replace(' ', 'T'));
+      if (!Number.isNaN(parsed.getTime())) deadline = parsed.toISOString();
+    }
+    const order = Number(input.display_order);
+    return {
+      title: cleanText(input.title, 300),
+      department: cleanText(input.department, 120),
+      location: cleanText(input.location, 120),
+      contract_type: cleanText(input.contract_type, 60) || 'CDI',
+      level: cleanText(input.level, 60) || 'Confirmé',
+      description: cleanText(input.description, 10000) || '',
+      profile: cleanText(input.profile, 10000),
+      status: JOB_STATUSES.includes(input.status) ? input.status : 'draft',
+      display_order: Number.isFinite(order) ? order : 0,
+      deadline
     };
   }
 
@@ -726,6 +761,44 @@
       return true;
     }
 
+    // --- Carrières : offres d'emploi publiées sur la page « Carrières » ---
+
+    async function listJobs() {
+      const data = await moduleQuery(
+        client.from('job_offers').select('*').order('display_order', { ascending: true }).order('created_at', { ascending: false }),
+        'Carrières',
+        'Impossible de charger les offres d’emploi.'
+      );
+      return Array.isArray(data) ? data : [];
+    }
+
+    async function saveJob(input, id = null) {
+      const payload = jobPayload(input);
+      if (!payload.title || !payload.description) throw new Error('Intitulé du poste et description obligatoires.');
+      const builder = id
+        ? client.from('job_offers').update(Object.assign({}, payload, { updated_at: new Date().toISOString() })).eq('id', Number(id)).select().single()
+        : client.from('job_offers').insert(payload).select().single();
+      return moduleQuery(builder, 'Carrières', 'Impossible d’enregistrer l’offre d’emploi.');
+    }
+
+    async function setJobStatus(id, status) {
+      if (!JOB_STATUSES.includes(status)) throw new Error('Statut invalide : utilisez draft, open ou closed.');
+      return moduleQuery(
+        client.from('job_offers').update({ status, updated_at: new Date().toISOString() }).eq('id', Number(id)).select().single(),
+        'Carrières',
+        'Impossible de changer le statut de l’offre.'
+      );
+    }
+
+    async function deleteJob(id) {
+      await moduleQuery(
+        client.from('job_offers').delete().eq('id', Number(id)).select('id').single(),
+        'Carrières',
+        'Impossible de supprimer l’offre d’emploi.'
+      );
+      return true;
+    }
+
     // --- Médiathèque : images du site (table site_media + Storage) ---
 
     async function listMedia() {
@@ -813,6 +886,7 @@
       const overview = {
         crm: { installed: false, contacts: 0, error: null },
         calls: { installed: false, total: 0, open: 0, error: null },
+        careers: { installed: false, total: 0, open: 0, error: null },
         media: { installed: false, total: 0, error: null }
       };
       try {
@@ -826,6 +900,17 @@
         const rows = Array.isArray(result.data) ? result.data : [];
         overview.calls = { installed: true, total: rows.length, open: rows.filter(row => row.status === 'open').length, error: null };
       } catch (err) { overview.calls.error = err.message; }
+      try {
+        const result = await client.from('job_offers').select('status');
+        if (result.error) throw adminModuleError(result.error, 'Carrières', 'Lecture impossible.');
+        const jobRows = Array.isArray(result.data) ? result.data : [];
+        overview.careers = {
+          installed: true,
+          total: jobRows.length,
+          open: jobRows.filter(row => row.status === 'open').length,
+          error: null
+        };
+      } catch (err) { overview.careers.error = err.message; }
       try {
         const result = await client.from('site_media').select('id', { count: 'exact', head: true });
         if (result.error) throw adminModuleError(result.error, 'Médiathèque', 'Lecture impossible.');
@@ -844,6 +929,10 @@
       saveCall,
       setCallStatus,
       deleteCall,
+      listJobs,
+      saveJob,
+      setJobStatus,
+      deleteJob,
       listMedia,
       saveMedia,
       deleteMedia,
@@ -881,9 +970,12 @@
 
     let client;
     try {
+      // Configuration centralisée (public/js/pk-config.js) — modifiable en
+      // un seul endroit, sans toucher au code.
+      const siteConfig = window.PK_CONFIG || {};
       client = supabaseLibrary.createClient(
-        'https://vumerporrumovowyonfj.supabase.co',
-        'sb_publishable_1clRgc8vKrinbm0VM7OR2g_BUnDZVV4'
+        siteConfig.supabaseUrl || 'https://vumerporrumovowyonfj.supabase.co',
+        siteConfig.supabaseAnonKey || 'sb_publishable_1clRgc8vKrinbm0VM7OR2g_BUnDZVV4'
       );
     } catch (err) {
       showError('Impossible de démarrer le client Supabase. Vérifiez sa configuration.');
@@ -906,6 +998,7 @@
     let crmActivities = [];
     let crmOverviewData = null;
     let adminCalls = [];
+    let adminJobs = [];
     let adminMedia = [];
     let navBound = false;
     let crmEventsBound = false;
@@ -1004,6 +1097,7 @@
       setRouteHash(route);
       if (route === 'crm') await showCRM(profile);
       else if (route === 'calls') await showCalls(profile);
+      else if (route === 'careers') await showCareers(profile);
       else if (route === 'media') await showMedia(profile);
       else await showDashboard(profile, true);
     }
@@ -1324,6 +1418,15 @@
                 action: 'open-calls', actionLabel: 'Gérer les appels à projets'
               })}
               ${moduleCard({
+                icon: 'fa-briefcase',
+                title: 'Carrières — Offres d’emploi',
+                description: 'Créez et publiez vos offres : elles s’affichent automatiquement sur la page « Carrières » du site.',
+                installed: modules.careers.installed,
+                statusText: `${modules.careers.total} offre(s) au total · ${modules.careers.open} publiée(s)`,
+                error: modules.careers.error,
+                action: 'open-careers', actionLabel: 'Gérer les offres d’emploi'
+              })}
+              ${moduleCard({
                 icon: 'fa-images',
                 title: 'Médiathèque — Images',
                 description: 'Ajoutez, remplacez ou supprimez les images du site (galerie de l’accueil et emplacements des pages).',
@@ -1346,6 +1449,7 @@
               <div class="flex flex-col sm:flex-row lg:flex-col gap-2 shrink-0">
                 <button type="button" data-crm-action="open-crm" class="px-5 py-3 bg-yellow-400 hover:bg-yellow-500 text-emerald-950 text-sm font-black rounded-2xl shadow"><i class="fas fa-address-book mr-2"></i>Ouvrir le CRM</button>
                 <button type="button" data-admin-action="open-calls" class="px-5 py-3 bg-white/10 hover:bg-white/20 text-white text-sm font-bold rounded-2xl border border-white/20"><i class="fas fa-bullhorn mr-2"></i>Appels à projets</button>
+                <button type="button" data-admin-action="open-careers" class="px-5 py-3 bg-white/10 hover:bg-white/20 text-white text-sm font-bold rounded-2xl border border-white/20"><i class="fas fa-briefcase mr-2"></i>Offres d’emploi</button>
                 <button type="button" data-admin-action="open-media" class="px-5 py-3 bg-white/10 hover:bg-white/20 text-white text-sm font-bold rounded-2xl border border-white/20"><i class="fas fa-images mr-2"></i>Images du site</button>
               </div>
             </div>
@@ -1832,6 +1936,121 @@
     }
 
     // -------------------------------------------------------------
+    // CARRIÈRES (Supabase) : créer, publier, modifier, supprimer les offres
+    // d'emploi. Les offres au statut « Publiée » s'affichent sur careers.html.
+    // -------------------------------------------------------------
+
+    function jobStatusBadge(status) {
+      const classes = status === 'open' ? 'badge-open' : status === 'draft' ? 'badge-draft' : 'badge-closed';
+      return `<span class="badge-status ${classes}">${escapeHtml(JOB_STATUS_LABELS[status] || status)}</span>`;
+    }
+
+    async function showCareers(profile) {
+      if (!profile) return;
+      setRouteHash('careers');
+      setShell(profile, 'Carrières — Offres d’emploi', 'Publiez vos offres : elles apparaissent sur la page « Carrières » du site', 'careers');
+      view.textContent = 'Chargement des offres d’emploi…';
+      try {
+        adminJobs = await portal.listJobs();
+        const openCount = adminJobs.filter(job => job.status === 'open').length;
+        view.innerHTML = `<div class="space-y-6">
+          <div class="bg-gradient-to-r from-emerald-950 via-emerald-900 to-slate-900 text-white p-6 rounded-3xl shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+            <div>
+              <h3 class="text-lg font-black">Offres d’emploi</h3>
+              <p class="text-emerald-100/85 text-xs mt-1 max-w-2xl">Créez une offre puis passez son statut à <strong>« Publiée »</strong> : elle s’affichera immédiatement sur la page Carrières. Les <strong>brouillons</strong> restent visibles uniquement dans cet espace. ${adminJobs.length} offre(s) au total · ${openCount} publiée(s).</p>
+            </div>
+            <div class="flex flex-wrap gap-2 shrink-0">
+              <a href="../careers.html" target="_blank" rel="noopener" class="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl border border-white/20 flex items-center gap-2"><i class="fas fa-arrow-up-right-from-square"></i> Voir la page publique</a>
+              <button type="button" data-admin-action="new-job" class="px-4 py-2.5 bg-yellow-400 hover:bg-yellow-500 text-emerald-950 text-xs font-black rounded-xl shadow flex items-center gap-2"><i class="fas fa-plus"></i> Créer une offre d’emploi</button>
+            </div>
+          </div>
+          ${adminJobs.length === 0 ? `<div class="bg-white border border-dashed border-slate-300 rounded-3xl p-10 text-center">
+            <i class="fas fa-briefcase text-3xl text-slate-300 mb-3"></i>
+            <p class="text-sm font-bold text-slate-700">Aucune offre d’emploi pour le moment</p>
+            <p class="text-xs text-slate-500 mt-1">Cliquez sur « Créer une offre d’emploi », remplissez le formulaire puis choisissez le statut « Publiée ».</p>
+          </div>` : `<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            ${adminJobs.map(job => `<div class="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between gap-3 mb-3">
+                  ${jobStatusBadge(job.status)}
+                  <span class="text-xs font-bold text-slate-500">${escapeHtml(job.contract_type || 'CDI')} · ${escapeHtml(job.level || '—')}</span>
+                </div>
+                <h4 class="font-extrabold text-base text-slate-800 mb-2">${escapeHtml(job.title)}</h4>
+                <p class="text-xs text-slate-600 leading-relaxed mb-4">${escapeHtml(job.description || '')}</p>
+                <div class="space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs mb-4">
+                  <div class="flex items-center justify-between"><span class="text-slate-400 font-semibold">Département :</span><span class="font-bold text-slate-700">${escapeHtml(job.department || '—')}</span></div>
+                  <div class="flex items-center justify-between"><span class="text-slate-400 font-semibold">Lieu :</span><span class="font-bold text-slate-700">${escapeHtml(job.location || '—')}</span></div>
+                  <div class="flex items-center justify-between"><span class="text-slate-400 font-semibold">Ordre d’affichage :</span><span class="font-bold text-slate-700">${Number(job.display_order || 0)}</span></div>
+                  ${job.deadline ? `<div class="flex items-center justify-between"><span class="text-slate-400 font-semibold">Date limite :</span><span class="font-bold text-red-600">${formatDate(job.deadline)}</span></div>` : ''}
+                </div>
+              </div>
+              <div class="flex flex-wrap items-center justify-end gap-2 pt-4 border-t border-slate-100">
+                ${job.status !== 'open' ? `<button type="button" data-admin-action="set-job-status" data-id="${Number(job.id)}" data-status="open" class="px-3 py-1.5 bg-emerald-900 hover:bg-emerald-800 text-yellow-400 text-xs font-bold rounded-xl"><i class="fas fa-upload mr-1"></i>Publier</button>` : ''}
+                ${job.status === 'open' ? `<button type="button" data-admin-action="set-job-status" data-id="${Number(job.id)}" data-status="closed" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl">Clôturer</button>` : ''}
+                ${job.status !== 'draft' ? `<button type="button" data-admin-action="set-job-status" data-id="${Number(job.id)}" data-status="draft" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold rounded-xl">Dépublier</button>` : ''}
+                <button type="button" data-admin-action="edit-job" data-id="${Number(job.id)}" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl">Modifier</button>
+                <button type="button" data-admin-action="delete-job" data-id="${Number(job.id)}" class="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold rounded-xl">Supprimer</button>
+              </div>
+            </div>`).join('')}
+          </div>`}
+        </div>`;
+      } catch (err) {
+        view.innerHTML = `<div class="bg-red-50 border border-red-200 text-red-800 p-6 rounded-3xl text-xs space-y-3">
+          <p class="font-bold text-sm">Module « Carrières » indisponible</p>
+          <p>${escapeHtml(err.message)}</p>
+          <p class="text-[11px]">Exécutez le script <code>supabase/careers.sql</code> (ou <code>supabase/hebergement-statique.sql</code>) dans le SQL Editor de Supabase, puis réessayez.</p>
+          <button type="button" data-admin-action="open-careers" class="px-4 py-2 bg-red-700 text-white rounded-xl font-bold">Réessayer</button>
+        </div>`;
+      }
+    }
+
+    function openJobEditor(jobId = null) {
+      const job = jobId ? adminJobs.find(item => String(item.id) === String(jobId)) : null;
+      if (jobId && !job) { showCrmToast('Offre introuvable. Rechargez la liste.', 'error'); return; }
+      openCrmModal(job ? 'Modifier l’offre d’emploi' : 'Créer une offre d’emploi', `
+        <div class="space-y-4 text-xs">
+          <div><label class="block font-bold mb-1">Intitulé du poste *</label><input type="text" id="sb-job-title" value="${escapeHtml(job?.title || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold" placeholder="Ex. Responsable Commercial - ELVO Mobilité"></div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div><label class="block font-bold mb-1">Département / Filiale</label><input type="text" id="sb-job-department" value="${escapeHtml(job?.department || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200" placeholder="Finance, Logistique, Ventes, RH…"></div>
+            <div><label class="block font-bold mb-1">Lieu</label><input type="text" id="sb-job-location" value="${escapeHtml(job?.location || '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200" placeholder="Goma, Kinshasa, Remote…"></div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div><label class="block font-bold mb-1">Type de contrat</label><select id="sb-job-contract" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">${JOB_CONTRACTS.map(value => `<option value="${value}" ${(job?.contract_type || 'CDI') === value ? 'selected' : ''}>${value}</option>`).join('')}</select></div>
+            <div><label class="block font-bold mb-1">Niveau d’expérience</label><select id="sb-job-level" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">${JOB_LEVELS.map(value => `<option value="${value}" ${(job?.level || 'Confirmé') === value ? 'selected' : ''}>${value}</option>`).join('')}</select></div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div><label class="block font-bold mb-1">Ordre d’affichage</label><input type="number" id="sb-job-order" value="${Number(job?.display_order || 0)}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200" min="0" step="1"></div>
+            <div><label class="block font-bold mb-1">Date limite (optionnel)</label><input type="date" id="sb-job-deadline" value="${escapeHtml(job?.deadline ? String(job.deadline).slice(0, 10) : '')}" class="w-full px-4 py-2.5 rounded-xl border border-slate-200"></div>
+          </div>
+          <div><label class="block font-bold mb-1">Description du poste *</label><textarea id="sb-job-description" rows="3" class="w-full px-4 py-2.5 rounded-xl border border-slate-200" placeholder="Missions principales, contexte, objectifs…">${escapeHtml(job?.description || '')}</textarea></div>
+          <div><label class="block font-bold mb-1">Profil recherché</label><textarea id="sb-job-profile" rows="2" class="w-full px-4 py-2.5 rounded-xl border border-slate-200" placeholder="Formation, expérience, compétences…">${escapeHtml(job?.profile || '')}</textarea></div>
+          <div><label class="block font-bold mb-1">Statut de publication</label><select id="sb-job-status" class="w-full px-4 py-2.5 rounded-xl border border-slate-200">
+            <option value="draft" ${!job || job.status === 'draft' ? 'selected' : ''}>Brouillon (visible uniquement dans l’admin)</option>
+            <option value="open" ${job?.status === 'open' ? 'selected' : ''}>Publiée (visible sur la page Carrières)</option>
+            <option value="closed" ${job?.status === 'closed' ? 'selected' : ''}>Clôturée</option>
+          </select><p class="text-[10px] text-slate-500 mt-1">Seules les offres « Publiée » sont affichées sur le site public.</p></div>
+        </div>`, async () => {
+          const payload = {
+            title: optionalEl('sb-job-title').value,
+            department: optionalEl('sb-job-department').value,
+            location: optionalEl('sb-job-location').value,
+            contract_type: optionalEl('sb-job-contract').value,
+            level: optionalEl('sb-job-level').value,
+            display_order: optionalEl('sb-job-order').value,
+            deadline: optionalEl('sb-job-deadline').value,
+            description: optionalEl('sb-job-description').value,
+            profile: optionalEl('sb-job-profile').value,
+            status: optionalEl('sb-job-status').value
+          };
+          await portal.saveJob(payload, job?.id || null);
+          showCrmToast(job
+            ? 'Offre d’emploi mise à jour.'
+            : (payload.status === 'open' ? 'Offre publiée sur la page Carrières !' : 'Offre enregistrée (brouillon non public).'));
+          await showCareers(currentProfile);
+        });
+    }
+
+    // -------------------------------------------------------------
     // MÉDIATHÈQUE (Supabase) : téléverser, modifier, supprimer les images.
     // -------------------------------------------------------------
 
@@ -1952,6 +2171,7 @@
       const id = button.getAttribute('data-id');
       try {
         if (action === 'open-calls') await showCalls(currentProfile);
+        else if (action === 'open-careers') await showCareers(currentProfile);
         else if (action === 'open-media') await showMedia(currentProfile);
         else if (action === 'back-dashboard') await showDashboard(currentProfile, true);
         else if (action === 'new-call') openCallEditor();
@@ -1967,6 +2187,20 @@
           await portal.deleteCall(id);
           showCrmToast('Appel à projets supprimé.');
           await showCalls(currentProfile);
+        }
+        else if (action === 'new-job') openJobEditor();
+        else if (action === 'edit-job') openJobEditor(id);
+        else if (action === 'set-job-status') {
+          const status = button.getAttribute('data-status');
+          await portal.setJobStatus(id, status);
+          showCrmToast(status === 'open' ? 'Offre publiée sur la page Carrières.' : status === 'closed' ? 'Offre clôturée.' : 'Offre repassée en brouillon (non public).');
+          await showCareers(currentProfile);
+        }
+        else if (action === 'delete-job') {
+          if (!confirmAction('Supprimer définitivement cette offre d’emploi ?')) return;
+          await portal.deleteJob(id);
+          showCrmToast('Offre d’emploi supprimée.');
+          await showCareers(currentProfile);
         }
         else if (action === 'create-media') {
           button.disabled = true;

@@ -12,6 +12,37 @@ Le serveur Node.js et son API utilisent SQLite pour les fonctions complètes. Le
 
 L'interface admin utilise désormais Supabase Auth par défaut, y compris avec un hébergement statique. En mode Supabase, la connexion, le tableau de bord, le **CRM complet** (contacts, pipeline, activités et synchronisation des sources), les **Appels à projets** (création et publication vers la page publique) et la **Médiathèque** (poster, modifier et supprimer les images du site) sont disponibles ; les autres modules historiques sont masqués. Le tableau de bord affiche l'état réel de chaque module et la migration SQL à exécuter si l'un d'eux n'est pas encore installé. En hébergement statique, la page des appels à projets et les images gérées en admin sont lues directement depuis Supabase. Pour utiliser l'ancien admin Node/SQLite, remplacer `data-admin-backend="supabase"` par `data-admin-backend="node"` dans `public/admin/index.html` et démarrer son API. Ces deux modes utilisent des comptes et des données distincts.
 
+### Hébergement statique (sans Node.js)
+
+Le site fonctionne également en **pur statique** : les pages HTML interrogent
+Supabase directement depuis le navigateur, sans serveur Node. C'est le mode
+recommandé pour un hébergement mutualisé.
+
+1. Envoyer par FTP les pages HTML, `logo.svg`, le dossier `public/`, `.htaccess`
+   (et le dossier `images/` si vous utilisez des photos locales). Ne jamais
+   publier `server.js`, `node_modules/`, `data/`, `backups/`, `supabase/`,
+   `tests/` ni `.env`.
+2. Vérifier `public/js/pk-config.js` : c'est le seul fichier contenant l'URL du
+   projet Supabase et sa clé **publishable** (jamais `service_role`).
+   `dataSource` vaut `'auto'` (Supabase puis API Node si elle existe),
+   `'supabase'` (100 % statique) ou `'node'`.
+3. Exécuter `supabase/hebergement-statique.sql` dans le SQL Editor : il crée
+   les politiques de lecture publique et d'insertion des formulaires, 3 appels
+   à projets de départ et les 3 images des filiales (`filiale-frivia`,
+   `filiale-elikya`, `filiale-youpi`). Le script est idempotent.
+4. En cas de problème, ajouter `?pkdebug=1` à l'URL d'une page et ouvrir la
+   console (F12) : le diagnostic indique table par table ce qui est lu.
+
+Pages pilotées depuis l'administration (Supabase) : **Appels à projets**
+(`call_for_projects`), **Médiathèque / images** (`site_media`), **Carrières /
+offres d'emploi** (`job_offers`, migration `supabase/careers.sql`), textes
+(`site_content`), pôles d'expertise (`services_poles`) et actualités (`news`).
+Chaque module fonctionne sans serveur Node et possède son propre script SQL
+idempotent.
+
+Procédure complète, tableau de dépannage et gestion des images : voir
+**[`GUIDE_HEBERGEUR.md`](GUIDE_HEBERGEUR.md)**.
+
 ### Hébergement LiteSpeed / Apache
 
 Le fichier `.htaccess` fournit les règles pour servir `/admin` et ses fichiers depuis `public/admin/`. Si le serveur possède déjà un `.htaccess`, fusionner ces règles avant les règles générales plutôt que de remplacer la configuration existante ; la réécriture doit être autorisée par l'hébergeur. Déployer également les fichiers `public/admin/` et `public/css/` et `public/js/` à la racine du site.
@@ -45,6 +76,7 @@ Pour un essai local uniquement, `ALLOW_DEMO_USERS=true` active les comptes de d�
 
 - En mode Node/SQLite comme en mode Supabase, l'espace admin contient un module **CRM — Contacts & Pipeline** réservé aux rôles `superadmin` et `admin` : contacts, opportunités par étape, activités/relances, synchronisation idempotente des demandes commerciales, investisseurs et candidatures, puis export (Excel en Node, CSV en Supabase).
 - Les formulaires publics Node alimentent automatiquement le CRM SQLite. En mode Supabase, utilisez le bouton **Synchroniser les sources** après l'application de `supabase/crm.sql` pour importer les enregistrements Supabase existants sans doublons.
+- Les **offres d'emploi se gèrent depuis l'espace admin** (menu « Carrières », en mode Supabase) : création, publication (« Publiée » = visible sur `careers.html`), clôture et suppression. La table `job_offers` et les 5 offres de départ sont créées par `supabase/careers.sql` (également incluses dans `supabase/hebergement-statique.sql`). Le bouton « Postuler » pré-remplit le formulaire de candidature ; en hébergement statique le CV est à transmettre par email avec la référence du dossier.
 - Les **appels à projets se postent depuis l'espace admin** (menu « Appels à projets », dans les deux modes) : statut **Brouillon** = visible uniquement en admin, **Ouvert** = publié avec candidatures ouvertes, **Clôturé** = publié comme terminé. La page `appels-a-projets.html` lit `GET /api/public/calls` (mode Node) ou, à défaut d'API, la table Supabase `call_for_projects` en hébergement statique ; dans les deux cas, seuls les appels `open`/`closed` réellement présents en base sont affichés — aucune annonce fictive de secours. En mode statique, le formulaire de candidature dépose aussi directement le dossier dans Supabase (le document joint doit alors être envoyé par email avec la référence du dossier).
 - La **Médiathèque** (menu « Médiathèque — Images », dans les deux modes) permet de poster (fichier ou URL), modifier, masquer/publier et supprimer les images du site, sans toucher au code. Les images actives de la section « Galerie » enrichissent la galerie de la page d'accueil ; un *emplacement* (`accueil-hero`, `accueil-presentation`, `galerie-1` à `galerie-5`) remplace l'image par défaut correspondante. Côté public, `public/js/site-connect.js` lit `GET /api/public/media` ou la table Supabase `site_media` ; seuls les éléments actifs sont exposés.
 - Hors mode démo explicite, une nouvelle base SQLite démarre sans appels, candidatures, investisseurs, demandes, statistiques ni notifications fictifs. Les bases existantes ne sont jamais purgées automatiquement : au premier démarrage hors mode démo, les trois anciens appels seedés connus passent une seule fois en **brouillon** (sans suppression des candidatures), afin de ne plus être présentés comme officiels. Un administrateur peut ensuite les relire, les renommer et les publier intentionnellement si leur contenu devient réel.

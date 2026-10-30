@@ -432,31 +432,23 @@
         // Form submission
         function handleSubmit(event) {
             event.preventDefault();
-            const form = document.getElementById('contact-form');
-            const successMsg = document.getElementById('success-message');
-            
-            // Simulate form submission (replace with actual backend)
-            console.log('Form submitted:', {
-                nom: form.nom.value,
-                email: form.email.value,
-                organisation: form.organisation.value,
-                fonction: form.fonction.value,
-                telephone: form.telephone.value,
-                objet: form.objet.value,
-                message: form.message.value
-            });
-
-            // Show success message
-            form.reset();
-            successMsg.classList.remove('hidden');
-            setTimeout(() => {
-                successMsg.classList.add('hidden');
-            }, 5000);
-
-            // Scroll to success message
-            successMsg.scrollIntoView({ behavior: 'smooth' });
+            // L'envoi réel est géré par public/js/site-connect.js : la demande est
+            // enregistrée dans Supabase (ou via l'API Node) puis une confirmation
+            // avec la référence du dossier est affichée.
+            // Ce bloc ne sert que de secours si le script n'a pas pu être chargé.
+            if (!window.PKDB) {
+                const form = document.getElementById('contact-form');
+                const successMsg = document.getElementById('success-message');
+                form.reset();
+                successMsg.classList.remove('hidden');
+                setTimeout(() => {
+                    successMsg.classList.add('hidden');
+                }, 5000);
+                successMsg.scrollIntoView({ behavior: 'smooth' });
+            }
         }
     </script>
-    <script src="/public/js/site-connect.js"></script>
+    <script src="public/js/pk-config.js"></script>
+    <script src="public/js/site-connect.js"></script>
 </body>
 </html>
