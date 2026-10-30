@@ -48,8 +48,8 @@
           label: 'la bibliothèque Supabase',
           test: function () { return Boolean(window.supabase && window.supabase.createClient); }
         },
-        { list: paths(ADMIN, 'supabase-admin.js'), critical: true, test: function () { return Boolean(window.SupabaseAdmin); } },
-        { list: paths(ADMIN, 'admin.js'), critical: true }
+        { list: paths(ADMIN, 'supabase-admin.js'), critical: true, setsRoot: true, test: function () { return Boolean(window.SupabaseAdmin); } },
+        { list: paths(ADMIN, 'admin.js'), critical: true, setsRoot: true }
       ];
 
       // Feuilles de style : chargées en parallèle, sans bloquer.
@@ -97,8 +97,18 @@
       // Recalcule la racine du site à partir de l'emplacement réel de admin.js
       // (le dossier admin se trouve toujours deux niveaux sous la racine :
       // « public/admin/ » ou « /admin/ » réécrit).
-      function fixSiteLinks(adminUrl) {
-        var siteRoot = String(adminUrl).replace(/admin\.js.*$/, '') + '../../';
+      // Racine du site, déduite de l'endroit réel où se trouvent les fichiers
+      // de l'admin (le dossier admin est toujours deux niveaux sous la racine :
+      // « public/admin/ » ou « /admin/ » réécrit). Elle est publiée dans
+      // « window.PK_SITE_ROOT » pour que les vues de l'admin puissent construire
+      // des liens corrects vers les pages publiques.
+      function setSiteRoot(adminFileUrl) {
+        var siteRoot = String(adminFileUrl).replace(/(supabase-)?admin\.js.*$/, '') + '../../';
+        try { window.PK_SITE_ROOT = siteRoot; } catch (e) {}
+        return siteRoot;
+      }
+
+      function fixSiteLinks(siteRoot) {
         Array.prototype.forEach.call(document.querySelectorAll('a[href$="index.html"]'), function (link) {
           link.setAttribute('href', siteRoot + 'index.html');
         });
@@ -111,7 +121,10 @@
         if (position >= FILES.length) return;
         var entry = FILES[position];
         loadOne(entry, function (ok, info) {
-          if (ok && position === FILES.length - 1 && typeof info === 'string') fixSiteLinks(info);
+          if (ok && typeof info === 'string' && entry.setsRoot) {
+            var siteRoot = setSiteRoot(info);
+            if (position === FILES.length - 1) fixSiteLinks(siteRoot);
+          }
           if (!ok) {
             if (entry.critical && window.console) {
               console.error('[PK Global Admin] fichier introuvable, chemins essayés :', info);
