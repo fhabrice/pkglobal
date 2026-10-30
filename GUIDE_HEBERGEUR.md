@@ -151,6 +151,54 @@ et pré-remplit le champ *Poste convoité*. En mode statique, le CV ne peut pas
 Toutes les candidatures arrivent dans la table `candidatures`, consultable depuis
 le CRM (bouton **Synchroniser les sources**).
 
+## 4 ter. Relation : administration  ↔  site public
+
+Tout ce que vous enregistrez dans l'administration est écrit dans Supabase,
+puis relu directement par les pages du site. Rien n'est stocké dans un fichier
+sur l'hébergeur.
+
+| Module de l'administration | Table Supabase | Ce que cela change sur le site |
+|---|---|---|
+| **Contenus du site** — Textes | `site_content` | titres et textes de la page d'accueil |
+| **Contenus du site** — Pôles | `services_poles` | la section « Nos Pôles d'Expertise » |
+| **Contenus du site** — Actualités | `news` | la section « Actualités & annonces » (3 dernières) |
+| **Médiathèque** | `site_media` | toutes les images (accueil, galerie, filiales) |
+| **Appels à projets** | `call_for_projects` | la page « Appels à projets » |
+| **Carrières** | `job_offers` | la liste d'offres de la page « Carrières » |
+| **Messages reçus** | `inquiries`, `investors` | *sens inverse* : le site dépose, l'admin lit |
+| **CRM** | `crm_*` | usage interne (non affiché sur le site) |
+
+**Règle importante** : quand une table est vide, le site conserve son contenu
+d'origine. Il n'efface plus jamais vos textes, vos pôles, vos actualités ni
+votre galerie. Les images ajoutées à la galerie **s'ajoutent** à celles déjà
+présentes.
+
+### Activer l'écriture depuis l'administration (une seule fois)
+
+Les tables de la vitrine n'avaient pas encore de droits d'écriture pour les
+administrateurs : c'est pour cela que vos modifications ne s'affichaient pas.
+Exécutez **une seule fois** dans Supabase > SQL Editor le script
+`supabase/contenus-vitrine.sql`. Il :
+
+- crée les tables `site_content`, `services_poles`, `news` si elles manquent ;
+- donne aux profils « superadmin / admin » le droit d'écrire dedans ;
+- rend les messages reçus lisibles et supprimables ;
+- insère les 4 pôles d'expertise de la holding.
+
+### ⚠️ Si l'administration affiche « Fichier introuvable (supabase.js) »
+
+Certains hébergeurs bloquent les fichiers nommés `supabase.js`. Deux
+protections sont en place :
+
+1. la bibliothèque s'appelle maintenant `public/js/pk-sbclient.js` (nom qui
+   n'est jamais filtré) ;
+2. le fichier `.htaccess` livré ne bloque plus que `supabase.js` **à la racine**
+   du site — jamais celui de `public/js/`.
+
+Renvoyez donc ces fichiers par FTP : `.htaccess`, `public/js/pk-sbclient.js`,
+`public/admin/index.html`, `public/admin/supabase-admin.js`,
+`public/js/site-connect.js`, `index.html`.
+
 ## 5. Vérifier que tout fonctionne
 
 - Page **Appels à projets** : les 3 appels doivent s'afficher (2 « Ouvert »,
